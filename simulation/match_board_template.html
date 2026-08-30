@@ -1,0 +1,265 @@
+<title>Match Simulations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#EDF1F5; --surface:#FFFFFF; --surface-2:#F5F8FA;
+  --ink:#101F2B; --ink-2:#3A5062; --muted:#697F92; --line:#D3DDE5;
+  --accent:#1D6FA3; --accent-soft:#D6E7F2;
+  --atp:#1D6FA3; --atp-soft:#DCEAF4;
+  --wta:#C18DE8; --wta-ink:#7A3CB8; --wta-soft:#EFE2FA;
+  --thin:#9A6B12; --thin-soft:#F5E9CE;
+  --bar-track:#E1E9EF;
+  --hold:#2E7D46; --hold-soft:#DEEFE4;
+  --brk:#B03A34;  --brk-soft:#F6E1DF;
+  --tbk:#8A6612;  --tbk-soft:#F5EBCC;
+  --diamond:#2E8CA6; --diamond-soft:#D6EFF5;
+  --gold:#9A7414; --gold-soft:#F6ECCF;
+  --silver:#5F6E7C; --silver-soft:#E4E9ED;
+  --bronze:#8A5527; --bronze-soft:#F1E2D5;
+  --shadow:0 1px 2px rgba(16,31,43,.06),0 8px 24px -12px rgba(16,31,43,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+    --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
+    --accent:#57A6D9; --accent-soft:#1B3446;
+    --atp:#57A6D9; --atp-soft:#17303F;
+    --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
+    --thin:#D6A94A; --thin-soft:#33280F;
+    --bar-track:#1E2C38;
+  --hold:#74CE8E; --hold-soft:#152C1D;
+  --brk:#EA8B83;  --brk-soft:#301715;
+  --tbk:#DFB452;  --tbk-soft:#332810;
+    --hold:#74CE8E; --hold-soft:#152C1D;
+    --brk:#EA8B83;  --brk-soft:#301715;
+    --tbk:#DFB452;  --tbk-soft:#332810;
+  --diamond:#7FD4E8; --diamond-soft:#123642;
+  --gold:#E0B450; --gold-soft:#3A2E10;
+  --silver:#AEBCC7; --silver-soft:#232E38;
+  --bronze:#D08F5C; --bronze-soft:#3A2515;
+    --diamond:#7FD4E8; --diamond-soft:#123642;
+    --gold:#E0B450; --gold-soft:#3A2E10;
+    --silver:#AEBCC7; --silver-soft:#232E38;
+    --bronze:#D08F5C; --bronze-soft:#3A2515;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+  --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
+  --accent:#57A6D9; --accent-soft:#1B3446;
+  --atp:#57A6D9; --atp-soft:#17303F;
+  --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
+  --thin:#D6A94A; --thin-soft:#33280F;
+  --bar-track:#1E2C38;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:clamp(26px,4vw,38px);font-weight:700;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--muted);font-size:14px;max-width:64ch;margin:0}
+.sub b{color:var(--ink-2);font-weight:600}
+.controls{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  background:var(--ground);padding:14px 0;margin:20px 0 2px;border-bottom:1px solid var(--line)}
+.search{position:relative;flex:1 1 240px;min-width:190px}
+.search input{width:100%;padding:10px 12px 10px 34px;font:inherit;font-size:14px;color:var(--ink);
+  background:var(--surface);border:1px solid var(--line);border-radius:7px}
+.search input::placeholder{color:var(--muted)}
+.search input:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.segs{display:flex;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:2px}
+.segs button{font:inherit;font-size:12.5px;font-weight:600;padding:7px 14px;border:0;border-radius:5px;
+  cursor:pointer;background:transparent;color:var(--muted)}
+.segs button:hover{color:var(--ink)}
+.segs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.count{margin-left:auto;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.matches{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.match{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.mhead{display:flex;align-items:center;gap:14px;width:100%;padding:14px 16px;background:transparent;
+  border:0;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.mhead:hover{background:var(--surface-2)}
+.mhead:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.mnum{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;min-width:26px}
+.result{font-weight:600;letter-spacing:-.01em}
+.result .win{color:var(--accent)}
+.result .lose{color:var(--muted);font-weight:500}
+.mscore{margin-left:auto;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:13.5px;
+  font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.chev{color:var(--muted);font-size:11px;transition:transform .15s}
+.match.open .chev{transform:rotate(90deg)}
+.body{display:none;border-top:1px solid var(--line);padding:4px 16px 14px}
+.match.open .body{display:block}
+.stats{margin-top:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stats h3{margin:0;padding:8px 12px;font-size:11px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-2);background:var(--surface-2);
+  display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+.stats h3 .who{color:var(--ink);letter-spacing:-.01em;text-transform:none;font-size:12.5px}
+.srow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;
+  padding:4px 12px;font-size:12.5px}
+.srow:nth-child(even){background:var(--surface-2)}
+.srow .v{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;
+  color:var(--ink);font-size:12.5px}
+.srow .v.l{text-align:left}
+.srow .v.r{text-align:right}
+.srow .k{color:var(--muted);text-align:center;white-space:nowrap}
+.srow .v.best{font-weight:700;color:var(--ink)}
+.srow .v:not(.best){color:var(--muted)}
+.setrow{margin-top:12px}
+.setlabel{display:flex;align-items:baseline;gap:8px;font-size:11px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-2);padding-bottom:6px;border-bottom:1px solid var(--line)}
+.setlabel .s{font-family:"IBM Plex Mono",ui-monospace,monospace;letter-spacing:0;font-size:13px;color:var(--ink)}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px;margin-top:8px}
+.game{border:1px solid var(--line);border-radius:7px;background:var(--surface-2);overflow:hidden;
+  border-left:3px solid var(--line)}
+.game.hold{border-left-color:var(--hold);background:var(--hold-soft)}
+.game.brk{border-left-color:var(--brk);background:var(--brk-soft)}
+.game.tbk{border-left-color:var(--tbk);background:var(--tbk-soft)}
+.ghead{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;font:inherit;font-size:11.5px;
+  color:var(--muted);background:transparent;border:0;cursor:pointer;text-align:left}
+.ghead:hover{filter:brightness(0.97)}
+.ghead:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.ghead b{color:var(--ink-2);font-weight:600}
+.tag{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  padding:1px 5px;border-radius:3px}
+.game.hold .tag{color:var(--hold)}
+.game.brk .tag{color:var(--brk)}
+.game.tbk .tag{color:var(--tbk)}
+.gwin{margin-left:auto;color:var(--ink-2);font-weight:600}
+.gscore{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);
+  font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+.gchev{color:var(--muted);font-size:9px;transition:transform .15s}
+.game.open .gchev{transform:rotate(90deg)}
+.pts{display:none;padding:0 10px 8px}
+.game.open .pts{display:block}
+.pt{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:1px 0}
+.pt .who{color:var(--ink-2)}
+.pt .sc{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--muted);font-variant-numeric:tabular-nums}
+.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+footer{margin-top:22px;font-size:12.5px;color:var(--muted);max-width:72ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:560px){.wrap{padding:20px 12px 48px}.count{width:100%;margin:2px 0 0;text-align:right}}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Match Simulations</h1>
+  <p class="sub">Point-by-point output from the tennis simulator. Every point carries the
+  player who won it, the number of shots it lasted, and the running game score.
+  Open a match for its statistics, sets, games and points. Aces are not listed:
+  the simulator records an unreturned serve as a one-shot point and cannot tell a
+  clean ace from a serve that was reached but not returned.</p>
+</header>
+
+<div class="controls">
+  <div class="search">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg>
+    <input id="q" type="search" placeholder="Search a player&hellip;" autocomplete="off" aria-label="Search players">
+  </div>
+  <div class="segs">
+    <button id="expand">Expand all</button>
+    <button id="collapse">Collapse all</button>
+  </div>
+  <div class="count" id="count"></div>
+</div>
+<div class="legend" style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:var(--muted)">
+  <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--hold);vertical-align:0"></span> hold</span>
+  <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--brk);vertical-align:0"></span> break</span>
+  <span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--tbk);vertical-align:0"></span> tiebreak</span>
+  <span style="margin-left:auto">click a game to see its points</span>
+</div>
+
+<div class="matches" id="list"></div>
+<div class="empty" id="empty" hidden>No match involves that player.</div>
+
+<footer id="foot"></footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/;
+const list=document.getElementById('list'), empty=document.getElementById('empty'),
+      countEl=document.getElementById('count'), qEl=document.getElementById('q');
+let query='';
+
+function view(){
+  if(!query) return DATA;
+  const n=query.toLowerCase();
+  return DATA.filter(m=>m.winner.toLowerCase().includes(n)||m.loser.toLowerCase().includes(n));
+}
+// green = the server held, red = they were broken, yellow = tiebreak
+function outcome(g){
+  if(g.kind==='tiebreak') return {cls:'tbk', tag:'Tiebreak'};
+  return g.winner===g.server ? {cls:'hold', tag:'Hold'} : {cls:'brk', tag:'Break'};
+}
+function gameHtml(g){
+  const o=outcome(g);
+  const serve = g.kind==='tiebreak' ? '' : '<span>serve <b>'+g.server+'</b></span>';
+  const pts = g.points.map(p=>
+    '<div class="pt"><span class="who">'+p.w+' <span style="color:var(--muted)">('+p.n+')</span></span>'+
+    '<span class="sc">'+p.s+'</span></div>').join('');
+  return '<div class="game '+o.cls+'">'+
+    '<button class="ghead" aria-expanded="false"><span class="gchev">&#9654;</span>'+
+    '<span class="tag">'+o.tag+'</span>'+serve+
+    '<span class="gwin">'+g.winner+'</span>'+
+    '<span class="gscore">'+g.score+'</span></button>'+
+    '<div class="pts">'+pts+'</div></div>';
+}
+function statsHtml(m){
+  const rows=m.stats.map(r=>
+    '<div class="srow"><span class="v l'+(r.better==='a'?' best':'')+'">'+r.a+'</span>'+
+    '<span class="k">'+r.label+'</span>'+
+    '<span class="v r'+(r.better==='b'?' best':'')+'">'+r.b+'</span></div>').join('');
+  return '<div class="stats"><h3><span class="who">'+m.statNames[0]+'</span>'+
+         '<span>Match statistics</span>'+
+         '<span class="who">'+m.statNames[1]+'</span></h3>'+rows+'</div>';
+}
+function bodyHtml(m){
+  // sets first, statistics underneath -- the scoreline is what you came for
+  return m.sets.map((s,i)=>
+    '<div class="setrow"><div class="setlabel"><span>Set '+(i+1)+'</span>'+
+    '<span class="s">'+s.score+'</span><span style="color:var(--muted)">'+s.winner+'</span></div>'+
+    '<div class="games">'+s.games.map(gameHtml).join('')+'</div></div>').join('') + statsHtml(m);
+}
+function render(){
+  const v=view();
+  countEl.textContent=v.length+(v.length===1?' match':' matches');
+  empty.hidden=v.length>0;
+  list.innerHTML=v.map(m=>
+    '<div class="match" data-n="'+m.n+'">'+
+      '<button class="mhead" aria-expanded="false"><span class="mnum">'+m.n+'</span>'+
+      '<span class="result"><span class="win">'+m.winner+'</span> def. <span class="lose">'+m.loser+'</span></span>'+
+      '<span class="mscore">'+m.score+'</span><span class="chev">&#9654;</span></button>'+
+      '<div class="body"></div></div>').join('');
+  // bodies render on first open, so 3,000+ points never all build at once
+  list.querySelectorAll('.match').forEach(el=>{
+    const m=v.find(x=>x.n===+el.dataset.n);
+    el.querySelector('.mhead').addEventListener('click',()=>{
+      const open=el.classList.toggle('open');
+      el.querySelector('.mhead').setAttribute('aria-expanded',String(open));
+      const body=el.querySelector('.body');
+      if(open && !body.dataset.built){
+        body.innerHTML=bodyHtml(m); body.dataset.built='1';
+        body.querySelectorAll('.ghead').forEach(h=>h.addEventListener('click',()=>{
+          const g=h.parentElement, on=g.classList.toggle('open');
+          h.setAttribute('aria-expanded',String(on));
+        }));
+      }
+    });
+  });
+}
+document.getElementById('expand').addEventListener('click',()=>{
+  list.querySelectorAll('.match').forEach(el=>{ if(!el.classList.contains('open')) el.querySelector('.mhead').click(); });
+});
+document.getElementById('collapse').addEventListener('click',()=>{
+  list.querySelectorAll('.match.open').forEach(el=>el.querySelector('.mhead').click());
+});
+qEl.addEventListener('input',e=>{ query=e.target.value.trim(); render(); });
+document.getElementById('foot').textContent =
+  DATA.length+' matches, '+DATA.reduce((a,m)=>a+m.points,0).toLocaleString()+' points simulated.';
+render();
+</script>

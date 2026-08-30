@@ -1,0 +1,5 @@
+# Sportradar credentials + cached API responses
+.sportradar_key
+sportradar_cache/
+__pycache__/
+.DS_Store

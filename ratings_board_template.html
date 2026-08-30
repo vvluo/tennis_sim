@@ -1,0 +1,284 @@
+<title>Tour Ratings Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#EDF1F5; --surface:#FFFFFF; --surface-2:#F5F8FA;
+  --ink:#101F2B; --ink-2:#3A5062; --muted:#697F92; --line:#D3DDE5;
+  --accent:#1D6FA3; --accent-soft:#D6E7F2;
+  --atp:#1D6FA3; --atp-soft:#DCEAF4;
+  --wta:#C18DE8; --wta-ink:#7A3CB8; --wta-soft:#EFE2FA;
+  --thin:#9A6B12; --thin-soft:#F5E9CE;
+  --bar-track:#E1E9EF;
+  --diamond:#2E8CA6; --diamond-soft:#D6EFF5;
+  --gold:#9A7414; --gold-soft:#F6ECCF;
+  --silver:#5F6E7C; --silver-soft:#E4E9ED;
+  --bronze:#8A5527; --bronze-soft:#F1E2D5;
+  --shadow:0 1px 2px rgba(16,31,43,.06),0 8px 24px -12px rgba(16,31,43,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+    --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
+    --accent:#57A6D9; --accent-soft:#1B3446;
+    --atp:#57A6D9; --atp-soft:#17303F;
+    --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
+    --thin:#D6A94A; --thin-soft:#33280F;
+    --bar-track:#1E2C38;
+  --diamond:#7FD4E8; --diamond-soft:#123642;
+  --gold:#E0B450; --gold-soft:#3A2E10;
+  --silver:#AEBCC7; --silver-soft:#232E38;
+  --bronze:#D08F5C; --bronze-soft:#3A2515;
+    --diamond:#7FD4E8; --diamond-soft:#123642;
+    --gold:#E0B450; --gold-soft:#3A2E10;
+    --silver:#AEBCC7; --silver-soft:#232E38;
+    --bronze:#D08F5C; --bronze-soft:#3A2515;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+  --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
+  --accent:#57A6D9; --accent-soft:#1B3446;
+  --atp:#57A6D9; --atp-soft:#17303F;
+  --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
+  --thin:#D6A94A; --thin-soft:#33280F;
+  --bar-track:#1E2C38;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px; margin:0 auto; padding:32px 20px 64px}
+header{margin-bottom:24px}
+h1{
+  font-size:clamp(26px,4vw,38px); font-weight:700; letter-spacing:-.02em;
+  margin:0 0 6px; text-wrap:balance;
+}
+.sub{color:var(--muted); font-size:14px; max-width:64ch; margin:0}
+.sub b{color:var(--ink-2); font-weight:600}
+
+.legend{display:flex; flex-wrap:wrap; gap:18px; margin-top:18px; padding-top:16px; border-top:1px solid var(--line)}
+.leg{display:flex; gap:8px; align-items:baseline; font-size:12.5px; color:var(--muted)}
+.leg b{font-family:Archivo; font-weight:700; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-2)}
+
+.controls{
+  position:sticky; top:0; z-index:5;
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  background:var(--ground); padding:14px 0; margin-bottom:2px;
+  border-bottom:1px solid var(--line);
+}
+.search{position:relative; flex:1 1 260px; min-width:200px}
+.search input{
+  width:100%; padding:10px 12px 10px 34px; font:inherit; font-size:14px;
+  color:var(--ink); background:var(--surface);
+  border:1px solid var(--line); border-radius:7px;
+}
+.search input::placeholder{color:var(--muted)}
+.search input:focus-visible{outline:2px solid var(--accent); outline-offset:1px; border-color:var(--accent)}
+.search svg{position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--muted)}
+.segs{display:flex; gap:2px; background:var(--surface); border:1px solid var(--line); border-radius:7px; padding:2px}
+.segs button{
+  font:inherit; font-size:12.5px; font-weight:600; letter-spacing:.02em;
+  padding:7px 14px; border:0; border-radius:5px; cursor:pointer;
+  background:transparent; color:var(--muted);
+}
+.segs button:hover{color:var(--ink)}
+.segs button[aria-pressed="true"]{background:var(--accent-soft); color:var(--accent)}
+.segs button:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+.ovr .val{font-size:15px; font-weight:600}
+.ovr .bar{height:5px}
+.tier{
+  display:inline-block; font-size:9.5px; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; padding:2px 6px; border-radius:4px; margin-top:2px;
+}
+.tier.diamond{color:var(--diamond); background:var(--diamond-soft)}
+.tier.gold{color:var(--gold); background:var(--gold-soft)}
+.tier.silver{color:var(--silver); background:var(--silver-soft)}
+.tier.bronze{color:var(--bronze); background:var(--bronze-soft)}
+td.ovrcell{border-left:1px solid var(--line); border-right:1px solid var(--line)}
+th.ovrhead{border-left:1px solid var(--line); border-right:1px solid var(--line)}
+.count{margin-left:auto; font-size:12.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+
+.tablewrap{overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow)}
+table{border-collapse:collapse; width:100%; min-width:760px}
+thead th{
+  position:sticky; top:0; background:var(--surface-2);
+  font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-2); text-align:left; padding:0; border-bottom:1px solid var(--line);
+  white-space:nowrap;
+}
+thead th button{
+  font:inherit; letter-spacing:inherit; text-transform:inherit; color:inherit;
+  width:100%; padding:11px 12px; background:transparent; border:0; cursor:pointer;
+  display:flex; align-items:center; gap:5px; text-align:left;
+}
+th.num button{justify-content:flex-end}
+thead th button:hover{color:var(--accent)}
+thead th button:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.arrow{opacity:0; font-size:9px; transition:opacity .12s}
+th[aria-sort] .arrow{opacity:1; color:var(--accent)}
+tbody tr{border-bottom:1px solid var(--line)}
+tbody tr:last-child{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+td{padding:9px 12px; vertical-align:middle}
+.rank{color:var(--muted); font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px; font-variant-numeric:tabular-nums; width:48px}
+.name{font-weight:600; letter-spacing:-.01em; white-space:nowrap}
+.tour{
+  display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.07em;
+  padding:2px 7px; border-radius:4px; vertical-align:1px;
+}
+.tour.ATP{color:var(--atp); background:var(--atp-soft)}
+.tour.WTA{color:var(--wta-ink); background:var(--wta-soft)}
+.cell{display:flex; flex-direction:column; align-items:flex-end; gap:4px; min-width:76px}
+.val{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13px; font-weight:500; font-variant-numeric:tabular-nums}
+.bar{width:100%; height:4px; border-radius:2px; background:var(--bar-track); overflow:hidden}
+.bar i{display:block; height:100%; border-radius:2px; background:var(--accent)}
+tr[data-tour="WTA"] .bar i{background:var(--wta)}
+tr[data-tour="ATP"] .bar i{background:var(--atp)}
+.matches{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12.5px; color:var(--ink-2); text-align:right; font-variant-numeric:tabular-nums}
+.empty{padding:44px 16px; text-align:center; color:var(--muted); font-size:14px}
+footer{margin-top:22px; font-size:12.5px; color:var(--muted); max-width:72ch}
+footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+@media (max-width:560px){.wrap{padding:20px 12px 48px} .count{width:100%; margin:2px 0 0; text-align:right}}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Tour Ratings Board</h1>
+  <p class="sub">Four attributes per player, each scaled <b>0&ndash;10</b> within its own tour, from
+  <b>18,891</b> player-match rows across <b>9,690</b> tour-level matches, 25&nbsp;Aug&nbsp;2025&nbsp;&ndash;&nbsp;25&nbsp;Aug&nbsp;2026.
+  Ratings are credited for the level of opposition faced and pulled toward the low end where the evidence is thin.</p>
+  <div class="legend">
+    <div class="leg"><b>OVR</b><span>(SRV + RET + SHOT + &frac12;&thinsp;CONS) / 3.5</span></div>
+    <div class="leg"><b>SRV</b><span>serve</span></div>
+    <div class="leg"><b>RET</b><span>return</span></div>
+    <div class="leg"><b>SHOT</b><span>shot quality</span></div>
+    <div class="leg"><b>CONS</b><span>consistency</span></div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="search">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg>
+    <input id="q" type="search" placeholder="Search any part of a name&hellip;" autocomplete="off" aria-label="Search players">
+  </div>
+  <div class="segs" role="group" aria-label="Filter by tour">
+    <button data-tour="all" aria-pressed="true">All</button>
+    <button data-tour="ATP" aria-pressed="false">ATP</button>
+    <button data-tour="WTA" aria-pressed="false">WTA</button>
+  </div>
+  <div class="segs" role="group" aria-label="Rating scale">
+    <button id="scale10" aria-pressed="true">0&ndash;10</button>
+    <button id="scale100" aria-pressed="false">40&ndash;100</button>
+  </div>
+  <div class="count" id="count"></div>
+</div>
+
+<div class="tablewrap">
+  <table>
+    <thead><tr>
+      <th class="rank"><button data-key="rank">#<span class="arrow"></span></button></th>
+      <th><button data-key="p">Player<span class="arrow"></span></button></th>
+      <th class="num ovrhead"><button data-key="o">OVR<span class="arrow"></span></button></th>
+      <th class="num"><button data-key="s">SRV<span class="arrow"></span></button></th>
+      <th class="num"><button data-key="r">RET<span class="arrow"></span></button></th>
+      <th class="num"><button data-key="h">SHOT<span class="arrow"></span></button></th>
+      <th class="num"><button data-key="c">CONS<span class="arrow"></span></button></th>
+      <th class="num"><button data-key="m">Matches<span class="arrow"></span></button></th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+<div class="empty" id="empty" hidden>No player matches that search.</div>
+
+<footer>
+  Ratings are relative within each tour, never across &mdash; WTA return rates run about
+  0.85&sigma; above ATP, so a shared scale would read that gap as skill.
+  The 40&ndash;100 view maps each rating with <code>floor(40 + 6&thinsp;&times;&thinsp;r)</code>, truncated
+  so a figure never reads higher than it is, and tiers cut the overall at
+  90&thinsp;/&thinsp;80&thinsp;/&thinsp;65.
+  Ratings resting on thin evidence are shrunk toward the low end by
+  <code>x = max(2p&minus;1, 1&minus;matches/10)</code>, where <code>p</code> is the share of that
+  rating&rsquo;s own inputs a player is missing &mdash; so a low figure on a short
+  match count reflects how little is known, not a measured weakness.
+</footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/;
+const rowsEl=document.getElementById('rows'), emptyEl=document.getElementById('empty'),
+      countEl=document.getElementById('count'), qEl=document.getElementById('q');
+let sortKey='o', sortDir=-1, tour='all', query='', game=false;
+
+DATA.forEach((d,i)=>d.rank=i+1);
+
+function view(){
+  let v=DATA.filter(d=>(tour==='all'||d.t===tour));
+  if(query){ const n=query.toLowerCase(); v=v.filter(d=>d.p.toLowerCase().includes(n)); }
+  const k=sortKey;
+  v.sort((a,b)=>{
+    const x=a[k], y=b[k];
+    if(typeof x==='string') return x.localeCompare(y)*sortDir;
+    return (x-y)*sortDir;
+  });
+  return v;
+}
+function bar(v){ return '<div class="bar"><i style="width:'+(v*10)+'%"></i></div>'; }
+// the bar always tracks the underlying 0-10 rating, so switching scale changes
+// the figures without redrawing the shape of the row
+function cell(v, g, isOvr, tier){
+  const shown = game ? g : v.toFixed(2);
+  const badge = (isOvr && game && tier) ? '<span class="tier '+tier+'">'+tier+'</span>' : '';
+  return '<td class="'+(isOvr ? 'ovrcell' : '')+'">'+
+         '<div class="cell'+(isOvr ? ' ovr' : '')+'">'+
+         '<span class="val">'+shown+'</span>'+bar(v)+badge+'</div></td>';
+}
+
+function render(){
+  const v=view();
+  countEl.textContent=v.length+(v.length===1?' player':' players');
+  emptyEl.hidden=v.length>0;
+  rowsEl.innerHTML=v.map(d=>
+    '<tr data-tour="'+d.t+'">'+
+      '<td class="rank">'+d.rank+'</td>'+
+      '<td class="name"><span class="tour '+d.t+'">'+d.t+'</span> '+d.p+'</td>'+
+      cell(d.o,d.go,true,d.k)+cell(d.s,d.gs,false)+cell(d.r,d.gr,false)+cell(d.h,d.gh,false)+cell(d.c,d.gc,false)+
+      '<td class="matches">'+d.m+'</td>'+
+    '</tr>').join('');
+  document.querySelectorAll('thead th').forEach(th=>{
+    const key=th.querySelector('button').dataset.key;
+    if(key===sortKey){ th.setAttribute('aria-sort', sortDir===-1?'descending':'ascending');
+      th.querySelector('.arrow').textContent = sortDir===-1?'\u25BC':'\u25B2'; }
+    else { th.removeAttribute('aria-sort'); th.querySelector('.arrow').textContent=''; }
+  });
+}
+document.querySelectorAll('thead button').forEach(b=>b.addEventListener('click',()=>{
+  const k=b.dataset.key;
+  if(k===sortKey) sortDir=-sortDir;
+  else { sortKey=k; sortDir=(k==='p')?1:-1; }
+  render();
+}));
+const tourButtons=document.querySelectorAll('.segs button[data-tour]');
+tourButtons.forEach(b=>b.addEventListener('click',()=>{
+  tour=b.dataset.tour;
+  tourButtons.forEach(o=>o.setAttribute('aria-pressed', String(o===b)));
+  render();
+}));
+document.getElementById('scale10').addEventListener('click',()=>setScale(false));
+document.getElementById('scale100').addEventListener('click',()=>setScale(true));
+function setScale(on){
+  game=on;
+  document.getElementById('scale10').setAttribute('aria-pressed', String(!on));
+  document.getElementById('scale100').setAttribute('aria-pressed', String(on));
+  render();
+}
+qEl.addEventListener('input',e=>{ query=e.target.value.trim(); render(); });
+render();
+</script>
