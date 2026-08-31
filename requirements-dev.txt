@@ -1,0 +1,4 @@
+# Everything above, plus what only the analysis notebooks and tests need.
+-r requirements.txt
+torch>=2.0          # train_player_params.RatingModel
+scipy>=1.11         # correlation diagnostics

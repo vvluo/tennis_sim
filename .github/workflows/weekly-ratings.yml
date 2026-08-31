@@ -25,7 +25,7 @@ jobs:
           python-version: '3.11'
           cache: pip
 
-      - run: pip install pandas numpy requests nbclient nbformat matplotlib
+      - run: pip install -r requirements.txt
 
       # The cache is what makes this affordable. Warm, a run costs ~8 API calls;
       # cold, it re-pulls the whole year for ~425 and four cold runs would blow

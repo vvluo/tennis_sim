@@ -1,0 +1,9 @@
+# Runtime for the weekly ratings build (build_ratings.py ->
+# empirical_rating_model.ipynb -> sportradar_data.py).
+pandas>=2.2
+numpy>=1.26
+requests>=2.31
+matplotlib>=3.8
+nbformat>=5.10
+nbclient>=0.10
+ipykernel>=6.29
