@@ -1,0 +1,58 @@
+name: Weekly ratings refresh
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'      # Mondays 06:17 UTC
+  workflow_dispatch:           # and on demand from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: ratings
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install pandas numpy requests nbclient nbformat matplotlib
+
+      # The cache is what makes this affordable. Warm, a run costs ~8 API calls;
+      # cold, it re-pulls the whole year for ~425 and four cold runs would blow
+      # the monthly trial quota. restore-keys falls back to the newest earlier
+      # cache, so a run only starts cold if none exists at all.
+      - uses: actions/cache@v4
+        with:
+          path: sportradar_cache
+          key: sportradar-${{ github.run_id }}
+          restore-keys: sportradar-
+
+      - name: Build ratings
+        env:
+          # Injected by GitHub from the repository secret. Never in the repo.
+          SPORTRADAR_API_KEY: ${{ secrets.SPORTRADAR_API_KEY }}
+        run: python build_ratings.py --budget 60 --prune
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
