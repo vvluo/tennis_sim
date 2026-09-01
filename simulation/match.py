@@ -6,7 +6,7 @@ import random
 class Match:
     _id_counter = 1
 
-    def __init__(self, p1: Player, p2: Player, best_of=3):
+    def __init__(self, p1: Player, p2: Player, best_of=3, final_set_tiebreak=7):
         assert best_of % 2 == 1, "Best of must be an odd number"
         assert p1.id != p2.id, "Players must be different"
         self.player1 = p1
@@ -18,6 +18,8 @@ class Match:
         p2_form = draw_form(p2)
         self.p1_matchup = Matchup(p1, p2, self.__class__._id_counter, p1_form, p2_form)
         self.p2_matchup = Matchup(p2, p1, self.__class__._id_counter, p2_form, p1_form)
+        # Grand slams play the deciding set's tiebreak to 10, everything else to 7.
+        self.final_set_tiebreak = final_set_tiebreak
         self.match_id = self.__class__._id_counter
         self.__class__._id_counter += 1
         self.match_record = None # collection of game records, grouped by sets
@@ -92,7 +94,9 @@ class Match:
         match_record = [] # collection of set records
 
         while not self.decide_match(p1_sets, p2_sets, to_win=to_win):
-            set_winner, set_record = self.sim_set()
+            decider = p1_sets == to_win - 1 and p2_sets == to_win - 1
+            set_winner, set_record = self.sim_set(
+                tiebreak_length=self.final_set_tiebreak if decider else 7)
             match_record.append(set_record) # record the set details
             if set_winner is self.player1:
                 p1_sets += 1
@@ -103,7 +107,7 @@ class Match:
         return winner
 
 
-    def sim_set(self):
+    def sim_set(self, tiebreak_length=7):
         games_1 = 0
         games_2 = 0
         set_record = [] # collection of game records
@@ -111,7 +115,7 @@ class Match:
         while not self.decide_set(games_1, games_2) or self.decide_set(games_1, games_2) == 'tiebreak':
             if self.decide_set(games_1, games_2) == 'tiebreak':
                 start_server, start_receiver = self.server, self.receiver
-                tiebreak_winner, tiebreak_record = self.sim_tiebreak(start_server)
+                tiebreak_winner, tiebreak_record = self.sim_tiebreak(start_server, length=tiebreak_length)
                 set_record.append(tiebreak_record)
                 self.server, self.receiver = start_receiver, start_server # switch servers for the next set after tiebreak
                 return tiebreak_winner, ('set', None, tiebreak_winner.id, 13, tuple(set_record))
@@ -216,7 +220,13 @@ class Match:
             shot_matchup = self.p1_matchup if shot_maker_is_p1 else self.p2_matchup
             prob_returnable = shot_matchup.prob_returnable
             response_rng = rand()
-            shot_inconsistency = inconsistency_server if not shot_maker_is_p1 else inconsistency_receiver
+            # The shot maker wins either by hitting through the opponent or by
+            # the opponent erring, so this is always the OPPONENT's rate. Keying
+            # it off absolute p1/p2 identity, as this did, is only correct while
+            # p1 serves; with p2 serving it read the shot maker's own rate and
+            # rewarded inconsistency in every rally point of the game.
+            shot_inconsistency = (inconsistency_receiver if shot_maker is self.server
+                                  else inconsistency_server)
             
             if response_rng > prob_returnable or (rand() < shot_inconsistency):
                 if shot_maker is self.server:

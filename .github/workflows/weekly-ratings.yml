@@ -27,6 +27,18 @@ jobs:
 
       - run: pip install -r requirements.txt
 
+      # The page runs simulation/engine.js, a hand port of the Python engine.
+      # This drives both off one shared random stream and requires identical
+      # records, so a port that has drifted fails the build before it deploys.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Engine parity (Python vs JS)
+        env:
+          PARITY_REQUIRE_NODE: '1'      # a missing node must fail, not skip
+        run: pip install pytest && python -m pytest tests/test_engine_parity.py -q
+
       # The cache is what makes this affordable. Warm, a run costs ~8 API calls;
       # cold, it re-pulls the whole year for ~425 and four cold runs would blow
       # the monthly trial quota. restore-keys falls back to the newest earlier

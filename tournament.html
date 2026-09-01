@@ -1,0 +1,980 @@
+<title>Play a Grand Slam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#EDF1F5; --surface:#FFFFFF; --surface-2:#F5F8FA;
+  --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
+  --ink:#101F2B; --ink-2:#3A5062; --muted:#697F92; --line:#D3DDE5;
+  --accent:#1D6FA3; --accent-soft:#D6E7F2;
+  --atp:#1D6FA3; --atp-soft:#DCEAF4;
+  --wta:#C18DE8; --wta-ink:#7A3CB8; --wta-soft:#EFE2FA;
+  --thin:#9A6B12; --thin-soft:#F5E9CE;
+  --bar-track:#E1E9EF;
+  --hold:#2E7D46; --hold-soft:#DEEFE4;
+  --brk:#B03A34;  --brk-soft:#F6E1DF;
+  --tbk:#8A6612;  --tbk-soft:#F5EBCC;
+  --diamond:#2E8CA6; --diamond-soft:#D6EFF5;
+  --gold:#9A7414; --gold-soft:#F6ECCF;
+  --silver:#5F6E7C; --silver-soft:#E4E9ED;
+  --bronze:#8A5527; --bronze-soft:#F1E2D5;
+  --shadow:0 1px 2px rgba(16,31,43,.06),0 8px 24px -12px rgba(16,31,43,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+  --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
+    --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
+    --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
+    --accent:#57A6D9; --accent-soft:#1B3446;
+    --atp:#57A6D9; --atp-soft:#17303F;
+    --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
+    --thin:#D6A94A; --thin-soft:#33280F;
+    --bar-track:#1E2C38;
+  --hold:#74CE8E; --hold-soft:#152C1D;
+  --brk:#EA8B83;  --brk-soft:#301715;
+  --tbk:#DFB452;  --tbk-soft:#332810;
+    --hold:#74CE8E; --hold-soft:#152C1D;
+    --brk:#EA8B83;  --brk-soft:#301715;
+    --tbk:#DFB452;  --tbk-soft:#332810;
+  --diamond:#7FD4E8; --diamond-soft:#123642;
+  --gold:#E0B450; --gold-soft:#3A2E10;
+  --silver:#AEBCC7; --silver-soft:#232E38;
+  --bronze:#D08F5C; --bronze-soft:#3A2515;
+    --diamond:#7FD4E8; --diamond-soft:#123642;
+    --gold:#E0B450; --gold-soft:#3A2E10;
+    --silver:#AEBCC7; --silver-soft:#232E38;
+    --bronze:#D08F5C; --bronze-soft:#3A2515;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+  --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
+  --accent:#57A6D9; --accent-soft:#1B3446;
+  --atp:#57A6D9; --atp-soft:#17303F;
+  --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
+  --thin:#D6A94A; --thin-soft:#33280F;
+  --bar-track:#1E2C38;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
+.wrap{padding:28px 20px 60px}
+h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin:0 0 4px;
+  color:var(--page-ink);display:flex;align-items:center;gap:.32em}
+.ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
+.titlerow{display:flex;align-items:center;gap:16px}
+.themebtn{margin-left:auto;flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
+  font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
+  color:var(--page-ink);background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.28);transition:background .15s}
+.themebtn:hover{background:rgba(255,255,255,.20)}
+.headline{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 14px;box-shadow:var(--shadow)}
+.card .k{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.card .v{font-size:17px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
+.card.you .v{color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--page-muted);margin:14px 2px 0}
+.controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;margin:18px 0 4px;
+  padding:14px 16px;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow)}
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl.grow{flex:1 1 240px;min-width:200px}
+.clab{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.segbtn{padding:8px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  background:var(--surface-2);color:var(--muted);border:0;transition:background .15s,color .15s}
+.segbtn+.segbtn{border-left:1px solid var(--line)}
+.segbtn.on{background:var(--accent);color:var(--ground)}
+.picker{position:relative}
+#who{width:100%;box-sizing:border-box;padding:8px 30px 8px 11px;font:inherit;font-size:13px;
+  color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px}
+#who:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.clear{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:22px;height:22px;
+  border:0;background:transparent;color:var(--muted);font-size:16px;cursor:pointer;border-radius:5px}
+.clear:hover{background:var(--surface-2);color:var(--ink)}
+.menu{display:none;position:absolute;z-index:20;left:0;right:0;top:calc(100% + 4px);max-height:240px;
+  overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  box-shadow:0 14px 34px -12px rgba(0,0,0,.45)}
+.menu.open{display:block}
+.opt{display:flex;gap:9px;align-items:baseline;padding:7px 11px;font-size:13px;cursor:pointer}
+.opt:hover,.opt.active{background:var(--surface-2)}
+.opt .rk{flex:none;min-width:30px;font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:11px;color:var(--muted)}
+.opt .none{color:var(--muted);font-style:italic}
+.opt.more{position:sticky;bottom:0;background:var(--surface-2);border-top:1px solid var(--line);cursor:default}
+.opt.more:hover{background:var(--surface-2)}
+.run{padding:10px 20px;border-radius:8px;cursor:pointer;font:inherit;font-size:13px;font-weight:700;
+  letter-spacing:-.01em;background:var(--accent);color:var(--ground);border:1px solid var(--accent);
+  box-shadow:var(--shadow);min-width:190px;transition:opacity .15s,transform .15s}
+.run:hover:not(:disabled){transform:translateY(-1px)}
+.run:disabled{background:var(--surface-2);color:var(--muted);border-color:var(--line);
+  cursor:default;box-shadow:none}
+.pager{display:flex;align-items:center;gap:12px;margin:0 0 10px}
+.pgbtn{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:8px;cursor:pointer;
+  font:inherit;font-size:13px;font-weight:700;letter-spacing:-.01em;
+  background:var(--accent);color:var(--ground);border:1px solid var(--accent);
+  box-shadow:var(--shadow);transition:opacity .15s,transform .15s}
+.pgbtn:hover:not(:disabled){transform:translateY(-1px)}
+.pgbtn:disabled{background:var(--surface-2);color:var(--muted);border-color:var(--line);
+  cursor:default;box-shadow:none;opacity:.7}
+.pgbtn .ar{font-size:11px}
+.prange{margin:0 auto;font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--page-ink);white-space:nowrap}
+@media (max-width:640px){.pgbtn span:not(.ar){display:none}.pgbtn{padding:9px 13px}}
+.scroll{overflow-y:auto;overflow-x:auto;max-height:78vh;padding:0 2px 10px;
+  border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.bracket{display:flex;gap:10px;min-width:100%}
+.round{flex:1 1 0;display:flex;flex-direction:column;min-width:200px}
+.ties{flex:1;display:flex;flex-direction:column;justify-content:space-around}
+.round h2{position:sticky;top:0;z-index:2;margin:0 0 4px;padding:6px 8px;background:var(--surface-2);
+  font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.tie{background:var(--surface);border:1px solid var(--line);border-radius:7px;overflow:hidden;
+  cursor:pointer;margin:3px 0}
+.tie:hover{border-color:var(--accent)}
+.tie:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.side{display:flex;align-items:center;gap:6px;padding:4px 7px;font-size:12.5px;white-space:nowrap}
+.side+.side{border-top:1px solid var(--line)}
+.side.lost{color:var(--muted)}
+.side.won .nm{font-weight:700;color:var(--ink)}
+.side.me .nm{color:var(--accent)}
+.seed{flex:none;min-width:19px;height:15px;border-radius:3px;background:var(--surface-2);color:var(--muted);
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:9.5px;font-weight:600;
+  display:flex;align-items:center;justify-content:center}
+.seed.q{background:var(--accent-soft);color:var(--accent)}
+.seed.blank{background:transparent}
+.nm{flex:1;overflow:hidden;text-overflow:ellipsis}
+.sets{display:flex;gap:3px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;
+  font-variant-numeric:tabular-nums}
+.sets b{font-weight:500;min-width:11px;text-align:right;color:var(--muted)}
+.sets b.setwon{font-weight:700;color:var(--ink)}
+.sets sup{font-size:8px;font-weight:500;margin-left:.5px}
+.overlay{position:fixed;inset:0;background:rgba(8,16,24,.55);display:none;align-items:center;
+  justify-content:center;padding:24px;z-index:50}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:12px;max-width:820px;width:100%;
+  max-height:86vh;overflow:auto;box-shadow:0 24px 60px -20px rgba(0,0,0,.5)}
+.mhead{position:sticky;top:0;background:var(--surface);border-bottom:1px solid var(--line);
+  padding:14px 18px;display:flex;align-items:center;gap:12px}
+.mhead .t{font-weight:700;letter-spacing:-.01em}
+.mhead .r{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.mhead .s{margin-left:auto;font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.close{border:0;background:var(--surface-2);color:var(--ink-2);border-radius:6px;width:26px;height:26px;
+  cursor:pointer;font-size:15px;line-height:1}
+.close:hover{background:var(--line)}
+.mbody{padding:14px 18px 20px}
+.setrow{margin-top:12px}
+.setlabel{display:flex;gap:8px;align-items:baseline;font-size:10.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-2);padding-bottom:5px;border-bottom:1px solid var(--line)}
+.setlabel .s{font-family:"IBM Plex Mono",ui-monospace,monospace;letter-spacing:0;font-size:12.5px;color:var(--ink)}
+.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(198px,1fr));gap:7px;margin-top:7px;align-items:start}
+.game{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:6px;background:var(--surface-2);overflow:hidden}
+.game.hold{border-left-color:var(--hold);background:var(--hold-soft)}
+.game.brk{border-left-color:var(--brk);background:var(--brk-soft)}
+.game.tbk{border-left-color:var(--tbk);background:var(--tbk-soft)}
+.ghead{display:flex;align-items:center;gap:7px;width:100%;padding:6px 9px;font:inherit;font-size:11px;
+  color:var(--muted);background:transparent;border:0;cursor:pointer;text-align:left}
+.ghead b{color:var(--ink-2);font-weight:600}
+.tag{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.game.hold .tag{color:var(--hold)}.game.brk .tag{color:var(--brk)}.game.tbk .tag{color:var(--tbk)}
+.gwin{margin-left:auto;color:var(--ink-2);font-weight:600}
+.gsc{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gchev{font-size:8px;transition:transform .15s}.game.open .gchev{transform:rotate(90deg)}
+.pts{display:none;padding:0 9px 7px}.game.open .pts{display:block}
+.pt{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:1px 0}
+.pt .who{color:var(--ink-2)}
+.pt .sc{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--muted);font-variant-numeric:tabular-nums}
+.stats{margin-top:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stats h3{margin:0;padding:8px 12px;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-2);background:var(--surface-2);display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
+.stats h3 .who{color:var(--ink);letter-spacing:-.01em;text-transform:none;font-size:12.5px}
+.srow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;padding:4px 12px;font-size:12.5px}
+.srow:nth-child(even){background:var(--surface-2)}
+.srow .v{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--muted)}
+.srow .v.l{text-align:left}.srow .v.r{text-align:right}
+.srow .v.best{font-weight:700;color:var(--ink)}
+.srow .k{color:var(--muted);text-align:center;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="titlerow">
+    <h1 id="title"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Play a Grand Slam</h1>
+    <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
+  </div>
+  <div class="controls">
+    <div class="ctl">
+      <label class="clab" for="tourAtp">Tour</label>
+      <div class="seg" role="group" aria-label="Tour">
+        <button id="tourAtp" class="segbtn on" data-tour="ATP">ATP</button>
+        <button id="tourWta" class="segbtn" data-tour="WTA">WTA</button>
+      </div>
+    </div>
+    <div class="ctl grow">
+      <label class="clab" for="who">You play as</label>
+      <div class="picker">
+        <input id="who" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Search a player&hellip;" aria-label="Player you control">
+        <button id="whoClear" class="clear" title="No player" aria-label="Clear">&times;</button>
+        <div class="menu" id="whoMenu" role="listbox"></div>
+      </div>
+    </div>
+    <button id="run" class="run">Simulate tournament</button>
+  </div>
+  <div class="headline" id="headline"></div>
+</header>
+
+<div class="pager">
+  <button class="pgbtn" id="prev"><span class="ar">&#9664;</span><span>Earlier rounds</span></button>
+  <span class="prange" id="prange"></span>
+  <button class="pgbtn" id="next"><span>Later rounds</span><span class="ar">&#9654;</span></button>
+</div>
+<div class="scroll"><div class="bracket" id="bracket"></div></div>
+  <div class="legend">
+    <span><span class="seed" style="display:inline-flex;vertical-align:-3px">1</span> seed</span>
+    <span><span class="seed q" style="display:inline-flex;vertical-align:-3px">Q</span> qualifier</span>
+    <span style="margin-left:auto">click any match for the point-by-point and statistics</span>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="modal">
+    <div class="mhead">
+      <span class="r" id="mround"></span>
+      <span class="t" id="mtitle"></span>
+      <span class="s" id="mscore"></span>
+      <button class="close" id="mclose" aria-label="Close">&times;</button>
+    </div>
+    <div class="mbody" id="mbody"></div>
+  </div>
+</div>
+
+<script>
+/* Tennis engine, ported from simulation/player.py, match.py and tournament.py.
+   The page has to simulate on demand, and a static site cannot call Python, so
+   the point loop lives here. One seeded generator drives the field, the draw
+   and every point, which the Python never did -- there the matches ran off the
+   unseeded global `random`, so a --seed reproduced the draw and nothing else. */
+
+// ---- seeded randomness ---------------------------------------------------
+function makeRandom(seed){
+  let a = seed >>> 0;
+  const next = () => {                                   // mulberry32
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  let spare = null;
+  return {
+    random: next,
+    gauss(mu, sd){                                       // Marsaglia polar
+      if(spare !== null){ const v = spare; spare = null; return mu + sd * v; }
+      let u, v, s;
+      do { u = next() * 2 - 1; v = next() * 2 - 1; s = u * u + v * v; }
+      while(s >= 1 || s === 0);
+      const m = Math.sqrt(-2 * Math.log(s) / s);
+      spare = v * m;
+      return mu + sd * u * m;
+    },
+    shuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(next() * (i + 1));
+        const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+      }
+    }
+  };
+}
+
+// ---- player.py -----------------------------------------------------------
+const K = {
+  BASE_FIRST_SERVE_PERCENTAGE: 0.55, FIRST_SERVE_GRADIENT: 0.017,
+  BASE_DOUBLE_FAULT_RATE: 0.06,      DOUBLE_FAULT_GRADIENT: -0.003,
+  FIRST_SERVE_BOOST: 0.14,           SECOND_SERVE_BOOST: 0.0,
+  RETURN_GRADIENT: 0.02,             BASE_SHOT_ACCURACY: 0.78,
+  BASE_INCONSISTENCY: 0.14,          INCONSISTENCY_GRADIENT: -0.012,
+  RALLY_ADVANTAGE_GRADIENT: 0.01,
+  BASE_FORM_SD: 4.0,                 FORM_SD_GRADIENT: -0.3
+};
+const prob = v => v < 0 ? 0 : v > 1 ? 1 : v;
+
+function drawForm(rng, p){
+  if(p.vol === null || p.vol === undefined) return [0, 0, 0, 0];
+  const sd = Math.max(K.BASE_FORM_SD + K.FORM_SD_GRADIENT * p.vol, 0);
+  if(!sd) return [0, 0, 0, 0];
+  return [rng.gauss(0, sd), rng.gauss(0, sd), rng.gauss(0, sd), rng.gauss(0, sd)];
+}                                        // [serve, consistency, shot, ret]
+
+function matchup(p, opp, form, oppForm){
+  const serve = p.srv  + form[0];
+  const cons  = p.cons + form[1];
+  const shot  = p.shot + form[2];
+  const oret  = opp.ret + oppForm[3];
+  return {
+    firstServePct:   prob(K.BASE_FIRST_SERVE_PERCENTAGE + K.FIRST_SERVE_GRADIENT * serve),
+    dfRate:          prob(K.BASE_DOUBLE_FAULT_RATE + K.DOUBLE_FAULT_GRADIENT * cons),
+    inconsistency:   prob(K.BASE_INCONSISTENCY + K.INCONSISTENCY_GRADIENT * cons),
+    probServeReturn: prob(K.BASE_SHOT_ACCURACY + (oret * 0.5 - serve) * K.RETURN_GRADIENT),
+    probReturnable:  prob(K.BASE_SHOT_ACCURACY + (oret * 0.5 - shot) * K.RALLY_ADVANTAGE_GRADIENT)
+  };
+}
+
+// ---- scoring strings -----------------------------------------------------
+const PT = ['0', '15', '30', '40'];
+const abbrev = n => { const i = n.indexOf(' '); return i < 0 ? n : n[0] + ' ' + n.slice(i + 1); };
+
+function gameScore(sp, rp, names, srv, rcv){
+  if(sp >= 4 && sp - rp >= 2) return 'Game ' + names[srv];
+  if(rp >= 4 && rp - sp >= 2) return 'Game ' + names[rcv];
+  if(sp < 3 || rp < 3)        return PT[sp] + ' - ' + PT[rp];
+  if(sp === rp)               return '40 - 40';
+  return 'Ad ' + names[sp > rp ? srv : rcv];
+}
+function tbScore(sp, rp, names, srv, rcv, len){
+  const s = abbrev(names[srv]), r = abbrev(names[rcv]);
+  if(sp >= len && sp - rp >= 2) return 'Game ' + s;
+  if(rp >= len && rp - sp >= 2) return 'Game ' + r;
+  return s + ' ' + sp + ' - ' + rp + ' ' + r;
+}
+
+// ---- match.py ------------------------------------------------------------
+// Side indices: 0 = top of the tie, 1 = bottom. The Python compared Player
+// objects; here everything is an index, which is also what the page wants.
+function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak){
+  const fTop = drawForm(rng, top), fBot = drawForm(rng, bottom);
+  const mu = [matchup(top, bottom, fTop, fBot), matchup(bottom, top, fBot, fTop)];
+  const toWin = (bestOf + 1) / 2;
+  let server = rng.random() < 0.5 ? 0 : 1;
+
+  function point(firstServe){
+    // The shot maker wins by hitting through the opponent OR by the opponent
+    // erring, so the inconsistency tested is always the OPPONENT's. (match.py
+    // keys this off absolute player identity and gets it backwards whenever
+    // p2 serves; this is the corrected rule.)
+    const rec = mu[server];
+    const boost = firstServe ? K.FIRST_SERVE_BOOST : K.SECOND_SERVE_BOOST;
+    const returnRng = rng.random();
+    if(returnRng > rec.probServeReturn - boost || rng.random() < mu[1 - server].inconsistency)
+      return [server, 1];                                  // unreturned serve
+    let maker = 1 - server, shots = 2;
+    for(;;){
+      const responseRng = rng.random();
+      if(responseRng > mu[maker].probReturnable || rng.random() < mu[1 - maker].inconsistency)
+        return [maker, shots];
+      shots++; maker = 1 - maker;
+    }
+  }
+
+  function simGame(){
+    const m = mu[server], rcv = 1 - server;
+    let sp = 0, rp = 0;
+    const pts = [];
+    for(;;){
+      const serveRng = rng.random();
+      let winner, shots, first;
+      if(serveRng < m.dfRate)                 { winner = rcv; shots = 0; first = false; }
+      else if(serveRng > 1 - m.firstServePct) { [winner, shots] = point(true);  first = true; }
+      else                                    { [winner, shots] = point(false); first = false; }
+      if(winner === server) sp++; else rp++;
+      // 4th slot is the first-serve flag: the statistics read it, the page does not.
+      pts.push([winner, shots, gameScore(sp, rp, names, server, rcv), first]);
+      if(sp >= 4 && sp - rp >= 2) return { k: 'g', srv: server, win: server, pts };
+      if(rp >= 4 && rp - sp >= 2) return { k: 'g', srv: server, win: rcv,    pts };
+    }
+  }
+
+  function simTiebreak(len){
+    const first = server;
+    let a = 0, b = 0;                                // a = side 0, b = side 1
+    const pts = [];
+    for(;;){
+      const [winner, shots] = point(true);   // as in sim_tiebreak: no serve draw, no DFs
+      if(winner === 0) a++; else b++;
+      // The scoreline is read from whoever STARTED the tiebreak, not whoever is
+      // serving right now -- serve rotates every two points and the score does not.
+      const sp = first === 0 ? a : b, rp = first === 0 ? b : a;
+      pts.push([winner, shots, tbScore(sp, rp, names, first, 1 - first, len), true]);
+      if(a >= len && a - b >= 2) return { k: 't', srv: first, win: 0, pts };
+      if(b >= len && b - a >= 2) return { k: 't', srv: first, win: 1, pts };
+      if((a + b) % 2 === 1) server = 1 - server;
+    }
+  }
+
+  function simSet(tbLen){
+    let g0 = 0, g1 = 0;
+    const games = [];
+    for(;;){
+      if(g0 === 6 && g1 === 6){
+        const startServer = server;
+        const tb = simTiebreak(tbLen);
+        games.push(tb);
+        server = 1 - startServer;                    // serve flips for the next set
+        return { win: tb.win, games };
+      }
+      const g = simGame();
+      if(g.win === 0) g0++; else g1++;
+      games.push(g);
+      server = 1 - server;
+      if(g0 >= 6 && g0 - g1 >= 2) return { win: 0, games };
+      if(g1 >= 6 && g1 - g0 >= 2) return { win: 1, games };
+      if(g0 === 7) return { win: 0, games };
+      if(g1 === 7) return { win: 1, games };
+    }
+  }
+
+  let s0 = 0, s1 = 0;
+  const sets = [];
+  while(s0 < toWin && s1 < toWin){
+    const decider = s0 === toWin - 1 && s1 === toWin - 1;
+    const set = simSet(decider ? finalSetTiebreak : 7);
+    if(set.win === 0) s0++; else s1++;
+    sets.push(set);
+  }
+  return { winner: s0 >= toWin ? 0 : 1, sets, mu };
+}
+
+// ---- frontend.py: scores and statistics ---------------------------------
+function setScoreStrings(sets, winner, names){
+  // Games score after each game, always read from the match winner's side, so
+  // one scoreline reads the same way down the whole match.
+  const parts = [];
+  sets.forEach(set => {
+    let won = 0, lost = 0;
+    set.games.forEach(g => {
+      if(g.k === 't'){
+        const w = g.pts.filter(p => p[0] === g.win).length;
+        const l = g.pts.length - w;
+        if(g.win === winner){ won = 7; lost = 6; g.sc = '7-6(' + l + ')'; }
+        else                { won = 6; lost = 7; g.sc = '6(' + l + ')-7'; }
+        return;
+      }
+      if(g.win === winner) won++; else lost++;
+      g.sc = won + '-' + lost;
+    });
+    set.sc = set.games.length ? set.games[set.games.length - 1].sc : won + '-' + lost;
+    parts.push(set.sc);
+  });
+  // The last point of a set says so; the one that ends the match says that.
+  sets.forEach((set, i) => {
+    const last = set.games[set.games.length - 1];
+    if(!last || !last.pts.length) return;
+    const label = i === sets.length - 1 ? 'Game Set Match' : 'Game Set';
+    last.pts[last.pts.length - 1][2] = label + ' ' + names[last.win];
+  });
+  return parts.join(', ');
+}
+
+function perSideSetScores(sets){
+  return sets.map(set => {
+    let top = 0, bottom = 0, entry = null;
+    set.games.forEach(g => {
+      if(g.k === 't'){
+        const w = g.pts.filter(p => p[0] === g.win).length;
+        const l = g.pts.length - w;
+        if(g.win === 0){ top = 7; bottom = 6; entry = { tbSide: 'bottom', tb: l }; }
+        else           { top = 6; bottom = 7; entry = { tbSide: 'top',    tb: l }; }
+      } else if(g.win === 0) top++; else bottom++;
+    });
+    return Object.assign({ top, bottom }, entry || {});
+  });
+}
+
+function matchStats(sets, names){
+  const keys = ['double_faults','first_serves','first_won','second_serves','second_won',
+    'serve_points','serve_points_won','serve_games','serve_games_won','return_points_won',
+    'points_won','games_won','tiebreaks_won','break_points','break_points_won',
+    'unreturned','rally_shots','rallies'];
+  const st = {}; keys.forEach(k => st[k] = [0, 0]);
+  const ptStreak = [0, 0], gmStreak = [0, 0], bestPt = [0, 0], bestGm = [0, 0];
+
+  sets.forEach(set => set.games.forEach(g => {
+    const srv = g.srv, rcv = 1 - srv;
+    st.games_won[g.win]++;
+    if(g.k === 't') st.tiebreaks_won[g.win]++;
+    else { st.serve_games[srv]++; if(g.win === srv) st.serve_games_won[srv]++; }
+    for(let s = 0; s < 2; s++){
+      gmStreak[s] = s === g.win ? gmStreak[s] + 1 : 0;
+      if(gmStreak[s] > bestGm[s]) bestGm[s] = gmStreak[s];
+    }
+    let sp = 0, rp = 0;
+    g.pts.forEach(pt => {
+      const w = pt[0], shots = pt[1];
+      if(g.k !== 't'){                       // a break point is one the receiver could win the game with
+        const needed = rp + 1;
+        if(needed >= 4 && needed - sp >= 2){
+          st.break_points[rcv]++;
+          if(w === rcv) st.break_points_won[rcv]++;
+        }
+      }
+      st.serve_points[srv]++;
+      st.points_won[w]++;
+      if(w === srv) st.serve_points_won[srv]++; else st.return_points_won[rcv]++;
+      if(shots === 0)      st.double_faults[srv]++;
+      else if(shots === 1) st.unreturned[srv]++;
+      else { st.rally_shots[srv] += shots; st.rallies[srv]++; }
+      if(pt[3]){ st.first_serves[srv]++;  if(w === srv) st.first_won[srv]++; }
+      else     { st.second_serves[srv]++; if(w === srv) st.second_won[srv]++; }
+      for(let s = 0; s < 2; s++){
+        ptStreak[s] = s === w ? ptStreak[s] + 1 : 0;
+        if(ptStreak[s] > bestPt[s]) bestPt[s] = ptStreak[s];
+      }
+      if(w === srv) sp++; else rp++;
+    });
+  }));
+
+  // Python's round() breaks ties to even and Math.round breaks them upward, so
+  // a rate landing exactly on .5 printed one point apart between the engines.
+  const pyRound = x => {
+    const f = Math.floor(x), d = x - f;
+    return d > 0.5 ? f + 1 : d < 0.5 ? f : (f % 2 === 0 ? f : f + 1);
+  };
+  const pct = (n, d, i) => d[i] ? pyRound(100 * n[i] / d[i]) + '%' : '-';
+  const ratio = (n, d, i) => d[i] ? n[i] / d[i] : null;
+  const rows = [
+    ['Double faults',        i => '' + st.double_faults[i],                  i => st.double_faults[i], false],
+    ['First serve %',        i => pct(st.first_serves, st.serve_points, i),  i => ratio(st.first_serves, st.serve_points, i), true],
+    ['Win % on 1st serve',   i => pct(st.first_won, st.first_serves, i),     i => ratio(st.first_won, st.first_serves, i), true],
+    ['Win % on 2nd serve',   i => pct(st.second_won, st.second_serves, i),   i => ratio(st.second_won, st.second_serves, i), true],
+    ['Break points',         i => st.break_points_won[i] + '/' + st.break_points[i], i => st.break_points_won[i], true],
+    ['Unreturned serves',    i => '' + st.unreturned[i],                     i => st.unreturned[i], true],
+    ['Avg rally length',     i => st.rallies[i] ? (st.rally_shots[i] / st.rallies[i]).toFixed(1) : '-',
+                             i => ratio(st.rally_shots, st.rallies, i), true],
+    ['Service points won',   i => '' + st.serve_points_won[i],               i => st.serve_points_won[i], true],
+    ['Service games won',    i => st.serve_games_won[i] + '/' + st.serve_games[i], i => st.serve_games_won[i], true],
+    ['Receiving points won', i => '' + st.return_points_won[i],              i => st.return_points_won[i], true],
+    ['Points won',           i => '' + st.points_won[i],                     i => st.points_won[i], true],
+    ['Games won',            i => '' + st.games_won[i],                      i => st.games_won[i], true],
+    ['Max points in a row',  i => '' + bestPt[i],                            i => bestPt[i], true],
+    ['Max games in a row',   i => '' + bestGm[i],                            i => bestGm[i], true],
+    ['Tiebreaks won',        i => '' + st.tiebreaks_won[i],                  i => st.tiebreaks_won[i], true]
+  ];
+  return rows.map(([label, show, value, higherBetter]) => {
+    const a = value(0), b = value(1);
+    let better = null;
+    if(a !== null && b !== null && a !== b) better = (a > b) === higherBetter ? 'a' : 'b';
+    return { label, a: show(0), b: show(1), better };
+  });
+}
+
+// ---- tournament.py -------------------------------------------------------
+const DRAW_SIZE = 128, SEEDS = 32, DIRECT_ENTRANTS = 112, QUALIFIERS = 16;
+const SECTION_SIZE = DRAW_SIZE / SEEDS;
+const ROUND_NAMES = ['R128','R64','R32','R16','QF','SF','F'];
+const EXIT_LABELS = { R128:'1R', R64:'2R', R32:'3R', R16:'4R', QF:'QF', SF:'SF', F:'F' };
+
+function buildField(candidates, rng, playable, dropout = 0.10, qualifyingDropout = 0.60){
+  const ranked = candidates.slice().sort((a, b) => a.rank - b.rank);
+  const accepted = [];
+  let index = 0;
+  for(index = 0; index < ranked.length; index++){
+    if(accepted.length === DIRECT_ENTRANTS) break;
+    if(rng.random() >= dropout) accepted.push(ranked[index]);
+  }
+  // Qualifying draws only from players direct entry never reached: someone who
+  // declined a main-draw place has withdrawn, not gone to play qualifying.
+  const qualifiers = [];
+  for(let i = index; i < ranked.length && qualifiers.length < QUALIFIERS; i++){
+    if(rng.random() >= qualifyingDropout) qualifiers.push(ranked[i]);
+  }
+  const ent = (e, q, pl) => ({ name: e.name, rank: e.rank, ratings: e.ratings,
+                               qualifier: !!q, playable: !!pl, seed: null });
+  const field = accepted.map(e => ent(e)).concat(qualifiers.map(e => ent(e, true)));
+  if(field.length !== DRAW_SIZE) throw new Error('field is ' + field.length + ', need ' + DRAW_SIZE);
+
+  if(playable){
+    const inField = field.find(e => e.name === playable);
+    if(inField) inField.playable = true;
+    else {
+      const custom = candidates.find(c => c.name === playable);
+      if(!custom) throw new Error(playable + ' is not among the candidates');
+      // Someone ranked below the last direct entrant did not earn a main-draw
+      // place, so they come in the way anyone else that far down would: through
+      // qualifying. Anyone above that line simply took a place they had earned.
+      const lastDirect = accepted[accepted.length - 1];
+      const viaQualifying = !!lastDirect && custom.rank > lastDirect.rank;
+      field[field.length - 1] = ent(custom, viaQualifying, true);
+    }
+  }
+  field.slice().sort((a, b) => a.rank - b.rank).slice(0, SEEDS)
+       .forEach((e, i) => e.seed = i + 1);
+  return field;
+}
+
+function seedingOrder(sections = SEEDS){
+  let order = [0];
+  while(order.length < sections){
+    const size = order.length * 2;
+    const next = [];
+    order.forEach(p => { next.push(p); next.push(size - 1 - p); });
+    order = next;
+  }
+  return order;
+}
+
+function seedSections(rng, sections = SEEDS){
+  const order = seedingOrder(sections);
+  const tiers = [[0, 1], [1, 2]];
+  let lo = 2;
+  while(lo < sections){ tiers.push([lo, Math.min(lo * 2, sections)]); lo *= 2; }
+  const assignment = {};
+  tiers.forEach(([a, b]) => {
+    const drawn = order.slice(a, b);
+    rng.shuffle(drawn);
+    drawn.forEach((section, offset) => assignment[a + offset + 1] = section);
+  });
+  return assignment;
+}
+
+function buildDraw(field, rng){
+  const slots = new Array(DRAW_SIZE).fill(null);
+  const sections = seedSections(rng);
+  const seeded = {};
+  field.forEach(e => { if(e.seed) seeded[e.seed] = e; });
+  Object.keys(sections).forEach(seed => slots[sections[seed] * SECTION_SIZE] = seeded[seed]);
+  const rest = field.filter(e => !e.seed);
+  rng.shuffle(rest);
+  let r = 0;
+  for(let i = 0; i < DRAW_SIZE; i++) if(slots[i] === null) slots[i] = rest[r++];
+  return slots;
+}
+
+// How much of the observed rating spread is skill rather than measurement noise.
+// A rating is an estimate and estimates overshoot, so the spread is pulled in by
+// the reliability of the estimate. Fitted against a year of real results: ATP
+// mean absolute error across bins of published OVR gap falls 0.047 -> 0.020 at
+// 0.8; the WTA already fits at 1.0. The difference is data volume -- 5 tour
+// matches for the median ATP player against 18 for the WTA.
+const SHRINK = { ATP: 0.8, WTA: 1.0 };
+
+function toPlayer(entrant, shift, shrink){
+  const t = entrant.ratings;
+  const attr = v => 5.0 + shrink * (v + shift - 5.0);
+  // vol is left unshrunk: it measures dispersion, not skill.
+  return { name: entrant.name, srv: attr(t.SRV), cons: attr(t.CONS),
+           ret: attr(t.RET), shot: attr(t.SHOT), vol: t.CONS + shift };
+}
+
+function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink){
+  // The published ratings are min-max scaled so their mean is not 5, but every
+  // constant above is calibrated so 5.0 gives tour-average rates. Re-centre the
+  // field without touching the spread between players.
+  const mean = draw.reduce((acc, e) =>
+    acc + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0) / draw.length;
+  const shift = 5.0 - mean;
+  draw.forEach(e => e.player = toPlayer(e, shift, shrink));
+
+  const rounds = [];
+  let alive = draw.slice();
+  ROUND_NAMES.forEach(name => {
+    const matches = [], winners = [];
+    for(let i = 0; i < alive.length; i += 2){
+      const top = alive[i], bottom = alive[i + 1];
+      const names = [top.name, bottom.name];
+      const played = simMatch(rng, top.player, bottom.player, names, bestOf, finalSetTiebreak);
+      const wonByTop = played.winner === 0;
+      const winner = wonByTop ? top : bottom, loser = wonByTop ? bottom : top;
+      const score = setScoreStrings(played.sets, played.winner, names);
+      const stats = matchStats(played.sets, names);
+      const side = (e, won) => ({ name: e.name, seed: e.seed, q: e.qualifier,
+                                  playable: e.playable, won });
+      matches.push({
+        top: side(top, wonByTop), bottom: side(bottom, !wonByTop),
+        score, setScores: perSideSetScores(played.sets),
+        sets: played.sets.map(s => ({
+          win: s.win, sc: s.sc,
+          g: s.games.map(g => ({ k: g.k, srv: g.srv, win: g.win, sc: g.sc,
+                                 pts: g.pts.map(p => [p[0], p[1], p[2]]) }))
+        })),
+        stats, statNames: names, round: name, winner, loser
+      });
+      winners.push(winner);
+    }
+    rounds.push({ name, matches });
+    alive = winners;
+  });
+
+  const champion = alive[0];
+  const playable = draw.find(e => e.playable) || null;
+  let playableResult = null;
+  if(playable){
+    if(playable === champion) playableResult = 'Win';
+    else {
+      for(const r of rounds){
+        const m = r.matches.find(m => m.loser === playable);
+        if(m){ playableResult = EXIT_LABELS[r.name]; break; }
+      }
+    }
+  }
+  rounds.forEach(r => r.matches.forEach(m => { delete m.winner; delete m.loser; delete m.round; }));
+  return { rounds, champion: champion.name, championSeed: champion.seed,
+           playable: playable ? playable.name : null, playableResult };
+}
+
+function simulateTournament(pool, opts){
+  const rng = makeRandom(opts.seed);
+  const field = buildField(pool, rng, opts.playable);
+  const draw = buildDraw(field, rng);
+  const bestOf = opts.bestOf, tb = opts.finalSetTiebreak || 10;
+  const out = runTournament(draw, rng, bestOf, tb, SHRINK[opts.tour] ?? 1.0);
+  out.tour = opts.tour; out.bestOf = bestOf;
+  return out;
+}
+
+
+const POOLS = {"ATP":[{"name":"Jannik Sinner","rank":1,"ratings":{"SRV":10.0,"RET":10.0,"SHOT":10.0,"CONS":8.91}},{"name":"Alexander Zverev","rank":2,"ratings":{"SRV":9.82,"RET":8.2,"SHOT":8.8,"CONS":8.29}},{"name":"Carlos Alcaraz","rank":3,"ratings":{"SRV":9.16,"RET":9.97,"SHOT":9.58,"CONS":8.62}},{"name":"Felix Auger-Aliassime","rank":4,"ratings":{"SRV":9.71,"RET":7.78,"SHOT":8.46,"CONS":9.07}},{"name":"Novak Djokovic","rank":5,"ratings":{"SRV":9.16,"RET":8.03,"SHOT":8.85,"CONS":7.56}},{"name":"Flavio Cobolli","rank":6,"ratings":{"SRV":7.58,"RET":7.53,"SHOT":7.79,"CONS":7.74}},{"name":"Alex de Minaur","rank":7,"ratings":{"SRV":7.84,"RET":8.94,"SHOT":8.51,"CONS":8.34}},{"name":"Daniil Medvedev","rank":8,"ratings":{"SRV":8.59,"RET":9.27,"SHOT":8.23,"CONS":8.1}},{"name":"Ben Shelton","rank":9,"ratings":{"SRV":9.66,"RET":6.86,"SHOT":8.52,"CONS":8.81}},{"name":"Taylor Fritz","rank":10,"ratings":{"SRV":9.87,"RET":7.23,"SHOT":8.36,"CONS":8.97}},{"name":"Arthur Fils","rank":11,"ratings":{"SRV":8.6,"RET":8.01,"SHOT":8.65,"CONS":8.52}},{"name":"Frances Tiafoe","rank":12,"ratings":{"SRV":8.24,"RET":7.71,"SHOT":8.59,"CONS":8.82}},{"name":"Rafael Jodar","rank":13,"ratings":{"SRV":6.63,"RET":7.73,"SHOT":7.33,"CONS":8.65}},{"name":"Lorenzo Musetti","rank":14,"ratings":{"SRV":8.36,"RET":8.35,"SHOT":8.48,"CONS":8.65}},{"name":"Learner Tien","rank":15,"ratings":{"SRV":7.84,"RET":8.8,"SHOT":8.67,"CONS":7.7}},{"name":"Alexander Bublik","rank":16,"ratings":{"SRV":9.22,"RET":7.06,"SHOT":8.09,"CONS":4.92}},{"name":"Brandon Nakashima","rank":17,"ratings":{"SRV":9.16,"RET":7.62,"SHOT":8.07,"CONS":9.39}},{"name":"Jakub Mensik","rank":18,"ratings":{"SRV":8.55,"RET":7.55,"SHOT":7.88,"CONS":8.1}},{"name":"Jiri Lehecka","rank":19,"ratings":{"SRV":9.06,"RET":7.35,"SHOT":8.29,"CONS":9.15}},{"name":"Casper Ruud","rank":20,"ratings":{"SRV":8.74,"RET":8.25,"SHOT":8.55,"CONS":7.93}},{"name":"Tommy Paul","rank":21,"ratings":{"SRV":8.37,"RET":8.62,"SHOT":8.66,"CONS":6.78}},{"name":"Luciano Darderi","rank":22,"ratings":{"SRV":7.11,"RET":7.7,"SHOT":7.56,"CONS":7.98}},{"name":"Valentin Vacherot","rank":23,"ratings":{"SRV":8.58,"RET":6.79,"SHOT":7.74,"CONS":8.58}},{"name":"Andrey Rublev","rank":24,"ratings":{"SRV":8.16,"RET":8.09,"SHOT":8.23,"CONS":7.13}},{"name":"Francisco Cerundolo","rank":25,"ratings":{"SRV":7.26,"RET":8.91,"SHOT":8.29,"CONS":7.98}},{"name":"Joao Fonseca","rank":26,"ratings":{"SRV":8.38,"RET":7.95,"SHOT":8.33,"CONS":8.84}},{"name":"Alejandro Davidovich Fokina","rank":27,"ratings":{"SRV":8.25,"RET":7.81,"SHOT":8.31,"CONS":8.01}},{"name":"Alejandro Tabilo","rank":28,"ratings":{"SRV":7.45,"RET":6.47,"SHOT":7.15,"CONS":10.0}},{"name":"Arthur Rinderknech","rank":29,"ratings":{"SRV":9.09,"RET":6.7,"SHOT":7.79,"CONS":7.27}},{"name":"Ugo Humbert","rank":30,"ratings":{"SRV":8.39,"RET":7.26,"SHOT":8.04,"CONS":7.24}},{"name":"Tomas Martin Etcheverry","rank":31,"ratings":{"SRV":8.18,"RET":7.14,"SHOT":7.59,"CONS":8.63}},{"name":"Alexander Blockx","rank":32,"ratings":{"SRV":6.96,"RET":5.84,"SHOT":6.4,"CONS":7.73}},{"name":"Cameron Norrie","rank":33,"ratings":{"SRV":7.92,"RET":7.83,"SHOT":8.1,"CONS":8.44}},{"name":"Matteo Arnaldi","rank":34,"ratings":{"SRV":5.65,"RET":6.43,"SHOT":6.16,"CONS":7.17}},{"name":"Zizou Bergs","rank":35,"ratings":{"SRV":7.35,"RET":7.33,"SHOT":7.3,"CONS":7.99}},{"name":"Ignacio Buse","rank":36,"ratings":{"SRV":5.64,"RET":6.68,"SHOT":5.99,"CONS":8.51}},{"name":"Arthur Fery","rank":37,"ratings":{"SRV":5.16,"RET":5.89,"SHOT":5.74,"CONS":9.01}},{"name":"Raphael Collignon","rank":38,"ratings":{"SRV":6.93,"RET":6.04,"SHOT":6.47,"CONS":6.71}},{"name":"Daniel Merida","rank":39,"ratings":{"SRV":5.0,"RET":6.32,"SHOT":6.01,"CONS":8.06}},{"name":"Luca Van Assche","rank":40,"ratings":{"SRV":4.53,"RET":6.25,"SHOT":5.63,"CONS":7.61}},{"name":"Nuno Borges","rank":41,"ratings":{"SRV":8.23,"RET":7.19,"SHOT":7.7,"CONS":8.93}},{"name":"Thiago Agustin Tirante","rank":42,"ratings":{"SRV":6.66,"RET":5.94,"SHOT":6.61,"CONS":8.09}},{"name":"Matteo Berrettini","rank":43,"ratings":{"SRV":8.41,"RET":6.77,"SHOT":7.55,"CONS":8.11}},{"name":"Jan-Lennard Struff","rank":44,"ratings":{"SRV":6.83,"RET":5.98,"SHOT":6.91,"CONS":7.89}},{"name":"Alex Michelsen","rank":45,"ratings":{"SRV":7.47,"RET":7.46,"SHOT":7.58,"CONS":8.06}},{"name":"Hubert Hurkacz","rank":46,"ratings":{"SRV":8.45,"RET":6.84,"SHOT":7.28,"CONS":7.2}},{"name":"Denis Shapovalov","rank":47,"ratings":{"SRV":7.52,"RET":8.1,"SHOT":7.44,"CONS":0.49}},{"name":"Mariano Navone","rank":48,"ratings":{"SRV":6.17,"RET":8.26,"SHOT":6.93,"CONS":9.33}},{"name":"Karen Khachanov","rank":49,"ratings":{"SRV":8.52,"RET":7.32,"SHOT":8.05,"CONS":8.34}},{"name":"Sebastian Baez","rank":50,"ratings":{"SRV":6.5,"RET":7.57,"SHOT":7.28,"CONS":8.55}},{"name":"Juan Manuel Cerundolo","rank":51,"ratings":{"SRV":5.71,"RET":6.5,"SHOT":6.34,"CONS":6.79}},{"name":"Quentin Halys","rank":52,"ratings":{"SRV":7.35,"RET":5.51,"SHOT":6.68,"CONS":8.38}},{"name":"Stefanos Tsitsipas","rank":53,"ratings":{"SRV":8.42,"RET":7.21,"SHOT":8.18,"CONS":6.91}},{"name":"Yannick Hanfmann","rank":54,"ratings":{"SRV":7.87,"RET":6.65,"SHOT":7.38,"CONS":8.04}},{"name":"Jaume Munar","rank":55,"ratings":{"SRV":7.65,"RET":7.83,"SHOT":7.57,"CONS":6.22}},{"name":"Tallon Griekspoor","rank":56,"ratings":{"SRV":8.37,"RET":6.56,"SHOT":7.74,"CONS":3.43}},{"name":"Daniel Altmaier","rank":57,"ratings":{"SRV":7.42,"RET":6.87,"SHOT":6.81,"CONS":7.7}},{"name":"Tomas Machac","rank":58,"ratings":{"SRV":7.7,"RET":7.5,"SHOT":7.9,"CONS":7.62}},{"name":"Roman Andres Burruchaga","rank":59,"ratings":{"SRV":4.75,"RET":7.15,"SHOT":5.91,"CONS":8.27}},{"name":"Ethan Quinn","rank":60,"ratings":{"SRV":7.02,"RET":5.53,"SHOT":6.42,"CONS":8.05}},{"name":"Adolfo Daniel Vallejo","rank":61,"ratings":{"SRV":4.54,"RET":6.64,"SHOT":5.79,"CONS":7.61}},{"name":"Corentin Moutet","rank":62,"ratings":{"SRV":7.03,"RET":8.22,"SHOT":7.92,"CONS":8.07}},{"name":"Fabian Marozsan","rank":63,"ratings":{"SRV":8.06,"RET":7.28,"SHOT":8.01,"CONS":8.34}},{"name":"Miomir Kecmanovic","rank":64,"ratings":{"SRV":7.33,"RET":7.7,"SHOT":7.94,"CONS":8.31}},{"name":"Martin Landaluce","rank":65,"ratings":{"SRV":5.55,"RET":5.62,"SHOT":5.79,"CONS":7.55}},{"name":"Pablo Carreno Busta","rank":66,"ratings":{"SRV":5.28,"RET":6.04,"SHOT":5.95,"CONS":8.71}},{"name":"Adrian Mannarino","rank":67,"ratings":{"SRV":6.6,"RET":6.61,"SHOT":6.97,"CONS":7.28}},{"name":"Sebastian Korda","rank":68,"ratings":{"SRV":8.29,"RET":7.8,"SHOT":8.12,"CONS":7.86}},{"name":"Vit Kopriva","rank":69,"ratings":{"SRV":5.63,"RET":6.58,"SHOT":6.31,"CONS":7.64}},{"name":"Jaime Faria","rank":70,"ratings":{"SRV":5.19,"RET":5.34,"SHOT":5.45,"CONS":8.15}},{"name":"Botic Van de Zandschulp","rank":71,"ratings":{"SRV":7.31,"RET":7.3,"SHOT":7.51,"CONS":6.51}},{"name":"Kamil Majchrzak","rank":72,"ratings":{"SRV":7.4,"RET":6.95,"SHOT":7.14,"CONS":8.87}},{"name":"Jenson Brooksby","rank":73,"ratings":{"SRV":7.4,"RET":7.64,"SHOT":7.73,"CONS":8.31}},{"name":"Valentin Royer","rank":74,"ratings":{"SRV":6.14,"RET":6.07,"SHOT":6.49,"CONS":9.05}},{"name":"Jan Choinski","rank":75,"ratings":{"SRV":4.98,"RET":4.63,"SHOT":5.11,"CONS":9.89}},{"name":"Camilo Ugo Carabelli","rank":76,"ratings":{"SRV":6.12,"RET":7.2,"SHOT":6.57,"CONS":7.21}},{"name":"Marcos Giron","rank":77,"ratings":{"SRV":6.99,"RET":6.52,"SHOT":7.05,"CONS":9.2}},{"name":"Hamad Medjedovic","rank":78,"ratings":{"SRV":7.55,"RET":6.16,"SHOT":7.06,"CONS":6.41}},{"name":"James Duckworth","rank":79,"ratings":{"SRV":6.04,"RET":4.69,"SHOT":5.92,"CONS":5.9}},{"name":"Zachary Svajda","rank":80,"ratings":{"SRV":5.89,"RET":5.55,"SHOT":6.35,"CONS":6.91}},{"name":"Marin Cilic","rank":81,"ratings":{"SRV":8.14,"RET":6.72,"SHOT":7.76,"CONS":4.42}},{"name":"Facundo Diaz Acosta","rank":82,"ratings":{"SRV":4.13,"RET":5.62,"SHOT":5.08,"CONS":8.32}},{"name":"Marco Trungelliti","rank":83,"ratings":{"SRV":4.88,"RET":5.69,"SHOT":5.79,"CONS":8.4}},{"name":"Alex Molcan","rank":84,"ratings":{"SRV":5.28,"RET":6.13,"SHOT":5.63,"CONS":8.48}},{"name":"Rinky Hijikata","rank":85,"ratings":{"SRV":5.21,"RET":5.42,"SHOT":6.07,"CONS":8.43}},{"name":"Arthur Gea","rank":86,"ratings":{"SRV":4.7,"RET":5.21,"SHOT":5.12,"CONS":6.76}},{"name":"Sho Shimabukuro","rank":87,"ratings":{"SRV":4.91,"RET":4.81,"SHOT":5.17,"CONS":6.74}},{"name":"Hugo Gaston","rank":88,"ratings":{"SRV":4.11,"RET":5.5,"SHOT":5.55,"CONS":6.5}},{"name":"Aleksandar Kovacevic","rank":89,"ratings":{"SRV":7.3,"RET":5.09,"SHOT":6.38,"CONS":1.83}},{"name":"Terence Atmane","rank":90,"ratings":{"SRV":8.01,"RET":6.06,"SHOT":6.85,"CONS":8.02}},{"name":"Lorenzo Sonego","rank":91,"ratings":{"SRV":8.06,"RET":6.85,"SHOT":7.29,"CONS":8.53}},{"name":"Martin Damm Jr","rank":92,"ratings":{"SRV":6.84,"RET":3.98,"SHOT":5.83,"CONS":8.78}},{"name":"Adam Walton","rank":93,"ratings":{"SRV":5.94,"RET":5.09,"SHOT":5.53,"CONS":8.27}},{"name":"Coleman Wong","rank":94,"ratings":{"SRV":5.63,"RET":4.34,"SHOT":5.0,"CONS":8.12}},{"name":"Aleksandar Vukic","rank":95,"ratings":{"SRV":5.74,"RET":4.43,"SHOT":5.22,"CONS":8.53}},{"name":"Mattia Bellucci","rank":96,"ratings":{"SRV":6.4,"RET":5.37,"SHOT":5.89,"CONS":8.13}},{"name":"Aleksandr Shevchenko","rank":97,"ratings":{"SRV":6.03,"RET":5.46,"SHOT":5.5,"CONS":7.4}},{"name":"Roman Safiullin","rank":98,"ratings":{"SRV":5.53,"RET":5.21,"SHOT":5.79,"CONS":7.41}},{"name":"Jesper De Jong","rank":99,"ratings":{"SRV":5.55,"RET":5.67,"SHOT":5.74,"CONS":7.89}},{"name":"Jacob Fearnley","rank":100,"ratings":{"SRV":5.01,"RET":5.52,"SHOT":5.6,"CONS":6.94}},{"name":"Dino Prizmic","rank":101,"ratings":{"SRV":6.36,"RET":6.62,"SHOT":6.97,"CONS":8.08}},{"name":"Titouan Droguet","rank":102,"ratings":{"SRV":5.7,"RET":4.72,"SHOT":5.13,"CONS":6.67}},{"name":"Damir Dzumhur","rank":103,"ratings":{"SRV":5.36,"RET":6.79,"SHOT":6.39,"CONS":8.1}},{"name":"Giovanni Mpetshi Perricard","rank":104,"ratings":{"SRV":9.15,"RET":4.73,"SHOT":6.69,"CONS":0.0}},{"name":"Christopher O'Connell","rank":105,"ratings":{"SRV":6.02,"RET":4.73,"SHOT":5.52,"CONS":6.43}},{"name":"Michael Zheng","rank":106,"ratings":{"SRV":5.05,"RET":6.11,"SHOT":5.4,"CONS":6.99}},{"name":"Kyrian Jacquet","rank":107,"ratings":{"SRV":4.53,"RET":5.36,"SHOT":5.11,"CONS":7.84}},{"name":"Otto Virtanen","rank":108,"ratings":{"SRV":5.58,"RET":4.23,"SHOT":4.78,"CONS":4.42}},{"name":"Benjamin Bonzi","rank":109,"ratings":{"SRV":5.91,"RET":4.82,"SHOT":5.76,"CONS":6.96}},{"name":"Toby Samuel","rank":110,"ratings":{"SRV":4.51,"RET":5.87,"SHOT":4.83,"CONS":7.01}},{"name":"Emilio Nava","rank":111,"ratings":{"SRV":5.74,"RET":5.01,"SHOT":5.33,"CONS":7.3}},{"name":"Eliot Spizzirri","rank":112,"ratings":{"SRV":6.94,"RET":6.35,"SHOT":6.6,"CONS":8.37}},{"name":"Yibing Wu","rank":113,"ratings":{"SRV":5.21,"RET":5.79,"SHOT":6.3,"CONS":7.19}},{"name":"Gabriel Diallo","rank":114,"ratings":{"SRV":8.39,"RET":7.03,"SHOT":7.13,"CONS":7.45}},{"name":"Nicolas Mejia","rank":115,"ratings":{"SRV":4.16,"RET":4.23,"SHOT":4.63,"CONS":9.62}},{"name":"Patrick Kypson","rank":116,"ratings":{"SRV":5.75,"RET":4.48,"SHOT":5.65,"CONS":6.6}},{"name":"Shintaro Mochizuki","rank":117,"ratings":{"SRV":3.46,"RET":5.52,"SHOT":5.34,"CONS":4.3}},{"name":"Zsombor Piros","rank":118,"ratings":{"SRV":3.9,"RET":4.42,"SHOT":4.25,"CONS":7.35}},{"name":"Henrique Rocha","rank":119,"ratings":{"SRV":3.8,"RET":4.86,"SHOT":4.35,"CONS":7.56}},{"name":"Vilius Gaubas","rank":120,"ratings":{"SRV":4.18,"RET":4.68,"SHOT":4.45,"CONS":8.37}},{"name":"Marton Fucsovics","rank":121,"ratings":{"SRV":6.89,"RET":7.44,"SHOT":7.34,"CONS":5.55}},{"name":"Dane Sweeny","rank":122,"ratings":{"SRV":3.77,"RET":4.65,"SHOT":4.61,"CONS":7.04}},{"name":"Francisco Comesana","rank":123,"ratings":{"SRV":6.38,"RET":6.36,"SHOT":6.29,"CONS":6.71}},{"name":"Yunchaokete Bu","rank":124,"ratings":{"SRV":5.11,"RET":3.68,"SHOT":4.66,"CONS":7.75}},{"name":"Sebastian Ofner","rank":125,"ratings":{"SRV":5.24,"RET":4.51,"SHOT":5.53,"CONS":6.75}},{"name":"Pablo Llamas Ruiz","rank":126,"ratings":{"SRV":4.34,"RET":5.25,"SHOT":5.24,"CONS":9.2}},{"name":"Stan Wawrinka","rank":127,"ratings":{"SRV":6.56,"RET":5.47,"SHOT":6.4,"CONS":6.74}},{"name":"Gustavo Heide","rank":128,"ratings":{"SRV":3.68,"RET":5.14,"SHOT":4.4,"CONS":6.74}},{"name":"Andrea Pellegrino","rank":129,"ratings":{"SRV":3.98,"RET":5.18,"SHOT":4.95,"CONS":7.78}},{"name":"Alexei Popyrin","rank":130,"ratings":{"SRV":7.92,"RET":5.75,"SHOT":6.97,"CONS":7.54}},{"name":"Leandro Riedi","rank":131,"ratings":{"SRV":4.5,"RET":4.89,"SHOT":5.55,"CONS":5.65}},{"name":"Nikoloz Basilashvili","rank":132,"ratings":{"SRV":5.2,"RET":4.55,"SHOT":5.23,"CONS":6.13}},{"name":"Holger Rune","rank":133,"ratings":{"SRV":8.56,"RET":8.67,"SHOT":8.21,"CONS":6.1}},{"name":"Dalibor Svrcina","rank":134,"ratings":{"SRV":4.01,"RET":6.81,"SHOT":5.92,"CONS":7.46}},{"name":"Cristian Garin","rank":135,"ratings":{"SRV":4.37,"RET":6.16,"SHOT":5.35,"CONS":7.21}},{"name":"Stefanos Sakellaridis","rank":136,"ratings":{"SRV":4.53,"RET":4.19,"SHOT":3.9,"CONS":7.63}},{"name":"Grigor Dimitrov","rank":137,"ratings":{"SRV":7.12,"RET":6.29,"SHOT":7.23,"CONS":5.67}},{"name":"Alexandre Muller","rank":138,"ratings":{"SRV":5.8,"RET":5.61,"SHOT":5.73,"CONS":7.71}},{"name":"Lloyd Harris","rank":139,"ratings":{"SRV":5.48,"RET":4.23,"SHOT":4.19,"CONS":1.02}},{"name":"Hugo Dellien","rank":140,"ratings":{"SRV":4.16,"RET":4.87,"SHOT":4.26,"CONS":7.78}},{"name":"Jack Draper","rank":141,"ratings":{"SRV":8.46,"RET":7.45,"SHOT":8.13,"CONS":5.13}},{"name":"Arthur Cazaux","rank":142,"ratings":{"SRV":7.19,"RET":6.4,"SHOT":6.36,"CONS":5.99}},{"name":"Jurij Rodionov","rank":143,"ratings":{"SRV":4.26,"RET":4.2,"SHOT":4.41,"CONS":8.58}},{"name":"Marcelo Tomas Barrios Vera","rank":144,"ratings":{"SRV":3.93,"RET":4.9,"SHOT":4.49,"CONS":6.87}},{"name":"Tom Gentzsch","rank":145,"ratings":{"SRV":4.39,"RET":4.1,"SHOT":3.77,"CONS":7.07}},{"name":"Mackenzie McDonald","rank":146,"ratings":{"SRV":5.03,"RET":4.69,"SHOT":5.02,"CONS":7.62}},{"name":"Stefano Travaglia","rank":147,"ratings":{"SRV":4.19,"RET":5.13,"SHOT":4.4,"CONS":7.88}},{"name":"Pedro Martinez","rank":148,"ratings":{"SRV":3.9,"RET":5.04,"SHOT":4.64,"CONS":5.35}},{"name":"Nicolai Budkov Kjaer","rank":149,"ratings":{"SRV":4.75,"RET":4.7,"SHOT":4.04,"CONS":6.78}},{"name":"Soonwoo Kwon","rank":150,"ratings":{"SRV":4.55,"RET":4.86,"SHOT":5.13,"CONS":7.41}},{"name":"Chris Rodesch","rank":151,"ratings":{"SRV":5.34,"RET":3.6,"SHOT":3.95,"CONS":5.77}},{"name":"Mark Lajal","rank":152,"ratings":{"SRV":4.51,"RET":3.84,"SHOT":3.91,"CONS":4.99}},{"name":"Reilly Opelka","rank":153,"ratings":{"SRV":9.97,"RET":4.62,"SHOT":6.94,"CONS":3.65}},{"name":"Zhizhen Zhang","rank":154,"ratings":{"SRV":6.4,"RET":4.57,"SHOT":5.4,"CONS":6.4}},{"name":"Juan Carlos Prado Angelo","rank":155,"ratings":{"SRV":2.97,"RET":4.42,"SHOT":3.7,"CONS":6.18}},{"name":"Daniil Glinka","rank":156,"ratings":{"SRV":4.13,"RET":3.68,"SHOT":3.68,"CONS":8.55}},{"name":"Rei Sakamoto","rank":157,"ratings":{"SRV":4.89,"RET":3.93,"SHOT":4.42,"CONS":6.52}},{"name":"Gauthier Onclin","rank":158,"ratings":{"SRV":3.1,"RET":4.26,"SHOT":4.54,"CONS":6.59}},{"name":"Clement Tabur","rank":159,"ratings":{"SRV":4.58,"RET":4.99,"SHOT":5.31,"CONS":7.98}},{"name":"Taro Daniel","rank":160,"ratings":{"SRV":4.23,"RET":4.48,"SHOT":4.69,"CONS":8.49}},{"name":"Billy Harris","rank":161,"ratings":{"SRV":4.55,"RET":3.72,"SHOT":4.15,"CONS":7.47}},{"name":"Borna Gojo","rank":162,"ratings":{"SRV":5.42,"RET":3.5,"SHOT":3.66,"CONS":5.89}},{"name":"Nishesh Basavareddy","rank":163,"ratings":{"SRV":4.83,"RET":5.17,"SHOT":5.95,"CONS":5.79}},{"name":"Alex Bolt","rank":164,"ratings":{"SRV":5.01,"RET":3.27,"SHOT":3.73,"CONS":7.02}},{"name":"Jack Pinnington Jones","rank":165,"ratings":{"SRV":4.43,"RET":4.75,"SHOT":4.79,"CONS":5.77}},{"name":"Marco Cecchinato","rank":166,"ratings":{"SRV":3.97,"RET":4.48,"SHOT":4.38,"CONS":5.6}},{"name":"Dusan Lajovic","rank":167,"ratings":{"SRV":4.73,"RET":4.65,"SHOT":4.67,"CONS":8.08}},{"name":"Francesco Maestrelli","rank":168,"ratings":{"SRV":4.63,"RET":3.71,"SHOT":4.35,"CONS":3.54}},{"name":"Federico Agustin Gomez","rank":169,"ratings":{"SRV":3.66,"RET":3.98,"SHOT":3.56,"CONS":4.34}},{"name":"Elmer Moller","rank":170,"ratings":{"SRV":2.76,"RET":5.41,"SHOT":3.75,"CONS":3.5}},{"name":"Joel Schwaerzler","rank":171,"ratings":{"SRV":4.07,"RET":2.94,"SHOT":3.54,"CONS":6.69}},{"name":"Gonzalo Bueno","rank":172,"ratings":{"SRV":2.19,"RET":4.85,"SHOT":3.63,"CONS":5.63}},{"name":"Michael Mmoh","rank":173,"ratings":{"SRV":4.11,"RET":4.25,"SHOT":3.78,"CONS":5.17}},{"name":"Remy Bertola","rank":174,"ratings":{"SRV":3.95,"RET":4.36,"SHOT":3.94,"CONS":6.95}},{"name":"Zdenek Kolar","rank":175,"ratings":{"SRV":3.34,"RET":4.74,"SHOT":4.25,"CONS":7.95}},{"name":"Luka Mikrut","rank":176,"ratings":{"SRV":3.98,"RET":4.52,"SHOT":4.06,"CONS":7.26}},{"name":"Max Alcala Gurri","rank":177,"ratings":{"SRV":3.12,"RET":5.77,"SHOT":4.46,"CONS":6.7}},{"name":"Jerome Kym","rank":178,"ratings":{"SRV":5.38,"RET":3.9,"SHOT":4.87,"CONS":5.48}},{"name":"Bernard Tomic","rank":179,"ratings":{"SRV":4.37,"RET":3.69,"SHOT":4.14,"CONS":6.01}},{"name":"Tristan Schoolkate","rank":180,"ratings":{"SRV":5.0,"RET":3.28,"SHOT":4.13,"CONS":7.84}},{"name":"Federico Cina","rank":181,"ratings":{"SRV":4.22,"RET":4.6,"SHOT":4.37,"CONS":5.47}},{"name":"Tristan Boyer","rank":182,"ratings":{"SRV":4.02,"RET":4.73,"SHOT":4.46,"CONS":6.01}},{"name":"Alexis Galarneau","rank":183,"ratings":{"SRV":3.57,"RET":4.07,"SHOT":4.14,"CONS":5.53}},{"name":"Andre Ilagan","rank":184,"ratings":{"SRV":3.48,"RET":3.74,"SHOT":3.86,"CONS":7.6}},{"name":"Clement Chidekh","rank":185,"ratings":{"SRV":3.48,"RET":4.61,"SHOT":4.38,"CONS":7.38}},{"name":"Jan Kumstat","rank":186,"ratings":{"SRV":4.72,"RET":4.23,"SHOT":4.32,"CONS":6.81}},{"name":"Andrea Guerrieri","rank":187,"ratings":{"SRV":2.76,"RET":5.22,"SHOT":4.32,"CONS":7.01}},{"name":"Vitaliy Sachko","rank":188,"ratings":{"SRV":3.98,"RET":4.57,"SHOT":4.18,"CONS":7.71}},{"name":"Lautaro Midon","rank":189,"ratings":{"SRV":2.81,"RET":5.31,"SHOT":3.76,"CONS":6.01}},{"name":"Diego Dedura-Palomero","rank":190,"ratings":{"SRV":3.62,"RET":5.13,"SHOT":4.42,"CONS":7.38}},{"name":"Lukas Neumayer","rank":191,"ratings":{"SRV":3.86,"RET":4.72,"SHOT":4.6,"CONS":7.74}},{"name":"David Jorda Sanchis","rank":192,"ratings":{"SRV":3.22,"RET":3.84,"SHOT":3.23,"CONS":7.02}},{"name":"Keegan Smith","rank":193,"ratings":{"SRV":5.38,"RET":2.61,"SHOT":3.3,"CONS":7.36}},{"name":"Gianluca Cadenasso","rank":194,"ratings":{"SRV":3.02,"RET":5.17,"SHOT":3.86,"CONS":6.66}},{"name":"Edas Butvilas","rank":195,"ratings":{"SRV":4.24,"RET":4.23,"SHOT":3.8,"CONS":8.21}},{"name":"Harry Wendelken","rank":196,"ratings":{"SRV":2.84,"RET":5.02,"SHOT":4.6,"CONS":7.84}},{"name":"Liam Broady","rank":197,"ratings":{"SRV":3.78,"RET":4.99,"SHOT":4.6,"CONS":6.15}},{"name":"Thiago Seyboth Wild","rank":198,"ratings":{"SRV":4.36,"RET":4.69,"SHOT":4.38,"CONS":5.29}},{"name":"Ugo Blanchet","rank":199,"ratings":{"SRV":4.11,"RET":3.34,"SHOT":4.4,"CONS":7.5}},{"name":"Moise Kouame","rank":200,"ratings":{"SRV":4.83,"RET":5.44,"SHOT":5.61,"CONS":6.37}},{"name":"Lorenzo Giustino","rank":201,"ratings":{"SRV":3.17,"RET":3.72,"SHOT":3.28,"CONS":7.3}},{"name":"Yoshihito Nishioka","rank":202,"ratings":{"SRV":4.51,"RET":5.63,"SHOT":5.32,"CONS":7.18}},{"name":"Luka Pavlovic","rank":203,"ratings":{"SRV":4.27,"RET":2.84,"SHOT":3.85,"CONS":5.49}},{"name":"Elias Ymer","rank":204,"ratings":{"SRV":4.02,"RET":3.65,"SHOT":3.94,"CONS":5.89}},{"name":"Timofey Skatov","rank":205,"ratings":{"SRV":3.57,"RET":4.02,"SHOT":4.11,"CONS":5.26}},{"name":"Laslo Djere","rank":206,"ratings":{"SRV":4.62,"RET":4.98,"SHOT":4.76,"CONS":5.12}},{"name":"Francesco Passaro","rank":207,"ratings":{"SRV":5.11,"RET":3.79,"SHOT":4.32,"CONS":3.88}},{"name":"Daniel Rincon","rank":208,"ratings":{"SRV":2.83,"RET":4.83,"SHOT":3.57,"CONS":7.43}},{"name":"Roberto Carballes Baena","rank":209,"ratings":{"SRV":3.85,"RET":4.4,"SHOT":4.11,"CONS":5.56}},{"name":"Pol Martin Tiffon","rank":210,"ratings":{"SRV":3.36,"RET":4.07,"SHOT":4.02,"CONS":7.35}},{"name":"Maxim Mrva","rank":211,"ratings":{"SRV":2.28,"RET":5.41,"SHOT":3.6,"CONS":6.4}},{"name":"Guy Den Ouden","rank":212,"ratings":{"SRV":3.15,"RET":4.87,"SHOT":3.9,"CONS":7.09}},{"name":"Felix Gill","rank":213,"ratings":{"SRV":4.03,"RET":3.34,"SHOT":3.93,"CONS":7.6}},{"name":"Henri Squire","rank":214,"ratings":{"SRV":4.29,"RET":4.16,"SHOT":3.69,"CONS":3.81}},{"name":"Braden Shick","rank":215,"ratings":{"SRV":2.76,"RET":3.68,"SHOT":3.26,"CONS":6.27}},{"name":"Kimmer Coppejans","rank":216,"ratings":{"SRV":3.13,"RET":4.98,"SHOT":3.82,"CONS":4.76}},{"name":"Liam Draxl","rank":217,"ratings":{"SRV":4.0,"RET":4.14,"SHOT":4.05,"CONS":6.37}},{"name":"Rio Noguchi","rank":218,"ratings":{"SRV":2.89,"RET":4.31,"SHOT":3.95,"CONS":8.35}},{"name":"Nikolas Sanchez Izquierdo","rank":219,"ratings":{"SRV":3.13,"RET":5.1,"SHOT":4.23,"CONS":8.05}},{"name":"Chun Hsin Tseng","rank":220,"ratings":{"SRV":3.33,"RET":4.79,"SHOT":4.17,"CONS":6.55}},{"name":"Colton Smith","rank":221,"ratings":{"SRV":3.93,"RET":4.27,"SHOT":3.64,"CONS":7.16}},{"name":"Genaro Alberto Olivieri","rank":222,"ratings":{"SRV":3.19,"RET":4.43,"SHOT":3.32,"CONS":8.84}},{"name":"Raul Brancaccio","rank":223,"ratings":{"SRV":3.15,"RET":4.4,"SHOT":3.77,"CONS":6.56}},{"name":"Oliver Crawford","rank":224,"ratings":{"SRV":3.71,"RET":3.56,"SHOT":4.15,"CONS":6.33}},{"name":"Moez Echargui","rank":225,"ratings":{"SRV":3.77,"RET":3.14,"SHOT":3.7,"CONS":7.6}},{"name":"Henry Searle","rank":226,"ratings":{"SRV":4.74,"RET":3.6,"SHOT":4.08,"CONS":6.04}},{"name":"Juncheng Shang","rank":227,"ratings":{"SRV":7.75,"RET":6.8,"SHOT":7.65,"CONS":6.48}},{"name":"Stefano Napolitano","rank":228,"ratings":{"SRV":3.84,"RET":3.67,"SHOT":3.93,"CONS":6.82}},{"name":"Guido Ivan Justo","rank":229,"ratings":{"SRV":2.72,"RET":5.58,"SHOT":4.19,"CONS":7.62}},{"name":"Roberto Bautista Agut","rank":230,"ratings":{"SRV":5.92,"RET":5.37,"SHOT":5.89,"CONS":6.68}},{"name":"Kilian Feldbausch","rank":231,"ratings":{"SRV":3.27,"RET":6.49,"SHOT":4.75,"CONS":5.84}},{"name":"Juan Pablo Varillas","rank":232,"ratings":{"SRV":3.02,"RET":4.11,"SHOT":3.64,"CONS":4.61}},{"name":"Alex Barrena","rank":233,"ratings":{"SRV":2.56,"RET":4.78,"SHOT":3.64,"CONS":5.28}},{"name":"Sumit Nagal","rank":234,"ratings":{"SRV":3.54,"RET":4.77,"SHOT":4.26,"CONS":7.22}},{"name":"Alejandro Moro Canas","rank":235,"ratings":{"SRV":3.72,"RET":4.35,"SHOT":3.98,"CONS":8.61}},{"name":"Frederico Ferreira Silva","rank":236,"ratings":{"SRV":3.34,"RET":4.5,"SHOT":4.16,"CONS":7.81}},{"name":"Max Houkes","rank":237,"ratings":{"SRV":3.43,"RET":3.93,"SHOT":3.25,"CONS":6.21}},{"name":"Luca Nardi","rank":238,"ratings":{"SRV":4.56,"RET":5.08,"SHOT":4.72,"CONS":6.82}},{"name":"Jay Clarke","rank":239,"ratings":{"SRV":3.0,"RET":4.62,"SHOT":4.0,"CONS":6.47}},{"name":"Gilles Arnaud Bailly","rank":240,"ratings":{"SRV":2.66,"RET":4.08,"SHOT":3.89,"CONS":6.69}},{"name":"Darwin Blanch","rank":241,"ratings":{"SRV":4.31,"RET":3.91,"SHOT":3.87,"CONS":7.98}},{"name":"James McCabe","rank":242,"ratings":{"SRV":4.67,"RET":2.73,"SHOT":2.98,"CONS":6.74}},{"name":"Andres Andrade","rank":243,"ratings":{"SRV":2.65,"RET":4.62,"SHOT":3.65,"CONS":5.95}},{"name":"August Holmgren","rank":244,"ratings":{"SRV":4.96,"RET":2.78,"SHOT":3.54,"CONS":5.72}},{"name":"Yi Zhou","rank":245,"ratings":{"SRV":4.37,"RET":4.04,"SHOT":3.87,"CONS":7.32}},{"name":"Giulio Zeppieri","rank":246,"ratings":{"SRV":5.52,"RET":3.18,"SHOT":3.87,"CONS":6.39}},{"name":"Pavel Kotov","rank":247,"ratings":{"SRV":4.7,"RET":3.41,"SHOT":3.8,"CONS":5.24}},{"name":"Jeffrey John Wolf","rank":248,"ratings":{"SRV":4.29,"RET":4.45,"SHOT":4.49,"CONS":5.81}},{"name":"Matej Dodig","rank":249,"ratings":{"SRV":4.31,"RET":3.11,"SHOT":3.26,"CONS":6.73}},{"name":"Hayato Matsuoka","rank":250,"ratings":{"SRV":3.52,"RET":3.68,"SHOT":3.47,"CONS":5.09}},{"name":"Marc-Andrea Huesler","rank":251,"ratings":{"SRV":5.05,"RET":3.01,"SHOT":3.71,"CONS":6.15}},{"name":"Andrej Nedic","rank":252,"ratings":{"SRV":2.89,"RET":5.28,"SHOT":4.01,"CONS":5.14}},{"name":"Maks Kasnikowski","rank":253,"ratings":{"SRV":3.72,"RET":3.95,"SHOT":4.03,"CONS":8.66}},{"name":"Matheus Pucinelli de Almeida","rank":254,"ratings":{"SRV":2.71,"RET":5.85,"SHOT":4.33,"CONS":6.69}},{"name":"Hugo Grenier","rank":255,"ratings":{"SRV":4.37,"RET":3.91,"SHOT":3.59,"CONS":7.23}},{"name":"Abdullah Shelbayh","rank":256,"ratings":{"SRV":3.14,"RET":4.06,"SHOT":3.91,"CONS":7.05}},{"name":"Felix Balshaw","rank":257,"ratings":{"SRV":3.93,"RET":4.39,"SHOT":3.68,"CONS":5.16}},{"name":"Charles Broom","rank":258,"ratings":{"SRV":3.75,"RET":4.07,"SHOT":3.97,"CONS":3.02}},{"name":"Juan Bautista Torres","rank":259,"ratings":{"SRV":2.62,"RET":5.62,"SHOT":3.98,"CONS":7.73}},{"name":"Buvaysar Gadamauri","rank":260,"ratings":{"SRV":3.67,"RET":3.88,"SHOT":3.7,"CONS":6.71}},{"name":"Matias Soto","rank":261,"ratings":{"SRV":2.69,"RET":3.94,"SHOT":3.5,"CONS":5.39}},{"name":"Martin Krumich","rank":262,"ratings":{"SRV":3.53,"RET":4.51,"SHOT":3.83,"CONS":5.89}},{"name":"Mili Poljicak","rank":263,"ratings":{"SRV":3.38,"RET":3.79,"SHOT":3.13,"CONS":6.38}},{"name":"Harold Mayot","rank":264,"ratings":{"SRV":3.59,"RET":3.98,"SHOT":3.49,"CONS":7.83}},{"name":"Filip Cristian Jianu","rank":265,"ratings":{"SRV":3.34,"RET":3.68,"SHOT":3.72,"CONS":7.03}},{"name":"Max Basing","rank":266,"ratings":{"SRV":2.74,"RET":4.13,"SHOT":3.27,"CONS":6.56}},{"name":"Franco Roncadelli","rank":267,"ratings":{"SRV":2.81,"RET":5.31,"SHOT":3.85,"CONS":7.92}},{"name":"Dominic Stricker","rank":268,"ratings":{"SRV":4.32,"RET":4.13,"SHOT":4.26,"CONS":6.42}},{"name":"Ilia Simakin","rank":269,"ratings":{"SRV":3.9,"RET":3.64,"SHOT":3.51,"CONS":6.86}},{"name":"Kaichi Uchida","rank":270,"ratings":{"SRV":3.68,"RET":2.63,"SHOT":3.42,"CONS":5.39}},{"name":"Hynek Barton","rank":271,"ratings":{"SRV":4.11,"RET":4.14,"SHOT":3.55,"CONS":6.82}},{"name":"Philip Henning","rank":272,"ratings":{"SRV":3.29,"RET":4.52,"SHOT":4.08,"CONS":6.18}},{"name":"Sean Cuenin","rank":273,"ratings":{"SRV":2.64,"RET":2.39,"SHOT":2.74,"CONS":5.02}},{"name":"Marvin Moeller","rank":274,"ratings":{"SRV":2.94,"RET":4.35,"SHOT":3.8,"CONS":5.59}},{"name":"Thiago Monteiro","rank":275,"ratings":{"SRV":4.36,"RET":4.13,"SHOT":4.26,"CONS":8.47}},{"name":"Michele Ribecai","rank":276,"ratings":{"SRV":2.6,"RET":4.72,"SHOT":4.21,"CONS":6.73}},{"name":"Dan Added","rank":277,"ratings":{"SRV":3.34,"RET":2.84,"SHOT":3.18,"CONS":7.11}},{"name":"Joao Lucas Reis Da Silva","rank":278,"ratings":{"SRV":3.61,"RET":4.14,"SHOT":4.07,"CONS":7.78}},{"name":"Nick Hardt","rank":279,"ratings":{"SRV":2.18,"RET":4.98,"SHOT":3.63,"CONS":4.57}},{"name":"Inaki Montes-de la Torre","rank":280,"ratings":{"SRV":2.57,"RET":5.34,"SHOT":4.03,"CONS":4.74}},{"name":"Alvaro Guillen Meza","rank":281,"ratings":{"SRV":2.89,"RET":4.99,"SHOT":3.6,"CONS":6.42}},{"name":"Alastair Gray","rank":282,"ratings":{"SRV":4.11,"RET":3.31,"SHOT":3.45,"CONS":7.0}},{"name":"Juan Manuel La Serna","rank":283,"ratings":{"SRV":2.69,"RET":5.23,"SHOT":3.67,"CONS":6.91}},{"name":"Pedro Boscardin Dias","rank":284,"ratings":{"SRV":2.62,"RET":4.19,"SHOT":3.18,"CONS":7.06}},{"name":"Franco Agamenone","rank":285,"ratings":{"SRV":2.75,"RET":5.29,"SHOT":3.65,"CONS":7.06}},{"name":"Petr Bar Biryukov","rank":286,"ratings":{"SRV":4.13,"RET":1.92,"SHOT":2.4,"CONS":3.22}},{"name":"Matteo Martineau","rank":287,"ratings":{"SRV":3.92,"RET":3.11,"SHOT":2.99,"CONS":5.48}},{"name":"Pierre-Hugues Herbert","rank":288,"ratings":{"SRV":4.85,"RET":3.32,"SHOT":4.56,"CONS":5.96}},{"name":"Cezar (2001) Cretu","rank":289,"ratings":{"SRV":2.83,"RET":5.24,"SHOT":3.83,"CONS":6.21}},{"name":"Giles Hussey","rank":290,"ratings":{"SRV":3.16,"RET":4.29,"SHOT":3.67,"CONS":6.38}},{"name":"Sergey Fomin","rank":291,"ratings":{"SRV":2.99,"RET":3.44,"SHOT":3.16,"CONS":5.43}},{"name":"Sandro Kopp","rank":292,"ratings":{"SRV":3.37,"RET":3.82,"SHOT":3.51,"CONS":7.09}},{"name":"Carl Emil Overbeck","rank":293,"ratings":{"SRV":4.29,"RET":3.5,"SHOT":3.34,"CONS":2.76}},{"name":"Rodrigo Pacheco Mendez","rank":294,"ratings":{"SRV":3.99,"RET":3.82,"SHOT":4.27,"CONS":6.74}},{"name":"Stefan Kozlov","rank":295,"ratings":{"SRV":2.86,"RET":4.68,"SHOT":3.94,"CONS":4.58}},{"name":"Florian Broska","rank":296,"ratings":{"SRV":3.65,"RET":3.39,"SHOT":3.59,"CONS":6.35}},{"name":"Yu Hsiou Hsu","rank":297,"ratings":{"SRV":3.26,"RET":3.81,"SHOT":3.67,"CONS":7.35}},{"name":"Mert Alkaya","rank":298,"ratings":{"SRV":3.02,"RET":3.57,"SHOT":3.16,"CONS":5.17}},{"name":"Matthew Dellavedova","rank":299,"ratings":{"SRV":3.06,"RET":2.58,"SHOT":2.16,"CONS":4.43}},{"name":"Pyotr Nesterov","rank":300,"ratings":{"SRV":2.8,"RET":4.35,"SHOT":3.33,"CONS":6.71}},{"name":"Florent Bax","rank":301,"ratings":{"SRV":3.58,"RET":2.46,"SHOT":2.99,"CONS":3.93}},{"name":"Federico Bondioli","rank":302,"ratings":{"SRV":3.09,"RET":3.99,"SHOT":3.38,"CONS":5.95}},{"name":"Yanki Erel","rank":303,"ratings":{"SRV":3.39,"RET":3.13,"SHOT":3.15,"CONS":5.42}},{"name":"Murphy Cassone","rank":304,"ratings":{"SRV":4.44,"RET":3.77,"SHOT":3.71,"CONS":7.67}},{"name":"Stefan Dostanic","rank":305,"ratings":{"SRV":4.0,"RET":4.8,"SHOT":3.87,"CONS":7.05}},{"name":"Igor Marcondes","rank":306,"ratings":{"SRV":3.83,"RET":4.0,"SHOT":3.73,"CONS":7.05}},{"name":"Gael Monfils","rank":307,"ratings":{"SRV":7.48,"RET":7.95,"SHOT":7.37,"CONS":5.7}},{"name":"Radu Mihai Papoe","rank":308,"ratings":{"SRV":2.1,"RET":5.91,"SHOT":4.0,"CONS":6.38}},{"name":"Justin Engel","rank":309,"ratings":{"SRV":4.29,"RET":3.15,"SHOT":3.7,"CONS":5.42}},{"name":"David Goffin","rank":310,"ratings":{"SRV":4.41,"RET":5.18,"SHOT":5.25,"CONS":2.96}},{"name":"Johannus Monday","rank":311,"ratings":{"SRV":4.68,"RET":2.92,"SHOT":4.0,"CONS":6.57}},{"name":"Filippo Romano","rank":312,"ratings":{"SRV":3.51,"RET":3.58,"SHOT":3.16,"CONS":7.4}},{"name":"Miguel Damas","rank":313,"ratings":{"SRV":2.25,"RET":4.66,"SHOT":3.62,"CONS":6.37}},{"name":"Jay Friend","rank":314,"ratings":{"SRV":3.96,"RET":3.99,"SHOT":3.91,"CONS":5.86}},{"name":"Max Hans Rehberg","rank":315,"ratings":{"SRV":4.22,"RET":4.41,"SHOT":4.37,"CONS":7.05}},{"name":"Daniel Milavsky","rank":316,"ratings":{"SRV":3.57,"RET":3.1,"SHOT":3.32,"CONS":6.85}},{"name":"Max Schoenhaus","rank":317,"ratings":{"SRV":4.33,"RET":4.24,"SHOT":4.05,"CONS":5.84}},{"name":"Fajing Sun","rank":318,"ratings":{"SRV":3.12,"RET":3.42,"SHOT":3.98,"CONS":5.55}},{"name":"Duje Ajdukovic","rank":319,"ratings":{"SRV":2.89,"RET":3.9,"SHOT":2.99,"CONS":7.26}},{"name":"Luciano Emanuel Ambrogi","rank":320,"ratings":{"SRV":2.73,"RET":4.44,"SHOT":3.43,"CONS":6.29}},{"name":"Gonzalo Villanueva","rank":321,"ratings":{"SRV":2.53,"RET":4.87,"SHOT":3.59,"CONS":7.93}},{"name":"Michael Geerts","rank":322,"ratings":{"SRV":3.35,"RET":3.36,"SHOT":3.79,"CONS":6.56}},{"name":"Andres Martin","rank":323,"ratings":{"SRV":3.29,"RET":3.68,"SHOT":3.32,"CONS":7.39}},{"name":"Daniel Michalski","rank":324,"ratings":{"SRV":2.35,"RET":4.57,"SHOT":3.82,"CONS":5.17}},{"name":"Calvin Hemery","rank":325,"ratings":{"SRV":3.88,"RET":2.67,"SHOT":2.91,"CONS":7.23}},{"name":"Tyler Zink","rank":326,"ratings":{"SRV":3.6,"RET":2.77,"SHOT":3.13,"CONS":8.39}},{"name":"Nicolas Kicker","rank":327,"ratings":{"SRV":2.81,"RET":4.57,"SHOT":3.78,"CONS":6.53}},{"name":"Akira Santillan","rank":328,"ratings":{"SRV":3.5,"RET":3.3,"SHOT":3.18,"CONS":3.16}},{"name":"Oliver Tarvet","rank":329,"ratings":{"SRV":4.32,"RET":4.11,"SHOT":4.46,"CONS":6.6}},{"name":"Anton Matusevich","rank":330,"ratings":{"SRV":3.75,"RET":3.56,"SHOT":4.17,"CONS":5.12}},{"name":"Sascha Gueymard Wayenburg","rank":331,"ratings":{"SRV":3.93,"RET":3.83,"SHOT":3.4,"CONS":6.58}},{"name":"Enrico Dalla Valle","rank":332,"ratings":{"SRV":4.42,"RET":4.16,"SHOT":3.85,"CONS":8.18}},{"name":"Jordan Thompson","rank":333,"ratings":{"SRV":6.19,"RET":5.04,"SHOT":5.78,"CONS":6.47}},{"name":"Daniel Elahi Galan","rank":334,"ratings":{"SRV":3.62,"RET":3.81,"SHOT":3.49,"CONS":6.87}},{"name":"Mikhail Kukushkin","rank":335,"ratings":{"SRV":3.81,"RET":4.07,"SHOT":4.48,"CONS":8.05}},{"name":"Eliakim Coulibaly","rank":336,"ratings":{"SRV":3.53,"RET":3.78,"SHOT":3.39,"CONS":6.8}},{"name":"Raphael Perot","rank":337,"ratings":{"SRV":2.26,"RET":3.81,"SHOT":3.16,"CONS":5.98}},{"name":"Mathys Erhard","rank":338,"ratings":{"SRV":3.52,"RET":3.51,"SHOT":3.46,"CONS":6.67}},{"name":"Marko ToPo","rank":339,"ratings":{"SRV":3.78,"RET":3.4,"SHOT":3.62,"CONS":4.0}},{"name":"Dali Blanch","rank":340,"ratings":{"SRV":2.98,"RET":5.16,"SHOT":3.61,"CONS":6.55}},{"name":"Lucas Poullain","rank":341,"ratings":{"SRV":3.05,"RET":4.43,"SHOT":3.78,"CONS":7.34}},{"name":"Edward Winter","rank":342,"ratings":{"SRV":3.33,"RET":4.27,"SHOT":4.25,"CONS":6.95}},{"name":"Ognjen Milic","rank":343,"ratings":{"SRV":2.58,"RET":3.32,"SHOT":3.16,"CONS":4.92}},{"name":"Oriol Roca Batalla","rank":344,"ratings":{"SRV":3.4,"RET":3.77,"SHOT":3.59,"CONS":6.78}},{"name":"Facundo Mena","rank":345,"ratings":{"SRV":3.6,"RET":3.47,"SHOT":3.08,"CONS":6.99}},{"name":"Yasutaka Uchiyama","rank":346,"ratings":{"SRV":4.4,"RET":3.16,"SHOT":3.59,"CONS":5.57}},{"name":"Hamish Stewart","rank":347,"ratings":{"SRV":4.7,"RET":3.69,"SHOT":3.58,"CONS":6.54}},{"name":"Thomas Faurel","rank":348,"ratings":{"SRV":3.0,"RET":4.31,"SHOT":4.1,"CONS":6.65}},{"name":"Tiago Torres","rank":349,"ratings":{"SRV":2.61,"RET":5.39,"SHOT":3.97,"CONS":5.5}},{"name":"Philip Sekulic","rank":350,"ratings":{"SRV":3.31,"RET":3.29,"SHOT":3.2,"CONS":6.08}},{"name":"Ivan Marrero Curbelo","rank":351,"ratings":{"SRV":2.49,"RET":4.62,"SHOT":3.95,"CONS":6.86}},{"name":"Tiago Pereira","rank":352,"ratings":{"SRV":2.34,"RET":3.35,"SHOT":2.76,"CONS":6.96}},{"name":"Antoine Ghibaudo","rank":353,"ratings":{"SRV":3.58,"RET":3.31,"SHOT":3.52,"CONS":7.25}},{"name":"Mitchell Krueger","rank":354,"ratings":{"SRV":3.78,"RET":3.6,"SHOT":3.84,"CONS":5.87}},{"name":"Juan Estevez","rank":355,"ratings":{"SRV":2.35,"RET":4.93,"SHOT":3.48,"CONS":5.84}},{"name":"Geoffrey Blancaneaux","rank":356,"ratings":{"SRV":2.94,"RET":3.41,"SHOT":3.06,"CONS":5.76}},{"name":"Hernan Casanova","rank":357,"ratings":{"SRV":2.91,"RET":5.25,"SHOT":3.82,"CONS":6.74}},{"name":"Jake Delaney","rank":358,"ratings":{"SRV":3.92,"RET":1.99,"SHOT":2.77,"CONS":3.44}},{"name":"Petr Brunclik","rank":359,"ratings":{"SRV":3.8,"RET":4.31,"SHOT":3.94,"CONS":4.81}},{"name":"Francesco Forti","rank":360,"ratings":{"SRV":3.62,"RET":3.1,"SHOT":3.06,"CONS":5.59}},{"name":"Norbert Gombos","rank":361,"ratings":{"SRV":3.33,"RET":3.91,"SHOT":3.59,"CONS":7.11}},{"name":"Lui Maxted","rank":362,"ratings":{"SRV":3.24,"RET":4.03,"SHOT":3.54,"CONS":3.92}},{"name":"Gabriele Piraino","rank":363,"ratings":{"SRV":2.32,"RET":4.41,"SHOT":3.28,"CONS":6.45}},{"name":"Eduardo Ribeiro","rank":364,"ratings":{"SRV":3.07,"RET":4.45,"SHOT":3.55,"CONS":6.96}},{"name":"Tommaso Compagnucci","rank":365,"ratings":{"SRV":3.03,"RET":4.2,"SHOT":3.18,"CONS":6.6}},{"name":"Marc Polmans","rank":366,"ratings":{"SRV":3.67,"RET":3.09,"SHOT":3.34,"CONS":6.22}},{"name":"Alex Martinez","rank":367,"ratings":{"SRV":2.51,"RET":3.91,"SHOT":2.93,"CONS":6.47}},{"name":"Cruz Hewitt","rank":368,"ratings":{"SRV":3.71,"RET":4.27,"SHOT":4.25,"CONS":5.24}},{"name":"Tung-Lin Wu","rank":369,"ratings":{"SRV":4.22,"RET":4.2,"SHOT":4.11,"CONS":7.12}},{"name":"Murkel Dellien","rank":370,"ratings":{"SRV":1.93,"RET":4.39,"SHOT":3.1,"CONS":5.81}},{"name":"Andrea Collarini","rank":371,"ratings":{"SRV":2.83,"RET":5.08,"SHOT":4.14,"CONS":6.06}},{"name":"Manas Dhamne","rank":372,"ratings":{"SRV":2.51,"RET":4.03,"SHOT":3.61,"CONS":7.11}},{"name":"Dimitar Kuzmanov","rank":373,"ratings":{"SRV":3.41,"RET":4.47,"SHOT":3.88,"CONS":6.2}},{"name":"Andrey Chepelev","rank":374,"ratings":{"SRV":2.2,"RET":3.03,"SHOT":2.22,"CONS":1.98}},{"name":"Lucio Ratti","rank":375,"ratings":{"SRV":2.89,"RET":4.57,"SHOT":3.44,"CONS":4.63}},{"name":"Carlos Sanchez Jover","rank":376,"ratings":{"SRV":2.49,"RET":4.99,"SHOT":3.72,"CONS":6.15}},{"name":"Carlos Maria Zarate","rank":377,"ratings":{"SRV":2.22,"RET":3.81,"SHOT":2.91,"CONS":6.53}},{"name":"Max Wiskandt","rank":378,"ratings":{"SRV":3.26,"RET":3.0,"SHOT":2.69,"CONS":4.92}},{"name":"Jacopo Vasami","rank":379,"ratings":{"SRV":3.54,"RET":2.72,"SHOT":2.69,"CONS":6.48}},{"name":"Juan Pablo Ficovich","rank":380,"ratings":{"SRV":3.37,"RET":3.29,"SHOT":3.11,"CONS":5.02}},{"name":"Jonas Forejtek","rank":381,"ratings":{"SRV":3.66,"RET":4.59,"SHOT":3.99,"CONS":3.89}},{"name":"Marek Gengel","rank":382,"ratings":{"SRV":3.72,"RET":4.02,"SHOT":3.64,"CONS":6.48}},{"name":"Blaise Bicknell","rank":383,"ratings":{"SRV":3.74,"RET":2.6,"SHOT":2.74,"CONS":6.78}},{"name":"Georgii Kravchenko","rank":384,"ratings":{"SRV":2.91,"RET":3.81,"SHOT":3.2,"CONS":5.75}},{"name":"Ilya Ivashka","rank":385,"ratings":{"SRV":3.78,"RET":4.33,"SHOT":4.03,"CONS":4.51}},{"name":"Jack Kennedy","rank":386,"ratings":{"SRV":2.13,"RET":5.12,"SHOT":3.67,"CONS":4.72}},{"name":"Alejo Sanchez Quilez","rank":387,"ratings":{"SRV":2.21,"RET":4.79,"SHOT":3.65,"CONS":6.03}},{"name":"Yuta Shimizu","rank":388,"ratings":{"SRV":3.37,"RET":3.71,"SHOT":3.54,"CONS":7.54}},{"name":"Mees Rottgering","rank":389,"ratings":{"SRV":3.73,"RET":4.75,"SHOT":4.56,"CONS":6.1}},{"name":"Trevor Svajda","rank":390,"ratings":{"SRV":3.27,"RET":4.38,"SHOT":4.41,"CONS":6.35}},{"name":"Andrej Martin","rank":391,"ratings":{"SRV":2.85,"RET":3.71,"SHOT":3.12,"CONS":6.36}},{"name":"Daniel Masur","rank":392,"ratings":{"SRV":3.97,"RET":3.7,"SHOT":3.57,"CONS":7.27}},{"name":"Samuele Pieri","rank":393,"ratings":{"SRV":2.9,"RET":3.33,"SHOT":3.21,"CONS":6.68}},{"name":"Dhakshineswar Suresh","rank":394,"ratings":{"SRV":4.92,"RET":2.26,"SHOT":3.06,"CONS":6.48}},{"name":"Justin Boulais","rank":395,"ratings":{"SRV":3.21,"RET":3.52,"SHOT":3.32,"CONS":4.2}},{"name":"Arthur Nagel","rank":396,"ratings":{"SRV":2.23,"RET":2.6,"SHOT":2.09,"CONS":1.88}},{"name":"Mats Rosenkranz","rank":397,"ratings":{"SRV":4.49,"RET":4.39,"SHOT":4.08,"CONS":5.75}},{"name":"Arthur Weber","rank":398,"ratings":{"SRV":2.7,"RET":2.41,"SHOT":2.57,"CONS":5.3}},{"name":"Masamichi Imamura","rank":399,"ratings":{"SRV":2.59,"RET":4.04,"SHOT":3.7,"CONS":7.19}},{"name":"Carlos Taberner","rank":400,"ratings":{"SRV":3.06,"RET":5.45,"SHOT":4.25,"CONS":4.77}},{"name":"Vadym Ursu","rank":401,"ratings":{"SRV":2.33,"RET":4.06,"SHOT":2.77,"CONS":4.98}},{"name":"Omar Jasika","rank":402,"ratings":{"SRV":2.41,"RET":2.78,"SHOT":2.63,"CONS":7.05}},{"name":"Robin Bertrand","rank":403,"ratings":{"SRV":2.3,"RET":3.59,"SHOT":3.02,"CONS":5.59}},{"name":"Oleg Prihodko","rank":404,"ratings":{"SRV":3.66,"RET":3.54,"SHOT":2.88,"CONS":5.38}},{"name":"Stefan Palosi","rank":405,"ratings":{"SRV":2.82,"RET":4.11,"SHOT":3.35,"CONS":6.34}},{"name":"Garrett Johns","rank":406,"ratings":{"SRV":2.77,"RET":3.6,"SHOT":3.07,"CONS":6.0}},{"name":"Dylan Dietrich","rank":407,"ratings":{"SRV":5.43,"RET":4.0,"SHOT":4.31,"CONS":4.47}},{"name":"Sebastian Sorger","rank":408,"ratings":{"SRV":2.39,"RET":3.46,"SHOT":2.48,"CONS":4.82}},{"name":"Olle Wallin","rank":409,"ratings":{"SRV":3.17,"RET":3.41,"SHOT":3.27,"CONS":7.12}},{"name":"Robert Strombachs","rank":410,"ratings":{"SRV":3.32,"RET":2.69,"SHOT":3.05,"CONS":4.7}},{"name":"Patrick Zahraj","rank":411,"ratings":{"SRV":2.38,"RET":3.18,"SHOT":2.75,"CONS":0.14}},{"name":"Thanasi Kokkinakis","rank":412,"ratings":{"SRV":6.33,"RET":5.01,"SHOT":5.75,"CONS":5.68}},{"name":"Mateus Alves","rank":413,"ratings":{"SRV":3.8,"RET":4.48,"SHOT":3.94,"CONS":5.48}},{"name":"Andrew Fenty","rank":414,"ratings":{"SRV":3.33,"RET":2.75,"SHOT":3.08,"CONS":4.96}},{"name":"Yosuke Watanuki","rank":415,"ratings":{"SRV":3.43,"RET":4.16,"SHOT":3.06,"CONS":4.04}},{"name":"Massimo Giunta","rank":416,"ratings":{"SRV":4.08,"RET":1.9,"SHOT":2.74,"CONS":4.56}},{"name":"Johan Nikles","rank":417,"ratings":{"SRV":1.39,"RET":4.7,"SHOT":3.04,"CONS":6.03}},{"name":"Ioannis Xilas","rank":418,"ratings":{"SRV":2.26,"RET":4.12,"SHOT":3.37,"CONS":5.34}},{"name":"Benjamin Hassan","rank":419,"ratings":{"SRV":2.71,"RET":3.34,"SHOT":3.02,"CONS":6.5}},{"name":"Semen Pankin","rank":420,"ratings":{"SRV":2.66,"RET":3.57,"SHOT":3.42,"CONS":4.87}},{"name":"Eric Vanshelboim","rank":421,"ratings":{"SRV":2.12,"RET":3.02,"SHOT":2.05,"CONS":4.57}},{"name":"Ozan Baris","rank":422,"ratings":{"SRV":3.43,"RET":2.53,"SHOT":2.64,"CONS":4.53}},{"name":"Henry Bernet","rank":423,"ratings":{"SRV":3.54,"RET":3.49,"SHOT":3.3,"CONS":5.54}},{"name":"Mika Brunold","rank":424,"ratings":{"SRV":3.23,"RET":4.12,"SHOT":3.65,"CONS":6.77}},{"name":"Maxime Chazal","rank":425,"ratings":{"SRV":2.7,"RET":3.46,"SHOT":3.6,"CONS":5.02}},{"name":"Niels Visker","rank":426,"ratings":{"SRV":4.19,"RET":2.08,"SHOT":2.71,"CONS":5.89}},{"name":"Constantin Bittoun Kouzmine","rank":427,"ratings":{"SRV":2.68,"RET":3.06,"SHOT":3.29,"CONS":6.28}},{"name":"Valerio Aboian","rank":428,"ratings":{"SRV":2.52,"RET":3.77,"SHOT":2.51,"CONS":6.79}},{"name":"Mika Petkovic","rank":429,"ratings":{"SRV":2.5,"RET":4.02,"SHOT":3.58,"CONS":5.44}},{"name":"Santiago Rodriguez Taverna","rank":430,"ratings":{"SRV":3.08,"RET":2.84,"SHOT":2.77,"CONS":6.33}},{"name":"Yannik Kelm","rank":431,"ratings":{"SRV":1.68,"RET":1.81,"SHOT":1.79,"CONS":1.73}},{"name":"Vladyslav Orlov","rank":432,"ratings":{"SRV":1.35,"RET":4.4,"SHOT":3.44,"CONS":5.31}},{"name":"Javier Barranco Cosano","rank":433,"ratings":{"SRV":2.42,"RET":5.34,"SHOT":3.67,"CONS":4.44}},{"name":"Laurent Lokoli","rank":434,"ratings":{"SRV":2.85,"RET":3.06,"SHOT":2.97,"CONS":5.38}},{"name":"Nerman Fatic","rank":435,"ratings":{"SRV":3.34,"RET":3.97,"SHOT":3.29,"CONS":6.54}},{"name":"Corentin Denolly","rank":436,"ratings":{"SRV":2.58,"RET":2.68,"SHOT":2.4,"CONS":5.53}},{"name":"Juan Cruz Martin Manzano","rank":437,"ratings":{"SRV":2.17,"RET":3.43,"SHOT":2.28,"CONS":5.19}},{"name":"Marat Sharipov","rank":438,"ratings":{"SRV":4.7,"RET":3.34,"SHOT":3.33,"CONS":6.15}},{"name":"Matthew William Donald","rank":439,"ratings":{"SRV":2.3,"RET":4.8,"SHOT":3.73,"CONS":4.2}},{"name":"Denis Yevseyev","rank":440,"ratings":{"SRV":2.58,"RET":3.94,"SHOT":3.03,"CONS":4.58}},{"name":"Timo Legout","rank":441,"ratings":{"SRV":2.76,"RET":5.25,"SHOT":4.33,"CONS":5.01}},{"name":"Luca Staeheli","rank":442,"ratings":{"SRV":2.61,"RET":5.17,"SHOT":3.31,"CONS":4.31}},{"name":"Viktor Durasovic","rank":443,"ratings":{"SRV":3.08,"RET":3.08,"SHOT":2.86,"CONS":6.01}},{"name":"Spencer Johnson","rank":444,"ratings":{"SRV":4.38,"RET":3.52,"SHOT":3.49,"CONS":5.19}},{"name":"Karim Bennani","rank":445,"ratings":{"SRV":3.28,"RET":3.61,"SHOT":4.17,"CONS":4.22}},{"name":"Cyril Vandermeersch","rank":446,"ratings":{"SRV":1.74,"RET":2.06,"SHOT":1.87,"CONS":2.32}},{"name":"Jie Cui","rank":447,"ratings":{"SRV":3.33,"RET":3.49,"SHOT":3.63,"CONS":6.43}},{"name":"Ryan Peniston","rank":448,"ratings":{"SRV":2.36,"RET":4.9,"SHOT":3.52,"CONS":5.2}},{"name":"Tom Paris","rank":449,"ratings":{"SRV":3.49,"RET":2.61,"SHOT":2.69,"CONS":3.49}},{"name":"Alafia Ayeni","rank":450,"ratings":{"SRV":3.62,"RET":3.18,"SHOT":2.57,"CONS":5.04}},{"name":"Rudolf Molleker","rank":451,"ratings":{"SRV":3.7,"RET":3.47,"SHOT":3.73,"CONS":6.02}},{"name":"Karl Poling","rank":452,"ratings":{"SRV":2.71,"RET":3.43,"SHOT":3.67,"CONS":6.62}},{"name":"Oleksii Krutykh","rank":453,"ratings":{"SRV":2.78,"RET":4.46,"SHOT":4.25,"CONS":5.87}},{"name":"Moerani Bouzige","rank":454,"ratings":{"SRV":3.03,"RET":1.57,"SHOT":2.43,"CONS":2.98}},{"name":"Luca Castelnuovo","rank":455,"ratings":{"SRV":3.42,"RET":2.56,"SHOT":2.77,"CONS":5.87}},{"name":"Quinn Vandecasteele","rank":456,"ratings":{"SRV":3.04,"RET":4.02,"SHOT":3.16,"CONS":7.75}},{"name":"Daniel Dutra Da Silva","rank":457,"ratings":{"SRV":2.43,"RET":4.53,"SHOT":3.37,"CONS":6.1}},{"name":"James Kent Trotter","rank":458,"ratings":{"SRV":4.21,"RET":2.74,"SHOT":3.09,"CONS":3.07}},{"name":"Felipe Meligeni Alves","rank":459,"ratings":{"SRV":3.46,"RET":4.51,"SHOT":4.17,"CONS":5.56}},{"name":"Joaquin Aguilar Cardozo","rank":460,"ratings":{"SRV":1.98,"RET":5.1,"SHOT":3.63,"CONS":5.86}},{"name":"Khumoyun Sultanov","rank":461,"ratings":{"SRV":3.65,"RET":3.08,"SHOT":3.25,"CONS":4.87}},{"name":"Kenta (2004) Miyoshi","rank":462,"ratings":{"SRV":3.01,"RET":4.44,"SHOT":3.43,"CONS":4.89}},{"name":"Beibit Zhukayev","rank":463,"ratings":{"SRV":4.58,"RET":2.41,"SHOT":2.87,"CONS":4.41}},{"name":"Cannon Kingsley","rank":464,"ratings":{"SRV":4.03,"RET":3.53,"SHOT":3.51,"CONS":7.21}},{"name":"Alex Hernandez","rank":465,"ratings":{"SRV":2.48,"RET":3.51,"SHOT":3.44,"CONS":5.6}},{"name":"Emile Hudd","rank":466,"ratings":{"SRV":4.44,"RET":2.87,"SHOT":2.7,"CONS":4.55}},{"name":"Christian Langmo","rank":467,"ratings":{"SRV":3.93,"RET":2.35,"SHOT":2.52,"CONS":6.66}},{"name":"Jack Loge","rank":468,"ratings":{"SRV":2.24,"RET":5.62,"SHOT":4.05,"CONS":5.25}},{"name":"Jason Kubler","rank":469,"ratings":{"SRV":5.02,"RET":3.4,"SHOT":4.27,"CONS":6.5}},{"name":"Blake Ellis","rank":470,"ratings":{"SRV":4.0,"RET":1.84,"SHOT":2.73,"CONS":1.69}},{"name":"Alex Rybakov","rank":471,"ratings":{"SRV":3.73,"RET":3.21,"SHOT":3.0,"CONS":6.24}},{"name":"Eero Vasa","rank":472,"ratings":{"SRV":3.27,"RET":3.34,"SHOT":2.91,"CONS":5.68}},{"name":"Ivan Gakhov","rank":473,"ratings":{"SRV":2.99,"RET":3.54,"SHOT":2.97,"CONS":2.84}},{"name":"Carlo Alberto Caniato","rank":474,"ratings":{"SRV":3.83,"RET":3.14,"SHOT":3.72,"CONS":5.95}},{"name":"Paulo Andre Saraiva Dos Santos","rank":475,"ratings":{"SRV":2.52,"RET":3.44,"SHOT":2.49,"CONS":5.71}},{"name":"Sergi Perez Contri","rank":476,"ratings":{"SRV":2.07,"RET":5.23,"SHOT":3.63,"CONS":4.21}},{"name":"Kei Nishikori","rank":477,"ratings":{"SRV":3.44,"RET":4.13,"SHOT":4.1,"CONS":5.75}},{"name":"Lorenzo Carboni","rank":478,"ratings":{"SRV":2.07,"RET":4.31,"SHOT":3.2,"CONS":7.04}},{"name":"Koki Matsuda","rank":479,"ratings":{"SRV":3.15,"RET":2.4,"SHOT":2.36,"CONS":6.51}},{"name":"Renta Tokuda","rank":480,"ratings":{"SRV":3.4,"RET":2.93,"SHOT":3.43,"CONS":5.42}},{"name":"Sergio Callejon Hernando","rank":481,"ratings":{"SRV":1.88,"RET":4.61,"SHOT":3.6,"CONS":6.46}},{"name":"Kasidit Samrej","rank":482,"ratings":{"SRV":3.48,"RET":3.5,"SHOT":3.42,"CONS":1.69}},{"name":"Yassine Dlimi","rank":483,"ratings":{"SRV":1.73,"RET":1.81,"SHOT":1.68,"CONS":1.88}},{"name":"Luca Potenza","rank":484,"ratings":{"SRV":2.44,"RET":3.97,"SHOT":3.77,"CONS":6.72}},{"name":"Maximus Jones","rank":485,"ratings":{"SRV":3.05,"RET":2.82,"SHOT":2.76,"CONS":6.63}},{"name":"Louis Wessels","rank":486,"ratings":{"SRV":3.25,"RET":3.26,"SHOT":3.1,"CONS":5.61}},{"name":"Izan Almazan Valiente","rank":487,"ratings":{"SRV":2.82,"RET":3.86,"SHOT":2.98,"CONS":5.13}},{"name":"Duncan Chan","rank":488,"ratings":{"SRV":3.5,"RET":4.16,"SHOT":3.48,"CONS":5.4}},{"name":"Thijs Boogaard","rank":489,"ratings":{"SRV":4.13,"RET":4.65,"SHOT":4.32,"CONS":4.83}},{"name":"Niels McDonald","rank":490,"ratings":{"SRV":2.64,"RET":3.37,"SHOT":3.0,"CONS":5.06}},{"name":"Dusan Obradovic","rank":491,"ratings":{"SRV":1.44,"RET":1.97,"SHOT":1.66,"CONS":2.03}},{"name":"Patrick Schoen","rank":492,"ratings":{"SRV":2.02,"RET":1.58,"SHOT":1.71,"CONS":1.73}},{"name":"Anton Shepp","rank":493,"ratings":{"SRV":2.92,"RET":2.0,"SHOT":2.03,"CONS":1.92}},{"name":"Gabi Adrian Boitan","rank":494,"ratings":{"SRV":3.05,"RET":3.45,"SHOT":3.11,"CONS":4.02}},{"name":"Colin Sinclair","rank":495,"ratings":{"SRV":4.21,"RET":1.51,"SHOT":2.65,"CONS":4.63}},{"name":"George Loffhagen","rank":496,"ratings":{"SRV":3.6,"RET":3.93,"SHOT":3.68,"CONS":2.71}},{"name":"Radu Albot","rank":497,"ratings":{"SRV":2.53,"RET":4.25,"SHOT":3.58,"CONS":5.62}},{"name":"Daniel Siniakov","rank":498,"ratings":{"SRV":2.78,"RET":3.45,"SHOT":2.85,"CONS":4.66}},{"name":"Paul Jubb","rank":499,"ratings":{"SRV":2.93,"RET":4.66,"SHOT":3.47,"CONS":5.53}},{"name":"Bor Artnak","rank":500,"ratings":{"SRV":1.6,"RET":2.45,"SHOT":2.26,"CONS":5.29}}],"WTA":[{"name":"Aryna Sabalenka","rank":1,"ratings":{"SRV":10.0,"RET":8.53,"SHOT":10.0,"CONS":8.05}},{"name":"Elena Rybakina","rank":2,"ratings":{"SRV":9.87,"RET":7.88,"SHOT":9.19,"CONS":7.94}},{"name":"Jessica Pegula","rank":3,"ratings":{"SRV":9.25,"RET":9.08,"SHOT":9.6,"CONS":9.69}},{"name":"Coco Gauff","rank":4,"ratings":{"SRV":8.35,"RET":9.47,"SHOT":8.86,"CONS":6.38}},{"name":"Mirra Andreeva","rank":5,"ratings":{"SRV":8.54,"RET":9.21,"SHOT":9.11,"CONS":8.13}},{"name":"Linda Noskova","rank":6,"ratings":{"SRV":9.72,"RET":7.65,"SHOT":9.05,"CONS":6.07}},{"name":"Karolina Muchova","rank":7,"ratings":{"SRV":9.07,"RET":8.39,"SHOT":9.46,"CONS":6.81}},{"name":"Iga Swiatek","rank":8,"ratings":{"SRV":8.71,"RET":10.0,"SHOT":9.92,"CONS":8.8}},{"name":"Elina Svitolina","rank":9,"ratings":{"SRV":8.41,"RET":9.05,"SHOT":9.11,"CONS":8.74}},{"name":"Amanda Anisimova","rank":10,"ratings":{"SRV":9.32,"RET":9.03,"SHOT":9.54,"CONS":7.14}},{"name":"Marta Kostyuk","rank":11,"ratings":{"SRV":8.84,"RET":9.18,"SHOT":9.26,"CONS":7.41}},{"name":"Belinda Bencic","rank":12,"ratings":{"SRV":8.35,"RET":8.67,"SHOT":9.23,"CONS":8.92}},{"name":"Naomi Osaka","rank":13,"ratings":{"SRV":9.66,"RET":7.81,"SHOT":8.92,"CONS":8.84}},{"name":"Iva Jovic","rank":14,"ratings":{"SRV":7.67,"RET":8.49,"SHOT":9.02,"CONS":9.17}},{"name":"Victoria Mboko","rank":15,"ratings":{"SRV":9.24,"RET":8.6,"SHOT":8.59,"CONS":6.41}},{"name":"Diana Shnaider","rank":16,"ratings":{"SRV":7.67,"RET":8.43,"SHOT":8.83,"CONS":8.8}},{"name":"Sorana Cirstea","rank":17,"ratings":{"SRV":8.81,"RET":8.61,"SHOT":8.43,"CONS":6.91}},{"name":"Alexandra Eala","rank":18,"ratings":{"SRV":6.33,"RET":7.55,"SHOT":8.17,"CONS":10.0}},{"name":"Ekaterina Alexandrova","rank":19,"ratings":{"SRV":8.63,"RET":8.11,"SHOT":8.55,"CONS":6.04}},{"name":"Jasmine Paolini","rank":20,"ratings":{"SRV":7.7,"RET":8.01,"SHOT":8.62,"CONS":8.73}},{"name":"Maja Chwalinska","rank":21,"ratings":{"SRV":4.44,"RET":7.42,"SHOT":6.9,"CONS":8.27}},{"name":"Anna Kalinskaya","rank":22,"ratings":{"SRV":7.57,"RET":8.26,"SHOT":8.82,"CONS":6.01}},{"name":"Madison Keys","rank":23,"ratings":{"SRV":9.02,"RET":8.05,"SHOT":8.67,"CONS":5.51}},{"name":"Elise Mertens","rank":24,"ratings":{"SRV":8.63,"RET":7.91,"SHOT":8.38,"CONS":8.05}},{"name":"Anastasia Potapova","rank":25,"ratings":{"SRV":6.48,"RET":7.9,"SHOT":7.82,"CONS":6.47}},{"name":"Marie Bouzkova","rank":26,"ratings":{"SRV":7.5,"RET":8.0,"SHOT":8.31,"CONS":9.11}},{"name":"Emma Navarro","rank":27,"ratings":{"SRV":7.68,"RET":7.49,"SHOT":7.81,"CONS":4.98}},{"name":"Barbora Krejcikova","rank":28,"ratings":{"SRV":7.97,"RET":7.84,"SHOT":8.42,"CONS":7.71}},{"name":"Sara Bejlek","rank":29,"ratings":{"SRV":5.48,"RET":7.88,"SHOT":7.11,"CONS":6.69}},{"name":"Ann Li","rank":30,"ratings":{"SRV":8.23,"RET":7.84,"SHOT":8.2,"CONS":8.67}},{"name":"Jelena Ostapenko","rank":31,"ratings":{"SRV":7.43,"RET":7.83,"SHOT":9.0,"CONS":3.71}},{"name":"Leylah Fernandez","rank":32,"ratings":{"SRV":7.96,"RET":7.34,"SHOT":8.44,"CONS":8.5}},{"name":"Maria Sakkari","rank":33,"ratings":{"SRV":7.96,"RET":7.67,"SHOT":8.38,"CONS":7.78}},{"name":"Hailey Baptiste","rank":34,"ratings":{"SRV":8.33,"RET":7.28,"SHOT":8.4,"CONS":6.93}},{"name":"Janice Tjen","rank":35,"ratings":{"SRV":7.06,"RET":6.2,"SHOT":7.3,"CONS":8.37}},{"name":"Donna Vekic","rank":36,"ratings":{"SRV":6.28,"RET":6.39,"SHOT":7.07,"CONS":6.1}},{"name":"Magdalena Frech","rank":37,"ratings":{"SRV":7.07,"RET":7.29,"SHOT":7.5,"CONS":8.29}},{"name":"Nikola Bartunkova","rank":38,"ratings":{"SRV":6.12,"RET":6.67,"SHOT":7.2,"CONS":8.26}},{"name":"Katerina Siniakova","rank":39,"ratings":{"SRV":7.1,"RET":7.92,"SHOT":7.95,"CONS":6.76}},{"name":"Cristina Bucsa","rank":40,"ratings":{"SRV":6.31,"RET":6.97,"SHOT":7.98,"CONS":6.95}},{"name":"Xinyu Wang","rank":41,"ratings":{"SRV":7.75,"RET":6.89,"SHOT":7.66,"CONS":5.01}},{"name":"Clara Tauson","rank":42,"ratings":{"SRV":8.69,"RET":7.5,"SHOT":7.88,"CONS":2.6}},{"name":"Jaqueline Cristian","rank":43,"ratings":{"SRV":7.8,"RET":7.54,"SHOT":7.79,"CONS":7.83}},{"name":"Daria Snigur","rank":44,"ratings":{"SRV":5.88,"RET":7.13,"SHOT":7.4,"CONS":6.7}},{"name":"Liudmila Samsonova","rank":45,"ratings":{"SRV":7.82,"RET":7.81,"SHOT":8.57,"CONS":6.86}},{"name":"Oleksandra Oliynykova","rank":46,"ratings":{"SRV":4.89,"RET":7.3,"SHOT":6.53,"CONS":9.05}},{"name":"Tamara Korpatsch","rank":47,"ratings":{"SRV":4.07,"RET":6.6,"SHOT":6.29,"CONS":6.04}},{"name":"Lilli Tagger","rank":48,"ratings":{"SRV":6.61,"RET":5.82,"SHOT":6.31,"CONS":7.34}},{"name":"Anhelina Kalinina","rank":49,"ratings":{"SRV":5.2,"RET":6.7,"SHOT":6.9,"CONS":8.11}},{"name":"Diane Parry","rank":50,"ratings":{"SRV":6.45,"RET":5.12,"SHOT":6.38,"CONS":6.04}},{"name":"Mayar Sherif Ahmed Abdelaziz","rank":51,"ratings":{"SRV":4.64,"RET":6.02,"SHOT":6.1,"CONS":9.58}},{"name":"Zeynep Sonmez","rank":52,"ratings":{"SRV":5.92,"RET":7.38,"SHOT":7.82,"CONS":8.22}},{"name":"Shuai Zhang","rank":53,"ratings":{"SRV":6.64,"RET":6.52,"SHOT":7.64,"CONS":8.56}},{"name":"Peyton Stearns","rank":54,"ratings":{"SRV":7.67,"RET":7.17,"SHOT":8.23,"CONS":6.52}},{"name":"Viktorija Golubic","rank":55,"ratings":{"SRV":5.24,"RET":6.83,"SHOT":7.09,"CONS":9.57}},{"name":"Karolina Pliskova","rank":56,"ratings":{"SRV":7.47,"RET":6.72,"SHOT":7.02,"CONS":6.28}},{"name":"Tereza Valentova","rank":57,"ratings":{"SRV":6.3,"RET":7.65,"SHOT":7.56,"CONS":6.93}},{"name":"Camila Osorio","rank":58,"ratings":{"SRV":6.28,"RET":7.64,"SHOT":7.69,"CONS":7.87}},{"name":"Daria Kasatkina","rank":59,"ratings":{"SRV":6.16,"RET":8.32,"SHOT":7.44,"CONS":7.13}},{"name":"Katie Boulter","rank":60,"ratings":{"SRV":6.84,"RET":7.27,"SHOT":7.6,"CONS":7.43}},{"name":"Talia Gibson","rank":61,"ratings":{"SRV":6.89,"RET":6.02,"SHOT":7.93,"CONS":4.41}},{"name":"Ashlyn Krueger","rank":62,"ratings":{"SRV":7.14,"RET":5.97,"SHOT":6.42,"CONS":7.71}},{"name":"Elena-Gabriela Ruse","rank":63,"ratings":{"SRV":6.5,"RET":6.55,"SHOT":7.19,"CONS":5.29}},{"name":"Caty McNally","rank":64,"ratings":{"SRV":6.95,"RET":7.7,"SHOT":7.65,"CONS":8.61}},{"name":"McCartney Kessler","rank":65,"ratings":{"SRV":7.04,"RET":7.71,"SHOT":7.98,"CONS":7.99}},{"name":"Elisabetta Cocciaretto","rank":66,"ratings":{"SRV":6.36,"RET":7.03,"SHOT":7.35,"CONS":7.63}},{"name":"Alina Korneeva","rank":67,"ratings":{"SRV":5.09,"RET":6.48,"SHOT":5.91,"CONS":6.81}},{"name":"Emma Raducanu","rank":68,"ratings":{"SRV":7.63,"RET":8.35,"SHOT":8.3,"CONS":7.14}},{"name":"Kimberly Birrell","rank":69,"ratings":{"SRV":5.64,"RET":5.91,"SHOT":7.06,"CONS":6.2}},{"name":"Anna Bondar","rank":70,"ratings":{"SRV":7.15,"RET":6.43,"SHOT":7.05,"CONS":9.39}},{"name":"Renata Zarazua","rank":71,"ratings":{"SRV":5.35,"RET":5.49,"SHOT":6.69,"CONS":8.71}},{"name":"Lanlana Tararudee","rank":72,"ratings":{"SRV":4.94,"RET":5.48,"SHOT":5.78,"CONS":6.25}},{"name":"Petra Marcinko","rank":73,"ratings":{"SRV":5.13,"RET":6.12,"SHOT":7.02,"CONS":6.7}},{"name":"Yuliia Starodubtseva","rank":74,"ratings":{"SRV":5.63,"RET":6.96,"SHOT":7.14,"CONS":8.35}},{"name":"Maya Joint","rank":75,"ratings":{"SRV":6.16,"RET":7.27,"SHOT":7.19,"CONS":7.83}},{"name":"Panna Udvardy","rank":76,"ratings":{"SRV":5.32,"RET":6.04,"SHOT":6.41,"CONS":7.74}},{"name":"Hanne Vandewinkel","rank":77,"ratings":{"SRV":4.73,"RET":4.93,"SHOT":5.0,"CONS":5.6}},{"name":"Magda Linette","rank":78,"ratings":{"SRV":7.53,"RET":6.73,"SHOT":7.4,"CONS":5.92}},{"name":"Tatjana Maria","rank":79,"ratings":{"SRV":7.0,"RET":6.77,"SHOT":6.73,"CONS":8.19}},{"name":"Yulia Putintseva","rank":80,"ratings":{"SRV":6.22,"RET":7.04,"SHOT":7.18,"CONS":8.59}},{"name":"Antonia Ruzic","rank":81,"ratings":{"SRV":5.6,"RET":5.97,"SHOT":6.66,"CONS":7.42}},{"name":"Xiyu Wang","rank":82,"ratings":{"SRV":5.06,"RET":7.18,"SHOT":7.11,"CONS":8.14}},{"name":"Paula Badosa","rank":83,"ratings":{"SRV":7.26,"RET":7.17,"SHOT":7.31,"CONS":6.92}},{"name":"Emiliana Arango","rank":84,"ratings":{"SRV":5.79,"RET":6.74,"SHOT":6.56,"CONS":8.36}},{"name":"Simona Waltert","rank":85,"ratings":{"SRV":4.38,"RET":5.9,"SHOT":5.46,"CONS":5.85}},{"name":"Sinja Kraus","rank":86,"ratings":{"SRV":3.51,"RET":6.29,"SHOT":6.16,"CONS":7.55}},{"name":"Solana Sierra","rank":87,"ratings":{"SRV":5.31,"RET":6.17,"SHOT":6.65,"CONS":5.51}},{"name":"Kamilla Rakhimova","rank":88,"ratings":{"SRV":5.35,"RET":6.44,"SHOT":7.11,"CONS":7.43}},{"name":"Alycia Parks","rank":89,"ratings":{"SRV":6.55,"RET":5.75,"SHOT":6.42,"CONS":3.48}},{"name":"Darja Vidmanova","rank":90,"ratings":{"SRV":5.73,"RET":5.39,"SHOT":5.83,"CONS":8.65}},{"name":"Katie Volynets","rank":91,"ratings":{"SRV":5.67,"RET":6.6,"SHOT":6.47,"CONS":9.76}},{"name":"Maria Timofeeva","rank":92,"ratings":{"SRV":3.96,"RET":5.99,"SHOT":5.54,"CONS":8.38}},{"name":"Oksana Selekhmeteva","rank":93,"ratings":{"SRV":4.69,"RET":6.01,"SHOT":5.84,"CONS":2.57}},{"name":"Anna Blinkova","rank":94,"ratings":{"SRV":4.57,"RET":6.38,"SHOT":5.94,"CONS":8.12}},{"name":"Taylor Townsend","rank":95,"ratings":{"SRV":7.98,"RET":6.26,"SHOT":7.46,"CONS":7.69}},{"name":"Polina Kudermetova","rank":96,"ratings":{"SRV":4.75,"RET":5.04,"SHOT":6.19,"CONS":6.23}},{"name":"Mananchaya Sawangkaew","rank":97,"ratings":{"SRV":4.47,"RET":4.74,"SHOT":5.4,"CONS":7.24}},{"name":"Eva Lys","rank":98,"ratings":{"SRV":6.54,"RET":7.66,"SHOT":8.12,"CONS":7.77}},{"name":"Moyuka Uchijima","rank":99,"ratings":{"SRV":4.4,"RET":5.67,"SHOT":5.7,"CONS":6.38}},{"name":"Taylah Preston","rank":100,"ratings":{"SRV":4.79,"RET":5.49,"SHOT":6.64,"CONS":6.8}},{"name":"Anastasia Zakharova","rank":101,"ratings":{"SRV":5.27,"RET":6.09,"SHOT":7.12,"CONS":8.49}},{"name":"Laura Siegemund","rank":102,"ratings":{"SRV":7.22,"RET":7.71,"SHOT":7.89,"CONS":7.75}},{"name":"Ajla Tomljanovic","rank":103,"ratings":{"SRV":6.72,"RET":7.52,"SHOT":7.63,"CONS":7.0}},{"name":"Francesca Jones","rank":104,"ratings":{"SRV":4.93,"RET":5.96,"SHOT":6.2,"CONS":7.39}},{"name":"Jessica Bouzas Maneiro","rank":105,"ratings":{"SRV":6.42,"RET":7.63,"SHOT":7.6,"CONS":5.56}},{"name":"Veronika Erjavec","rank":106,"ratings":{"SRV":3.68,"RET":5.59,"SHOT":5.74,"CONS":7.74}},{"name":"Kaitlin Quevedo","rank":107,"ratings":{"SRV":4.0,"RET":5.06,"SHOT":5.3,"CONS":7.64}},{"name":"Alina Charaeva","rank":108,"ratings":{"SRV":4.46,"RET":5.08,"SHOT":5.28,"CONS":7.51}},{"name":"Darja Semenistaja","rank":109,"ratings":{"SRV":3.71,"RET":5.34,"SHOT":5.22,"CONS":9.37}},{"name":"Sofia Kenin","rank":110,"ratings":{"SRV":6.68,"RET":6.0,"SHOT":7.56,"CONS":8.02}},{"name":"Claire Liu","rank":111,"ratings":{"SRV":5.48,"RET":5.9,"SHOT":6.25,"CONS":7.04}},{"name":"Dayana Yastremska","rank":112,"ratings":{"SRV":6.35,"RET":7.27,"SHOT":7.57,"CONS":6.81}},{"name":"Elsa Jacquemot","rank":113,"ratings":{"SRV":5.43,"RET":4.71,"SHOT":5.68,"CONS":6.44}},{"name":"Julia Grabher","rank":114,"ratings":{"SRV":3.66,"RET":4.76,"SHOT":5.29,"CONS":7.22}},{"name":"Elvina Kalieva","rank":115,"ratings":{"SRV":4.89,"RET":5.08,"SHOT":5.35,"CONS":6.41}},{"name":"Laura Samson","rank":116,"ratings":{"SRV":3.66,"RET":5.72,"SHOT":5.1,"CONS":5.39}},{"name":"Kayla Day","rank":117,"ratings":{"SRV":6.15,"RET":4.77,"SHOT":5.25,"CONS":6.67}},{"name":"Dominika Salkova","rank":118,"ratings":{"SRV":3.85,"RET":5.3,"SHOT":5.34,"CONS":6.1}},{"name":"Lucrezia Stefanini","rank":119,"ratings":{"SRV":3.09,"RET":5.29,"SHOT":4.73,"CONS":5.16}},{"name":"Victoria Jimenez Kasintseva","rank":120,"ratings":{"SRV":4.35,"RET":5.11,"SHOT":5.25,"CONS":5.55}},{"name":"Qinwen Zheng","rank":121,"ratings":{"SRV":9.18,"RET":6.59,"SHOT":8.0,"CONS":5.77}},{"name":"Mary Stoiana","rank":122,"ratings":{"SRV":4.13,"RET":4.63,"SHOT":5.28,"CONS":7.19}},{"name":"Sonay Kartal","rank":123,"ratings":{"SRV":7.49,"RET":7.43,"SHOT":7.84,"CONS":8.24}},{"name":"Ella Seidel","rank":124,"ratings":{"SRV":4.86,"RET":4.84,"SHOT":5.83,"CONS":7.99}},{"name":"Kristina Liutova","rank":125,"ratings":{"SRV":4.25,"RET":5.67,"SHOT":5.95,"CONS":2.02}},{"name":"Emerson Jones","rank":126,"ratings":{"SRV":4.5,"RET":5.41,"SHOT":5.98,"CONS":5.09}},{"name":"Leolia Jeanjean","rank":127,"ratings":{"SRV":4.57,"RET":5.28,"SHOT":5.95,"CONS":7.32}},{"name":"Lulu Sun","rank":128,"ratings":{"SRV":5.99,"RET":4.32,"SHOT":6.43,"CONS":0.0}},{"name":"Katarzyna Kawa","rank":129,"ratings":{"SRV":3.47,"RET":5.86,"SHOT":5.4,"CONS":6.28}},{"name":"Lisa Pigato","rank":130,"ratings":{"SRV":3.56,"RET":4.94,"SHOT":4.95,"CONS":5.9}},{"name":"Harriet Dart","rank":131,"ratings":{"SRV":3.24,"RET":5.46,"SHOT":5.26,"CONS":6.42}},{"name":"Veronika Podrez","rank":132,"ratings":{"SRV":4.23,"RET":5.78,"SHOT":5.3,"CONS":4.72}},{"name":"Marina Bassols Ribera","rank":133,"ratings":{"SRV":3.07,"RET":6.14,"SHOT":5.77,"CONS":6.4}},{"name":"Maddison Inglis","rank":134,"ratings":{"SRV":4.45,"RET":3.89,"SHOT":5.29,"CONS":7.29}},{"name":"Lucia Bronzetti","rank":135,"ratings":{"SRV":3.39,"RET":5.16,"SHOT":5.52,"CONS":7.45}},{"name":"Aliaksandra Sasnovich","rank":136,"ratings":{"SRV":5.33,"RET":6.21,"SHOT":6.19,"CONS":4.39}},{"name":"Noma Noha Akugue","rank":137,"ratings":{"SRV":2.93,"RET":4.3,"SHOT":3.93,"CONS":6.21}},{"name":"Yue Yuan","rank":138,"ratings":{"SRV":5.12,"RET":5.13,"SHOT":5.89,"CONS":8.37}},{"name":"Jeline Vandromme","rank":139,"ratings":{"SRV":4.07,"RET":4.33,"SHOT":5.3,"CONS":5.88}},{"name":"Marina Stakusic","rank":140,"ratings":{"SRV":4.04,"RET":5.41,"SHOT":5.88,"CONS":3.79}},{"name":"Fiona Ferro","rank":141,"ratings":{"SRV":3.88,"RET":5.57,"SHOT":5.59,"CONS":7.02}},{"name":"Andrea Lazaro Garcia","rank":142,"ratings":{"SRV":2.97,"RET":5.27,"SHOT":4.92,"CONS":6.49}},{"name":"Carol Young Suh Lee","rank":143,"ratings":{"SRV":4.4,"RET":4.19,"SHOT":4.79,"CONS":6.95}},{"name":"Himeno Sakatsume","rank":144,"ratings":{"SRV":4.5,"RET":5.05,"SHOT":5.7,"CONS":6.97}},{"name":"Leyre Romero Gormaz","rank":145,"ratings":{"SRV":2.85,"RET":5.2,"SHOT":4.79,"CONS":6.44}},{"name":"Tamara Zidansek","rank":146,"ratings":{"SRV":3.08,"RET":5.49,"SHOT":5.09,"CONS":6.58}},{"name":"Julia Riera","rank":147,"ratings":{"SRV":3.37,"RET":5.06,"SHOT":4.73,"CONS":5.4}},{"name":"Varvara Gracheva","rank":148,"ratings":{"SRV":6.33,"RET":6.56,"SHOT":7.64,"CONS":6.82}},{"name":"Tyra Caterina Grant","rank":149,"ratings":{"SRV":5.14,"RET":4.26,"SHOT":6.1,"CONS":4.09}},{"name":"Lola Radivojevic","rank":150,"ratings":{"SRV":4.04,"RET":3.94,"SHOT":4.43,"CONS":7.08}},{"name":"Rebecca Sramkova","rank":151,"ratings":{"SRV":5.77,"RET":5.22,"SHOT":5.8,"CONS":7.31}},{"name":"Susan Bandecchi","rank":152,"ratings":{"SRV":4.52,"RET":4.24,"SHOT":5.17,"CONS":5.55}},{"name":"Marketa Vondrousova","rank":153,"ratings":{"SRV":6.95,"RET":5.79,"SHOT":6.37,"CONS":4.48}},{"name":"Beatriz Haddad Maia","rank":154,"ratings":{"SRV":4.92,"RET":6.32,"SHOT":6.32,"CONS":5.58}},{"name":"Sofia Costoulas","rank":155,"ratings":{"SRV":4.71,"RET":4.45,"SHOT":4.95,"CONS":5.09}},{"name":"Priscilla Hon","rank":156,"ratings":{"SRV":5.38,"RET":4.27,"SHOT":5.44,"CONS":5.58}},{"name":"Dalma Galfi","rank":157,"ratings":{"SRV":6.83,"RET":5.39,"SHOT":6.37,"CONS":7.5}},{"name":"Jazmin Ortenzi","rank":158,"ratings":{"SRV":3.2,"RET":4.44,"SHOT":4.2,"CONS":6.52}},{"name":"Elina Avanesyan","rank":159,"ratings":{"SRV":2.87,"RET":6.47,"SHOT":5.32,"CONS":5.09}},{"name":"Polina Iatcenko","rank":160,"ratings":{"SRV":4.19,"RET":4.89,"SHOT":5.24,"CONS":4.57}},{"name":"Ekaterine Gorgodze","rank":161,"ratings":{"SRV":3.25,"RET":4.5,"SHOT":4.29,"CONS":8.27}},{"name":"Kayla Cross","rank":162,"ratings":{"SRV":3.22,"RET":3.15,"SHOT":2.93,"CONS":3.93}},{"name":"Tatiana Prozorova","rank":163,"ratings":{"SRV":4.15,"RET":4.65,"SHOT":5.0,"CONS":6.63}},{"name":"Suzan Lamens","rank":164,"ratings":{"SRV":4.25,"RET":5.82,"SHOT":5.51,"CONS":7.23}},{"name":"Vendula Valdmannova","rank":165,"ratings":{"SRV":2.67,"RET":4.43,"SHOT":5.13,"CONS":5.5}},{"name":"Elizara Yaneva","rank":166,"ratings":{"SRV":2.53,"RET":5.62,"SHOT":4.34,"CONS":4.43}},{"name":"Mai Hontama","rank":167,"ratings":{"SRV":2.99,"RET":5.41,"SHOT":5.2,"CONS":7.33}},{"name":"Kaja Juvan","rank":168,"ratings":{"SRV":4.4,"RET":5.8,"SHOT":6.04,"CONS":7.63}},{"name":"Storm Hunter","rank":169,"ratings":{"SRV":4.57,"RET":4.86,"SHOT":5.57,"CONS":6.59}},{"name":"Elizabeth Mandlik","rank":170,"ratings":{"SRV":3.36,"RET":4.75,"SHOT":5.43,"CONS":5.12}},{"name":"Teodora Kostovic","rank":171,"ratings":{"SRV":3.75,"RET":4.29,"SHOT":5.24,"CONS":7.15}},{"name":"Tiantsoa Sarah Rakotomanga Rajaonah","rank":172,"ratings":{"SRV":3.9,"RET":4.48,"SHOT":5.56,"CONS":7.76}},{"name":"Lin Zhu","rank":173,"ratings":{"SRV":5.46,"RET":5.5,"SHOT":6.35,"CONS":7.19}},{"name":"Linda Fruhvirtova","rank":174,"ratings":{"SRV":4.35,"RET":4.81,"SHOT":5.03,"CONS":4.5}},{"name":"Jil Teichmann","rank":175,"ratings":{"SRV":4.64,"RET":5.55,"SHOT":6.58,"CONS":6.36}},{"name":"Greet Minnen","rank":176,"ratings":{"SRV":4.0,"RET":4.12,"SHOT":4.87,"CONS":5.23}},{"name":"Akasha Urhobo","rank":177,"ratings":{"SRV":4.73,"RET":4.78,"SHOT":5.24,"CONS":4.93}},{"name":"Yexin Ma","rank":178,"ratings":{"SRV":3.14,"RET":3.91,"SHOT":4.16,"CONS":4.15}},{"name":"Yeon Woo Ku","rank":179,"ratings":{"SRV":3.5,"RET":4.28,"SHOT":4.92,"CONS":5.24}},{"name":"Rebeka Masarova","rank":180,"ratings":{"SRV":6.3,"RET":4.11,"SHOT":4.76,"CONS":7.22}},{"name":"Varvara Lepchenko","rank":181,"ratings":{"SRV":3.83,"RET":4.43,"SHOT":4.3,"CONS":7.08}},{"name":"Martyna Kubka","rank":182,"ratings":{"SRV":3.51,"RET":2.68,"SHOT":3.31,"CONS":1.75}},{"name":"Bianca Andreescu","rank":183,"ratings":{"SRV":5.69,"RET":5.11,"SHOT":6.19,"CONS":7.79}},{"name":"Gabriela Knutson","rank":184,"ratings":{"SRV":4.2,"RET":4.56,"SHOT":4.72,"CONS":6.43}},{"name":"Julia Avdeeva","rank":185,"ratings":{"SRV":1.97,"RET":1.92,"SHOT":2.19,"CONS":1.47}},{"name":"Elena Pridankina","rank":186,"ratings":{"SRV":3.7,"RET":5.74,"SHOT":5.35,"CONS":3.35}},{"name":"Robin Montgomery","rank":187,"ratings":{"SRV":6.22,"RET":5.23,"SHOT":6.31,"CONS":3.97}},{"name":"Despina Papamichail","rank":188,"ratings":{"SRV":2.73,"RET":4.91,"SHOT":4.17,"CONS":6.87}},{"name":"Nuria Brancaccio","rank":189,"ratings":{"SRV":3.83,"RET":5.04,"SHOT":4.36,"CONS":7.0}},{"name":"Alexandra Shubladze","rank":190,"ratings":{"SRV":1.39,"RET":2.5,"SHOT":2.74,"CONS":1.56}},{"name":"Iryna Shymanovich","rank":191,"ratings":{"SRV":2.98,"RET":4.67,"SHOT":5.45,"CONS":5.99}},{"name":"Anastasia Gasanova","rank":192,"ratings":{"SRV":3.01,"RET":5.1,"SHOT":5.6,"CONS":6.17}},{"name":"Laura Pigossi","rank":193,"ratings":{"SRV":2.47,"RET":3.73,"SHOT":3.26,"CONS":4.89}},{"name":"Anastasiia Sobolieva","rank":194,"ratings":{"SRV":2.29,"RET":4.07,"SHOT":3.96,"CONS":4.09}},{"name":"Mia Ristic","rank":195,"ratings":{"SRV":3.66,"RET":3.96,"SHOT":4.54,"CONS":7.59}},{"name":"Carole Monnet","rank":196,"ratings":{"SRV":2.55,"RET":5.21,"SHOT":4.44,"CONS":6.29}},{"name":"Eva Vedder","rank":197,"ratings":{"SRV":2.7,"RET":3.38,"SHOT":3.67,"CONS":5.61}},{"name":"Luisina Giovannini","rank":198,"ratings":{"SRV":2.75,"RET":4.8,"SHOT":4.16,"CONS":5.88}},{"name":"Linda Klimovicova","rank":199,"ratings":{"SRV":3.98,"RET":4.28,"SHOT":5.87,"CONS":6.4}},{"name":"Ayla Aksu","rank":200,"ratings":{"SRV":3.59,"RET":4.21,"SHOT":4.84,"CONS":5.86}},{"name":"Joanna Garland","rank":201,"ratings":{"SRV":4.79,"RET":3.56,"SHOT":4.8,"CONS":6.95}},{"name":"Sara Sorribes Tormo","rank":202,"ratings":{"SRV":3.95,"RET":6.22,"SHOT":5.71,"CONS":7.85}},{"name":"Arantxa Rus","rank":203,"ratings":{"SRV":3.6,"RET":4.57,"SHOT":4.1,"CONS":6.47}},{"name":"Mona Barthel","rank":204,"ratings":{"SRV":3.48,"RET":4.29,"SHOT":4.52,"CONS":4.13}},{"name":"Xiaodi You","rank":205,"ratings":{"SRV":2.93,"RET":4.17,"SHOT":3.62,"CONS":5.49}},{"name":"Katie Swan","rank":206,"ratings":{"SRV":4.74,"RET":2.86,"SHOT":4.38,"CONS":4.25}},{"name":"Anna Siskova","rank":207,"ratings":{"SRV":3.98,"RET":4.49,"SHOT":4.21,"CONS":1.79}},{"name":"Sloane Stephens","rank":208,"ratings":{"SRV":5.49,"RET":5.46,"SHOT":6.05,"CONS":6.74}},{"name":"Guiomar Maristany Zuleta de Reales","rank":209,"ratings":{"SRV":3.64,"RET":4.92,"SHOT":5.03,"CONS":7.04}},{"name":"Hanyu Guo","rank":210,"ratings":{"SRV":3.65,"RET":4.82,"SHOT":5.39,"CONS":6.36}},{"name":"Madison Brengle","rank":211,"ratings":{"SRV":2.9,"RET":5.06,"SHOT":4.57,"CONS":6.04}},{"name":"Angela Fita Boluda","rank":212,"ratings":{"SRV":3.15,"RET":1.42,"SHOT":2.94,"CONS":1.77}},{"name":"Katherine Sebov","rank":213,"ratings":{"SRV":3.91,"RET":5.13,"SHOT":5.48,"CONS":5.46}},{"name":"Erika Andreeva","rank":214,"ratings":{"SRV":3.23,"RET":4.21,"SHOT":4.13,"CONS":5.5}},{"name":"Harmony Tan","rank":215,"ratings":{"SRV":3.75,"RET":4.11,"SHOT":4.62,"CONS":6.05}},{"name":"Jennifer Ruggeri","rank":216,"ratings":{"SRV":2.39,"RET":4.59,"SHOT":4.01,"CONS":3.44}},{"name":"Julie Struplova","rank":217,"ratings":{"SRV":1.1,"RET":1.33,"SHOT":1.86,"CONS":1.51}},{"name":"Alevtina Ibragimova","rank":218,"ratings":{"SRV":3.56,"RET":5.32,"SHOT":4.9,"CONS":4.37}},{"name":"Maria Carle","rank":219,"ratings":{"SRV":2.41,"RET":5.87,"SHOT":4.79,"CONS":4.69}},{"name":"Celine Naef","rank":220,"ratings":{"SRV":4.07,"RET":3.07,"SHOT":4.15,"CONS":5.57}},{"name":"Alice Tubello","rank":221,"ratings":{"SRV":2.79,"RET":4.51,"SHOT":4.25,"CONS":5.79}},{"name":"Aliona Falei","rank":222,"ratings":{"SRV":2.56,"RET":4.09,"SHOT":3.37,"CONS":4.81}},{"name":"Hayu Kinoshita","rank":223,"ratings":{"SRV":2.12,"RET":3.61,"SHOT":3.56,"CONS":1.73}},{"name":"Viktoria Hruncakova","rank":224,"ratings":{"SRV":5.05,"RET":3.39,"SHOT":3.95,"CONS":2.69}},{"name":"Lucie Havlickova","rank":225,"ratings":{"SRV":4.74,"RET":4.49,"SHOT":5.69,"CONS":4.77}},{"name":"Darya Astakhova","rank":226,"ratings":{"SRV":2.25,"RET":4.01,"SHOT":4.14,"CONS":5.91}},{"name":"Nao Hibino","rank":227,"ratings":{"SRV":4.36,"RET":3.63,"SHOT":4.84,"CONS":6.07}},{"name":"Anouk Koevermans","rank":228,"ratings":{"SRV":3.65,"RET":3.32,"SHOT":3.94,"CONS":5.06}},{"name":"Francisca Jorge","rank":229,"ratings":{"SRV":3.14,"RET":4.78,"SHOT":4.83,"CONS":5.4}},{"name":"Kajsa Rinaldo Persson","rank":230,"ratings":{"SRV":2.05,"RET":2.82,"SHOT":2.96,"CONS":1.89}},{"name":"Whitney Osuigwe","rank":231,"ratings":{"SRV":3.04,"RET":4.88,"SHOT":4.4,"CONS":6.46}},{"name":"Irene Burillo Escorihuela","rank":232,"ratings":{"SRV":1.68,"RET":4.21,"SHOT":3.36,"CONS":4.81}},{"name":"Polona Hercog","rank":233,"ratings":{"SRV":4.26,"RET":4.47,"SHOT":4.72,"CONS":5.6}},{"name":"Xinyu Gao","rank":234,"ratings":{"SRV":3.56,"RET":4.71,"SHOT":4.77,"CONS":6.41}},{"name":"Alicia Dudeney","rank":235,"ratings":{"SRV":4.1,"RET":4.57,"SHOT":4.4,"CONS":4.39}},{"name":"Lois Boisson","rank":236,"ratings":{"SRV":7.56,"RET":6.22,"SHOT":6.9,"CONS":6.71}},{"name":"Francesca Curmi","rank":237,"ratings":{"SRV":2.93,"RET":4.19,"SHOT":4.21,"CONS":5.42}},{"name":"Justina Mikulskyte","rank":238,"ratings":{"SRV":2.74,"RET":2.4,"SHOT":3.28,"CONS":1.56}},{"name":"Barbora Palicova","rank":239,"ratings":{"SRV":1.6,"RET":4.39,"SHOT":3.84,"CONS":5.15}},{"name":"Vivian Wolff","rank":240,"ratings":{"SRV":1.42,"RET":2.42,"SHOT":2.59,"CONS":1.37}},{"name":"Martina Capurro Taborda","rank":241,"ratings":{"SRV":0.59,"RET":2.67,"SHOT":2.48,"CONS":1.16}},{"name":"Caijsa Wilda Hennemann","rank":242,"ratings":{"SRV":2.48,"RET":5.43,"SHOT":4.57,"CONS":4.68}},{"name":"Sara Saito","rank":243,"ratings":{"SRV":1.56,"RET":4.31,"SHOT":3.51,"CONS":1.36}},{"name":"Katrina Scott","rank":244,"ratings":{"SRV":3.67,"RET":4.72,"SHOT":4.4,"CONS":5.1}},{"name":"Caroline Dolehide","rank":245,"ratings":{"SRV":4.75,"RET":4.45,"SHOT":5.45,"CONS":5.7}},{"name":"Mia Pohankova","rank":246,"ratings":{"SRV":5.12,"RET":4.44,"SHOT":4.69,"CONS":1.68}},{"name":"Alice Rame","rank":247,"ratings":{"SRV":2.37,"RET":4.45,"SHOT":4.15,"CONS":5.99}},{"name":"Carolyn Ansari","rank":248,"ratings":{"SRV":1.76,"RET":2.1,"SHOT":3.0,"CONS":1.63}},{"name":"Zhuoxuan Bai","rank":249,"ratings":{"SRV":4.7,"RET":6.13,"SHOT":6.13,"CONS":5.52}},{"name":"Anna-Lena Friedsam","rank":250,"ratings":{"SRV":3.97,"RET":3.64,"SHOT":3.99,"CONS":2.83}},{"name":"Katarina Zavatska","rank":251,"ratings":{"SRV":2.34,"RET":4.02,"SHOT":3.76,"CONS":5.4}},{"name":"Elena Ruxandra Bertea","rank":252,"ratings":{"SRV":2.05,"RET":4.1,"SHOT":3.58,"CONS":1.67}},{"name":"Lina Gjorcheska","rank":253,"ratings":{"SRV":3.62,"RET":4.25,"SHOT":4.02,"CONS":3.04}},{"name":"Selena Janicijevic","rank":254,"ratings":{"SRV":2.2,"RET":4.66,"SHOT":3.54,"CONS":0.28}},{"name":"Cadence Brace","rank":255,"ratings":{"SRV":2.85,"RET":4.8,"SHOT":4.8,"CONS":5.56}},{"name":"Fangran Tian","rank":256,"ratings":{"SRV":2.86,"RET":3.68,"SHOT":3.99,"CONS":4.93}},{"name":"Haruka Kaji","rank":257,"ratings":{"SRV":2.03,"RET":2.6,"SHOT":2.61,"CONS":1.85}},{"name":"Olivia Gadecki","rank":258,"ratings":{"SRV":3.72,"RET":4.05,"SHOT":4.55,"CONS":1.83}},{"name":"Mei Yamaguchi","rank":259,"ratings":{"SRV":3.49,"RET":4.97,"SHOT":4.98,"CONS":5.36}},{"name":"Anastasia Tikhonova","rank":260,"ratings":{"SRV":3.45,"RET":2.23,"SHOT":3.26,"CONS":4.83}},{"name":"Valentina Ryser","rank":261,"ratings":{"SRV":2.58,"RET":2.86,"SHOT":2.89,"CONS":1.4}},{"name":"Han Shi","rank":262,"ratings":{"SRV":2.88,"RET":5.22,"SHOT":3.88,"CONS":4.56}},{"name":"Ayana Akli","rank":263,"ratings":{"SRV":2.09,"RET":3.75,"SHOT":3.64,"CONS":4.83}},{"name":"Fiona Crawley","rank":264,"ratings":{"SRV":1.57,"RET":3.58,"SHOT":3.35,"CONS":1.71}},{"name":"Noemi Basiletti","rank":265,"ratings":{"SRV":2.99,"RET":4.97,"SHOT":4.75,"CONS":6.3}},{"name":"Dayeon Back","rank":266,"ratings":{"SRV":1.17,"RET":2.19,"SHOT":2.37,"CONS":1.28}},{"name":"Jessika Ponchet","rank":267,"ratings":{"SRV":4.27,"RET":3.96,"SHOT":4.47,"CONS":5.89}},{"name":"Sofya Lansere","rank":268,"ratings":{"SRV":1.97,"RET":3.79,"SHOT":3.13,"CONS":1.38}},{"name":"Sada Nahimana","rank":269,"ratings":{"SRV":3.24,"RET":2.67,"SHOT":2.97,"CONS":4.89}},{"name":"Rina Saigo","rank":270,"ratings":{"SRV":2.5,"RET":5.26,"SHOT":4.93,"CONS":3.68}},{"name":"Anastasia Zolotareva","rank":271,"ratings":{"SRV":2.13,"RET":4.93,"SHOT":3.88,"CONS":5.12}},{"name":"Katarina Kuzmova","rank":272,"ratings":{"SRV":1.67,"RET":1.91,"SHOT":2.73,"CONS":1.45}},{"name":"Elena Micic","rank":273,"ratings":{"SRV":3.71,"RET":4.33,"SHOT":4.69,"CONS":4.63}},{"name":"Mika Stojsavljevic","rank":274,"ratings":{"SRV":3.15,"RET":2.94,"SHOT":3.3,"CONS":3.95}},{"name":"Federica Urgesi","rank":275,"ratings":{"SRV":2.8,"RET":5.65,"SHOT":3.97,"CONS":5.37}},{"name":"Berfu Cengiz","rank":276,"ratings":{"SRV":3.14,"RET":3.51,"SHOT":4.14,"CONS":1.68}},{"name":"Xinxin Yao","rank":277,"ratings":{"SRV":2.06,"RET":4.43,"SHOT":4.23,"CONS":5.62}},{"name":"Ane Mintegi Del Olmo","rank":278,"ratings":{"SRV":2.8,"RET":5.74,"SHOT":4.88,"CONS":5.13}},{"name":"Kyoka Okamura","rank":279,"ratings":{"SRV":2.85,"RET":3.4,"SHOT":3.64,"CONS":5.86}},{"name":"Samira de Stefano","rank":280,"ratings":{"SRV":1.08,"RET":2.43,"SHOT":2.36,"CONS":1.84}},{"name":"Hina Inoue","rank":281,"ratings":{"SRV":1.25,"RET":1.83,"SHOT":2.46,"CONS":1.62}},{"name":"Caroline Werner","rank":282,"ratings":{"SRV":3.22,"RET":3.59,"SHOT":4.03,"CONS":6.52}},{"name":"Lea Ma","rank":283,"ratings":{"SRV":3.43,"RET":2.74,"SHOT":3.88,"CONS":4.6}},{"name":"Julieta Pareja","rank":284,"ratings":{"SRV":4.4,"RET":5.01,"SHOT":5.54,"CONS":4.42}},{"name":"Rada Zolotareva","rank":285,"ratings":{"SRV":1.06,"RET":2.79,"SHOT":2.54,"CONS":1.58}},{"name":"Yuki Naito","rank":286,"ratings":{"SRV":0.97,"RET":1.36,"SHOT":1.97,"CONS":1.42}},{"name":"Vera Zvonareva","rank":287,"ratings":{"SRV":4.55,"RET":4.87,"SHOT":5.44,"CONS":6.28}},{"name":"Daria Khomutsianskaya","rank":288,"ratings":{"SRV":1.89,"RET":2.75,"SHOT":2.97,"CONS":1.6}},{"name":"Giorgia Pedone","rank":289,"ratings":{"SRV":2.12,"RET":3.97,"SHOT":3.34,"CONS":1.98}},{"name":"Eva Guerrero Alvarez","rank":290,"ratings":{"SRV":2.47,"RET":3.48,"SHOT":3.38,"CONS":2.02}},{"name":"Yasmine Kabbaj","rank":291,"ratings":{"SRV":3.63,"RET":4.48,"SHOT":4.96,"CONS":5.71}},{"name":"Aurora Zantedeschi","rank":292,"ratings":{"SRV":2.2,"RET":4.09,"SHOT":4.0,"CONS":5.54}},{"name":"Chloe Paquet","rank":293,"ratings":{"SRV":3.5,"RET":4.07,"SHOT":4.0,"CONS":4.22}},{"name":"Lizette Cabrera","rank":294,"ratings":{"SRV":2.18,"RET":2.94,"SHOT":3.1,"CONS":1.54}},{"name":"Hanna Chang","rank":295,"ratings":{"SRV":1.93,"RET":3.09,"SHOT":3.16,"CONS":1.39}},{"name":"Martha Matoula","rank":296,"ratings":{"SRV":1.19,"RET":2.21,"SHOT":2.54,"CONS":1.66}},{"name":"Matilde Jorge","rank":297,"ratings":{"SRV":2.07,"RET":3.69,"SHOT":3.55,"CONS":3.85}},{"name":"Mina Hodzic","rank":298,"ratings":{"SRV":2.84,"RET":4.52,"SHOT":4.06,"CONS":4.79}},{"name":"Lisa Zaar","rank":300,"ratings":{"SRV":2.53,"RET":4.26,"SHOT":3.86,"CONS":1.84}},{"name":"Gina Feistel","rank":301,"ratings":{"SRV":2.48,"RET":2.22,"SHOT":3.38,"CONS":1.59}},{"name":"Zongyu Li","rank":302,"ratings":{"SRV":3.06,"RET":2.33,"SHOT":3.09,"CONS":1.72}},{"name":"En-Shuo Liang","rank":303,"ratings":{"SRV":3.4,"RET":4.59,"SHOT":4.74,"CONS":5.8}},{"name":"Savannah Broadus","rank":304,"ratings":{"SRV":0.98,"RET":1.54,"SHOT":1.93,"CONS":1.25}},{"name":"Alicia Herrero Linana","rank":305,"ratings":{"SRV":2.72,"RET":5.49,"SHOT":4.8,"CONS":6.25}},{"name":"Anastasia Kulikova","rank":307,"ratings":{"SRV":3.38,"RET":3.7,"SHOT":4.0,"CONS":3.21}},{"name":"Britt Du Pree","rank":308,"ratings":{"SRV":1.16,"RET":1.84,"SHOT":2.19,"CONS":1.33}},{"name":"Eva Bennemann","rank":309,"ratings":{"SRV":0.67,"RET":2.05,"SHOT":2.08,"CONS":1.46}},{"name":"Olga Danilovic","rank":310,"ratings":{"SRV":7.76,"RET":7.08,"SHOT":7.23,"CONS":5.81}},{"name":"Viktoria Morvayova","rank":311,"ratings":{"SRV":4.27,"RET":3.37,"SHOT":4.52,"CONS":5.79}},{"name":"Yufei Ren","rank":312,"ratings":{"SRV":1.21,"RET":3.95,"SHOT":3.38,"CONS":3.72}},{"name":"Carolina Alves","rank":313,"ratings":{"SRV":1.94,"RET":4.15,"SHOT":3.58,"CONS":4.85}},{"name":"Weronika Falkowska","rank":314,"ratings":{"SRV":3.43,"RET":2.57,"SHOT":3.54,"CONS":4.21}},{"name":"Viktoriya Tomova","rank":315,"ratings":{"SRV":3.17,"RET":4.29,"SHOT":4.27,"CONS":6.42}},{"name":"Elena Malygina","rank":316,"ratings":{"SRV":0.97,"RET":2.44,"SHOT":2.44,"CONS":1.58}},{"name":"Anouck Vrancken Peeters","rank":317,"ratings":{"SRV":1.4,"RET":2.56,"SHOT":2.7,"CONS":1.4}},{"name":"Tereza Martincova","rank":318,"ratings":{"SRV":4.76,"RET":3.58,"SHOT":4.86,"CONS":5.64}},{"name":"Alina Granwehr","rank":319,"ratings":{"SRV":1.11,"RET":2.0,"SHOT":2.07,"CONS":1.35}},{"name":"Victoria Bosio","rank":320,"ratings":{"SRV":2.44,"RET":4.11,"SHOT":3.61,"CONS":4.22}},{"name":"Martina Trevisan","rank":321,"ratings":{"SRV":2.69,"RET":5.22,"SHOT":4.53,"CONS":5.17}},{"name":"Kathinka Von Deichmann","rank":322,"ratings":{"SRV":2.87,"RET":2.91,"SHOT":2.98,"CONS":1.57}},{"name":"Miriam Bianca Bulgaru","rank":323,"ratings":{"SRV":2.4,"RET":4.06,"SHOT":4.0,"CONS":5.67}},{"name":"Ena Koike","rank":324,"ratings":{"SRV":1.08,"RET":1.56,"SHOT":2.14,"CONS":1.49}},{"name":"Oceane Dodin","rank":325,"ratings":{"SRV":3.68,"RET":2.37,"SHOT":4.18,"CONS":2.78}},{"name":"Anna Rogers","rank":326,"ratings":{"SRV":2.5,"RET":1.84,"SHOT":2.51,"CONS":1.96}},{"name":"Amandine Monnot","rank":327,"ratings":{"SRV":2.92,"RET":3.15,"SHOT":3.57,"CONS":4.6}},{"name":"Deborah Chiesa","rank":328,"ratings":{"SRV":2.92,"RET":3.91,"SHOT":4.03,"CONS":6.07}},{"name":"Manon Leonard","rank":329,"ratings":{"SRV":1.8,"RET":2.88,"SHOT":2.51,"CONS":1.77}},{"name":"Gabriela CE","rank":330,"ratings":{"SRV":1.37,"RET":2.71,"SHOT":3.04,"CONS":1.6}},{"name":"Mell Elizabeth Reasco Gonzalez","rank":331,"ratings":{"SRV":1.47,"RET":1.21,"SHOT":1.82,"CONS":1.65}},{"name":"Mingge Xu","rank":332,"ratings":{"SRV":2.61,"RET":1.94,"SHOT":3.43,"CONS":3.73}},{"name":"Sohyun Park","rank":333,"ratings":{"SRV":2.4,"RET":2.59,"SHOT":3.44,"CONS":1.91}},{"name":"Lucciana Perez Alarcon","rank":334,"ratings":{"SRV":1.12,"RET":1.99,"SHOT":2.25,"CONS":2.1}},{"name":"Jessica Pieri","rank":335,"ratings":{"SRV":1.89,"RET":4.15,"SHOT":3.89,"CONS":7.22}},{"name":"Lea Boskovic","rank":336,"ratings":{"SRV":2.15,"RET":2.55,"SHOT":3.21,"CONS":1.85}},{"name":"Varvara Panshina","rank":338,"ratings":{"SRV":2.47,"RET":4.23,"SHOT":3.7,"CONS":1.72}},{"name":"Tessa Johanna Brockmann","rank":339,"ratings":{"SRV":1.86,"RET":4.26,"SHOT":3.67,"CONS":1.81}},{"name":"Margaux Rouvroy","rank":340,"ratings":{"SRV":1.84,"RET":2.97,"SHOT":2.6,"CONS":1.57}},{"name":"Martina Colmegna","rank":341,"ratings":{"SRV":2.6,"RET":5.19,"SHOT":4.26,"CONS":5.4}},{"name":"Sahaja Yamalapalli","rank":342,"ratings":{"SRV":1.82,"RET":2.59,"SHOT":3.41,"CONS":1.81}},{"name":"Sakura Hosogi","rank":343,"ratings":{"SRV":2.05,"RET":3.32,"SHOT":3.43,"CONS":1.77}},{"name":"Angelina Voloshchuk","rank":344,"ratings":{"SRV":2.04,"RET":3.99,"SHOT":4.18,"CONS":1.64}},{"name":"Eunhye (2000) Lee","rank":345,"ratings":{"SRV":1.09,"RET":1.81,"SHOT":2.01,"CONS":0.96}},{"name":"Malaika Rapolu","rank":346,"ratings":{"SRV":1.62,"RET":1.99,"SHOT":2.54,"CONS":1.77}},{"name":"Isabella Shinikova","rank":347,"ratings":{"SRV":3.12,"RET":3.48,"SHOT":3.49,"CONS":4.66}},{"name":"Madison Sieg","rank":348,"ratings":{"SRV":1.18,"RET":1.89,"SHOT":2.16,"CONS":1.65}},{"name":"Radka Zelnickova","rank":349,"ratings":{"SRV":1.23,"RET":1.69,"SHOT":2.17,"CONS":1.53}},{"name":"Francesca Pace","rank":352,"ratings":{"SRV":1.27,"RET":2.11,"SHOT":2.29,"CONS":1.49}},{"name":"Miriana Tona","rank":355,"ratings":{"SRV":2.4,"RET":3.54,"SHOT":3.72,"CONS":5.83}},{"name":"Yelyzaveta Kotliar","rank":356,"ratings":{"SRV":2.18,"RET":5.96,"SHOT":4.76,"CONS":4.89}},{"name":"Aran Teixido Garcia","rank":358,"ratings":{"SRV":1.47,"RET":2.43,"SHOT":2.57,"CONS":1.4}},{"name":"Lucija Ciric-Bagaric","rank":360,"ratings":{"SRV":3.04,"RET":3.6,"SHOT":3.96,"CONS":4.12}},{"name":"Yuriko Lily Miyazaki","rank":361,"ratings":{"SRV":1.3,"RET":1.51,"SHOT":2.33,"CONS":1.46}},{"name":"Dalila Spiteri","rank":362,"ratings":{"SRV":2.08,"RET":3.93,"SHOT":3.65,"CONS":6.01}},{"name":"Dalila Jakupovic","rank":363,"ratings":{"SRV":2.27,"RET":3.15,"SHOT":2.98,"CONS":5.37}},{"name":"Yidi Yang","rank":364,"ratings":{"SRV":1.27,"RET":3.74,"SHOT":2.76,"CONS":4.97}},{"name":"Nastasja Schunk","rank":365,"ratings":{"SRV":0.9,"RET":1.9,"SHOT":2.04,"CONS":1.31}},{"name":"Antonia Vergara Rivera","rank":366,"ratings":{"SRV":1.42,"RET":4.51,"SHOT":3.76,"CONS":1.54}},{"name":"Naiktha Bains","rank":367,"ratings":{"SRV":1.71,"RET":1.86,"SHOT":2.34,"CONS":1.77}},{"name":"Aoi Ito","rank":369,"ratings":{"SRV":3.6,"RET":4.98,"SHOT":4.62,"CONS":6.64}},{"name":"Miho Kuramochi","rank":370,"ratings":{"SRV":1.73,"RET":3.65,"SHOT":3.23,"CONS":1.59}},{"name":"Momoko Kobori","rank":372,"ratings":{"SRV":1.97,"RET":4.04,"SHOT":4.59,"CONS":3.81}},{"name":"Raluca Georgiana Serban","rank":373,"ratings":{"SRV":1.46,"RET":3.41,"SHOT":2.81,"CONS":1.62}},{"name":"Diletta Cherubini","rank":375,"ratings":{"SRV":2.37,"RET":4.03,"SHOT":3.79,"CONS":5.23}},{"name":"Lia Karatancheva","rank":376,"ratings":{"SRV":2.07,"RET":2.5,"SHOT":3.0,"CONS":5.09}},{"name":"Yasmine Mansouri","rank":377,"ratings":{"SRV":2.69,"RET":3.25,"SHOT":3.5,"CONS":1.58}},{"name":"Jia-Jing Lu","rank":378,"ratings":{"SRV":2.43,"RET":3.2,"SHOT":3.28,"CONS":4.23}},{"name":"Julia Stusek","rank":379,"ratings":{"SRV":1.74,"RET":2.91,"SHOT":3.14,"CONS":1.68}},{"name":"Aliona Bolsova","rank":380,"ratings":{"SRV":3.79,"RET":4.24,"SHOT":4.19,"CONS":6.09}},{"name":"Ariana Arseneault","rank":381,"ratings":{"SRV":1.64,"RET":2.26,"SHOT":2.8,"CONS":1.54}},{"name":"Amelia Rajecki","rank":382,"ratings":{"SRV":1.85,"RET":1.66,"SHOT":2.3,"CONS":1.34}},{"name":"Zuzanna Pawlikowska","rank":383,"ratings":{"SRV":1.5,"RET":2.89,"SHOT":3.04,"CONS":1.8}},{"name":"Camilla Rosatello","rank":386,"ratings":{"SRV":1.45,"RET":1.33,"SHOT":1.93,"CONS":1.56}},{"name":"Carlota Martinez Cirez","rank":388,"ratings":{"SRV":2.46,"RET":3.21,"SHOT":3.44,"CONS":1.56}},{"name":"Vaishnavi Adkar","rank":389,"ratings":{"SRV":1.58,"RET":2.1,"SHOT":3.0,"CONS":1.75}},{"name":"Alessandra Mazzola","rank":390,"ratings":{"SRV":1.06,"RET":2.79,"SHOT":2.57,"CONS":1.67}},{"name":"Amarissa Kiara Toth","rank":392,"ratings":{"SRV":1.8,"RET":5.61,"SHOT":3.85,"CONS":5.62}},{"name":"Julie Belgraver","rank":394,"ratings":{"SRV":1.63,"RET":2.86,"SHOT":2.58,"CONS":1.5}},{"name":"Priska Madelyn Nugroho","rank":395,"ratings":{"SRV":2.51,"RET":3.4,"SHOT":3.59,"CONS":5.87}},{"name":"Jiaqi Wang","rank":396,"ratings":{"SRV":1.59,"RET":2.06,"SHOT":2.81,"CONS":2.08}},{"name":"Sijia Wei","rank":398,"ratings":{"SRV":3.34,"RET":3.94,"SHOT":3.8,"CONS":4.97}},{"name":"Kristiana Sidorova","rank":399,"ratings":{"SRV":3.12,"RET":3.75,"SHOT":4.03,"CONS":1.77}},{"name":"Tiphanie Lemaitre","rank":400,"ratings":{"SRV":2.23,"RET":2.69,"SHOT":2.91,"CONS":1.63}},{"name":"Ipek Oz","rank":403,"ratings":{"SRV":3.46,"RET":5.08,"SHOT":4.67,"CONS":5.91}},{"name":"Jule Niemeier","rank":405,"ratings":{"SRV":2.14,"RET":3.28,"SHOT":3.07,"CONS":1.34}},{"name":"Ana Sofia Sanchez","rank":406,"ratings":{"SRV":1.56,"RET":4.44,"SHOT":3.23,"CONS":4.75}},{"name":"Kylie Collins","rank":407,"ratings":{"SRV":1.08,"RET":2.43,"SHOT":2.46,"CONS":1.21}},{"name":"Silvia Ambrosio","rank":409,"ratings":{"SRV":2.37,"RET":4.93,"SHOT":3.76,"CONS":5.12}},{"name":"Clara Burel","rank":410,"ratings":{"SRV":3.45,"RET":5.36,"SHOT":5.21,"CONS":4.72}},{"name":"Eri Shimizu","rank":411,"ratings":{"SRV":1.5,"RET":1.63,"SHOT":2.32,"CONS":1.88}},{"name":"Maria Sara Popa","rank":413,"ratings":{"SRV":2.52,"RET":3.54,"SHOT":3.91,"CONS":1.42}},{"name":"Julie Pastikova","rank":414,"ratings":{"SRV":1.08,"RET":1.42,"SHOT":1.79,"CONS":1.33}},{"name":"Amandine Hesse","rank":415,"ratings":{"SRV":2.23,"RET":3.54,"SHOT":3.25,"CONS":1.55}},{"name":"Misaki Matsuda","rank":416,"ratings":{"SRV":1.8,"RET":3.15,"SHOT":3.03,"CONS":2.16}},{"name":"Rebecca Marino","rank":417,"ratings":{"SRV":4.07,"RET":2.92,"SHOT":3.59,"CONS":1.64}},{"name":"Mariam Bolkvadze","rank":418,"ratings":{"SRV":2.51,"RET":4.32,"SHOT":4.32,"CONS":3.78}},{"name":"Tina Nadine Smith","rank":419,"ratings":{"SRV":2.58,"RET":4.7,"SHOT":4.23,"CONS":6.01}},{"name":"Alana Smith","rank":420,"ratings":{"SRV":2.99,"RET":2.87,"SHOT":3.67,"CONS":5.17}},{"name":"Cagla Buyukakcay","rank":421,"ratings":{"SRV":0.91,"RET":2.01,"SHOT":2.15,"CONS":1.5}},{"name":"Tena Lukas","rank":422,"ratings":{"SRV":1.06,"RET":1.81,"SHOT":2.09,"CONS":1.12}},{"name":"Veronika Kudermetova","rank":423,"ratings":{"SRV":5.63,"RET":4.87,"SHOT":5.21,"CONS":1.98}},{"name":"Lucie Nguyen Tan","rank":424,"ratings":{"SRV":1.45,"RET":3.86,"SHOT":3.0,"CONS":1.61}},{"name":"Reese Brantmeier","rank":425,"ratings":{"SRV":1.85,"RET":1.84,"SHOT":2.18,"CONS":1.83}},{"name":"Boyoung Jeong","rank":426,"ratings":{"SRV":0.76,"RET":2.01,"SHOT":1.97,"CONS":1.0}},{"name":"Laura Hietaranta","rank":427,"ratings":{"SRV":0.83,"RET":1.49,"SHOT":1.85,"CONS":1.08}},{"name":"Aneta Laboutkova","rank":428,"ratings":{"SRV":0.9,"RET":2.39,"SHOT":2.54,"CONS":1.49}},{"name":"Laura Mair","rank":429,"ratings":{"SRV":0.6,"RET":1.84,"SHOT":1.91,"CONS":1.41}},{"name":"Weronika Ewald","rank":430,"ratings":{"SRV":0.94,"RET":1.59,"SHOT":1.95,"CONS":1.04}},{"name":"Vaidehi Chaudhari","rank":431,"ratings":{"SRV":0.98,"RET":1.08,"SHOT":1.53,"CONS":1.2}},{"name":"Denislava Glushkova","rank":432,"ratings":{"SRV":0.9,"RET":1.78,"SHOT":1.87,"CONS":1.8}},{"name":"Victoria Allen","rank":433,"ratings":{"SRV":1.06,"RET":1.24,"SHOT":1.96,"CONS":1.43}},{"name":"Jana Kovackova","rank":434,"ratings":{"SRV":1.41,"RET":2.0,"SHOT":2.38,"CONS":1.48}},{"name":"Diana Martynov","rank":435,"ratings":{"SRV":3.01,"RET":2.99,"SHOT":3.13,"CONS":4.71}},{"name":"Hannah Klugman","rank":437,"ratings":{"SRV":5.71,"RET":4.3,"SHOT":4.58,"CONS":4.34}},{"name":"Tatiana Pieri","rank":438,"ratings":{"SRV":1.22,"RET":4.02,"SHOT":3.86,"CONS":5.24}},{"name":"Alana Subasic","rank":441,"ratings":{"SRV":0.97,"RET":1.68,"SHOT":2.1,"CONS":1.18}},{"name":"Chengyiyi Yuan","rank":442,"ratings":{"SRV":0.7,"RET":2.1,"SHOT":2.26,"CONS":1.26}},{"name":"Anastasia Pavlyuchenkova","rank":444,"ratings":{"SRV":5.74,"RET":4.63,"SHOT":6.33,"CONS":4.56}},{"name":"Heather Watson","rank":445,"ratings":{"SRV":4.61,"RET":4.15,"SHOT":5.22,"CONS":3.76}},{"name":"Sapfo Sakellaridi","rank":446,"ratings":{"SRV":1.82,"RET":1.94,"SHOT":2.61,"CONS":1.74}},{"name":"Nadia Podoroska","rank":447,"ratings":{"SRV":3.32,"RET":3.35,"SHOT":3.75,"CONS":4.06}},{"name":"Emily Appleton","rank":448,"ratings":{"SRV":3.52,"RET":1.94,"SHOT":2.54,"CONS":2.11}},{"name":"Tara Wuerth","rank":449,"ratings":{"SRV":3.62,"RET":4.78,"SHOT":4.57,"CONS":5.27}},{"name":"Rasheeda McAdoo","rank":451,"ratings":{"SRV":0.94,"RET":1.65,"SHOT":2.11,"CONS":1.29}},{"name":"Victoria Azarenka","rank":452,"ratings":{"SRV":2.26,"RET":2.8,"SHOT":3.1,"CONS":2.7}},{"name":"Victoria Rodriguez","rank":453,"ratings":{"SRV":2.78,"RET":6.12,"SHOT":5.16,"CONS":4.41}},{"name":"Sofia Johnson","rank":454,"ratings":{"SRV":2.24,"RET":3.32,"SHOT":3.03,"CONS":1.84}},{"name":"Irina-Camelia Begu","rank":457,"ratings":{"SRV":4.58,"RET":4.61,"SHOT":4.9,"CONS":4.27}},{"name":"Ella McDonald","rank":458,"ratings":{"SRV":2.02,"RET":2.56,"SHOT":3.03,"CONS":1.41}},{"name":"Fernanda Labrana","rank":459,"ratings":{"SRV":0.92,"RET":1.75,"SHOT":1.71,"CONS":1.5}},{"name":"Arina Rodionova","rank":460,"ratings":{"SRV":3.33,"RET":5.31,"SHOT":4.94,"CONS":5.09}},{"name":"Ekaterina Reyngold","rank":461,"ratings":{"SRV":3.06,"RET":4.86,"SHOT":4.28,"CONS":3.32}},{"name":"Maria Florencia Urrutia","rank":462,"ratings":{"SRV":1.61,"RET":2.69,"SHOT":2.41,"CONS":1.82}},{"name":"Lucia Cortez Llorca","rank":463,"ratings":{"SRV":1.39,"RET":3.11,"SHOT":2.91,"CONS":1.37}},{"name":"Ana Candiotto","rank":466,"ratings":{"SRV":1.57,"RET":4.16,"SHOT":3.63,"CONS":1.58}},{"name":"Esther Adeshina","rank":468,"ratings":{"SRV":1.45,"RET":1.77,"SHOT":2.2,"CONS":1.51}},{"name":"Astrid Lew Yan Foon","rank":469,"ratings":{"SRV":2.92,"RET":2.7,"SHOT":2.86,"CONS":1.5}},{"name":"Haley Giavara","rank":470,"ratings":{"SRV":0.89,"RET":2.02,"SHOT":2.28,"CONS":1.5}},{"name":"Zhibek Kulambayeva","rank":472,"ratings":{"SRV":3.15,"RET":4.34,"SHOT":4.23,"CONS":5.27}},{"name":"Yujia Huang","rank":477,"ratings":{"SRV":1.27,"RET":2.08,"SHOT":2.24,"CONS":1.64}},{"name":"Luiza Fullana","rank":478,"ratings":{"SRV":1.44,"RET":1.79,"SHOT":1.86,"CONS":1.59}},{"name":"Ena Shibahara","rank":481,"ratings":{"SRV":3.72,"RET":2.65,"SHOT":3.68,"CONS":1.66}},{"name":"Jasmijn Gimbrere","rank":482,"ratings":{"SRV":1.01,"RET":1.62,"SHOT":1.91,"CONS":1.44}},{"name":"Martina Okalova","rank":484,"ratings":{"SRV":1.55,"RET":2.95,"SHOT":3.03,"CONS":1.43}},{"name":"Aneta Kucmova","rank":485,"ratings":{"SRV":1.84,"RET":3.6,"SHOT":3.14,"CONS":1.5}},{"name":"Ekaterina Kazionova","rank":487,"ratings":{"SRV":1.51,"RET":3.87,"SHOT":3.21,"CONS":4.83}},{"name":"Elina Nepliy","rank":488,"ratings":{"SRV":1.57,"RET":1.88,"SHOT":2.75,"CONS":1.38}},{"name":"Carmen Andreea Herea","rank":490,"ratings":{"SRV":1.69,"RET":3.56,"SHOT":3.49,"CONS":1.43}},{"name":"Gergana Topalova","rank":491,"ratings":{"SRV":0.87,"RET":2.7,"SHOT":2.29,"CONS":1.47}},{"name":"Valentina Steiner","rank":492,"ratings":{"SRV":0.73,"RET":1.56,"SHOT":1.82,"CONS":1.04}},{"name":"Katarina Jokic","rank":495,"ratings":{"SRV":0.5,"RET":3.35,"SHOT":2.27,"CONS":1.29}},{"name":"Andreea Prisacariu","rank":496,"ratings":{"SRV":0.62,"RET":2.59,"SHOT":2.36,"CONS":1.62}},{"name":"Sofia Elena Cabezas Dominguez","rank":498,"ratings":{"SRV":1.19,"RET":0.94,"SHOT":2.01,"CONS":1.65}}]};
+const LABEL={R128:'Round of 128',R64:'Round of 64',R32:'Round of 32',R16:'Round of 16',QF:'Quarter-finals',SF:'Semi-finals',F:'Final'};
+
+// D is one played-out tournament. It starts empty and is replaced every time
+// the visitor presses Simulate; nothing is baked into the page.
+let D = null;
+let tour = 'ATP';
+let playable = null;
+
+function header(){
+  document.getElementById('headline').innerHTML =
+    '<div class="card"><div class="k">Champion</div><div class="v">' + D.champion +
+    (D.championSeed ? ' <span style="color:var(--muted);font-weight:500">[' + D.championSeed + ']</span>' : '') + '</div></div>' +
+    (D.playable ? '<div class="card you"><div class="k">You &mdash; ' + D.playable +
+      '</div><div class="v">' + D.playableResult + '</div></div>' : '');
+}
+
+function seedBox(p){
+  if(p.q) return '<span class="seed q">Q</span>';
+  if(p.seed) return '<span class="seed">'+p.seed+'</span>';
+  return '<span class="seed blank"></span>';
+}
+function setCells(m, which){
+  const other = which==='top' ? 'bottom' : 'top';
+  return '<span class="sets">' + m.setScores.map(s=>{
+    const g = s[which];
+    const sup = (s.tbSide===which) ? '<sup>'+s.tb+'</sup>' : '';
+    // bold marks who took THAT set -- the match winner is shown by the name
+    const won = s[which] > s[other] ? ' class="setwon"' : '';
+    return '<b'+won+'>'+g+sup+'</b>';
+  }).join('') + '</span>';
+}
+function sideHtml(m, which){
+  const p=m[which];
+  const cls=['side', p.won?'won':'lost', p.playable?'me':''].filter(Boolean).join(' ');
+  return '<div class="'+cls+'">'+seedBox(p)+'<span class="nm">'+p.name+'</span>'+setCells(m,which)+'</div>';
+}
+const bracket=document.getElementById('bracket');
+const scroller=document.querySelector('.scroll');
+
+// ---- the bracket is paged, not scrolled ----------------------------------
+// A 128 draw is 7 rounds and ~3,900px tall end to end. Showing all of it at
+// once forces the later rounds into enormous vertical gaps, because a column
+// of 1 has to span the same height as a column of 64. Showing a WINDOW of 4
+// rounds instead means the tallest column in view is the leftmost one, so the
+// spacing stays tight and the whole window fits the frame width.
+const WIN = 4;
+let LAST = 0;                                    // set once a tournament exists
+let start = 0;                                   // opens on Round of 16 -> Final
+
+function renderWindow(){
+  // Keep the eye at roughly the same depth in the draw across a page turn;
+  // the content height doubles each step left, so an absolute scrollTop would
+  // throw the view to the top.
+  const scrollable = scroller.scrollHeight - scroller.clientHeight;
+  const frac = scrollable > 1
+    ? (scroller.scrollTop + scroller.clientHeight / 2) / scroller.scrollHeight
+    : 0.5;
+
+  bracket.innerHTML = D.rounds.slice(start, start + WIN).map((r, i) => {
+    const ri = start + i;                        // absolute index: the popup keys off it
+    return '<div class="round"><h2>' + LABEL[r.name] + '</h2><div class="ties">' +
+      r.matches.map((m, mi) =>
+        '<div class="tie" tabindex="0" data-r="' + ri + '" data-m="' + mi + '">' +
+        sideHtml(m, 'top') + sideHtml(m, 'bottom') + '</div>').join('') +
+      '</div></div>';
+  }).join('');
+
+  const view = D.rounds.slice(start, start + WIN);
+  document.getElementById('prange').textContent =
+    LABEL[view[0].name] + '  \u2192  ' + LABEL[view[view.length - 1].name];
+  document.getElementById('prev').disabled = start === 0;
+  document.getElementById('next').disabled = start === LAST;
+
+  scroller.scrollLeft = scroller.scrollWidth;   // latest round of the window stays in view
+  scroller.scrollTop = Math.max(0, frac * scroller.scrollHeight - scroller.clientHeight / 2);
+}
+function page(step){
+  const next = Math.min(LAST, Math.max(0, start + step));
+  if(next === start) return;
+  start = next;
+  renderWindow();
+}
+document.getElementById('prev').addEventListener('click', () => page(-1));
+document.getElementById('next').addEventListener('click', () => page(1));
+addEventListener('keydown', e => {                // arrows page, unless a popup is up
+  if(document.getElementById('overlay').classList.contains('open')) return;
+  if(document.activeElement === document.getElementById('who')) return;
+  if(e.key === 'ArrowLeft')  page(-1);
+  if(e.key === 'ArrowRight') page(1);
+});
+
+// ---- one popup at a time -------------------------------------------------
+const overlay=document.getElementById('overlay');
+// points arrive as [sideIndex, shots, runningScore] against the match's two names
+function outcome(g){
+  if(g.k==='t') return {cls:'tbk',tag:'Tiebreak'};
+  return g.win===g.srv ? {cls:'hold',tag:'Hold'} : {cls:'brk',tag:'Break'};
+}
+function gameHtml(g, names){
+  const o=outcome(g);
+  const serve = g.k==='t' ? '' : '<span>serve <b>'+names[g.srv]+'</b></span>';
+  const pts=g.pts.map(p=>'<div class="pt"><span class="who">'+names[p[0]]+' <span style="color:var(--muted)">('+p[1]+')</span></span><span class="sc">'+p[2]+'</span></div>').join('');
+  return '<div class="game '+o.cls+'"><button class="ghead"><span class="gchev">&#9654;</span>'+
+    '<span class="tag">'+o.tag+'</span>'+serve+'<span class="gwin">'+names[g.win]+'</span>'+
+    '<span class="gsc">'+g.sc+'</span></button><div class="pts">'+pts+'</div></div>';
+}
+function open(ri,mi){
+  const r=D.rounds[ri], m=r.matches[mi];
+  document.getElementById('mround').textContent=LABEL[r.name];
+  document.getElementById('mtitle').textContent=m.top.name+' v '+m.bottom.name;
+  document.getElementById('mscore').textContent=m.score;
+  const names=[m.top.name,m.bottom.name];
+  const sets=m.sets.map((s,i)=>
+    '<div class="setrow"><div class="setlabel"><span>Set '+(i+1)+'</span><span class="s">'+s.sc+
+    '</span><span style="color:var(--muted)">'+names[s.win]+'</span></div>'+
+    '<div class="games">'+s.g.map(g=>gameHtml(g,names)).join('')+'</div></div>').join('');
+  const rows=m.stats.map(r=>
+    '<div class="srow"><span class="v l'+(r.better==='a'?' best':'')+'">'+r.a+'</span>'+
+    '<span class="k">'+r.label+'</span>'+
+    '<span class="v r'+(r.better==='b'?' best':'')+'">'+r.b+'</span></div>').join('');
+  document.getElementById('mbody').innerHTML = sets +
+    '<div class="stats"><h3><span class="who">'+m.statNames[0]+'</span><span>Match statistics</span>'+
+    '<span class="who">'+m.statNames[1]+'</span></h3>'+rows+'</div>';
+  document.getElementById('mbody').querySelectorAll('.ghead').forEach(h=>
+    h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
+  overlay.querySelector('.modal').scrollTop = 0;   // .modal scrolls, not .mbody
+  overlay.classList.add('open');            // replaces whatever was shown before
+  document.body.style.overflow='hidden';
+}
+function close(){ overlay.classList.remove('open'); document.body.style.overflow=''; }
+bracket.addEventListener('click',e=>{
+  const tie=e.target.closest('.tie'); if(tie) open(+tie.dataset.r,+tie.dataset.m);
+});
+bracket.addEventListener('keydown',e=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const tie=e.target.closest('.tie'); if(tie){ e.preventDefault(); open(+tie.dataset.r,+tie.dataset.m); }
+});
+document.getElementById('mclose').addEventListener('click',close);
+overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') close(); });
+
+// ---- controls ------------------------------------------------------------
+const whoInput = document.getElementById('who');
+const whoMenu  = document.getElementById('whoMenu');
+const runBtn   = document.getElementById('run');
+
+function showTournament(result){
+  D = result;
+  LAST = Math.max(0, D.rounds.length - WIN);
+  start = LAST;
+  header();
+  renderWindow();
+}
+
+const MENU_LIMIT = 60;                 // rendering all 500 on every keystroke is wasteful
+function options(query){
+  const pool = POOLS[tour];
+  const q = query.trim().toLowerCase();
+  return q ? pool.filter(p => p.name.toLowerCase().includes(q)) : pool;
+}
+function renderMenu(query){
+  const hits = options(query);
+  const rows = hits.slice(0, MENU_LIMIT).map(p =>
+    '<div class="opt" data-name="' + p.name.replace(/"/g, '&quot;') + '">' +
+    '<span class="rk">' + p.rank + '</span><span>' + p.name + '</span></div>').join('');
+  // Say so when the list is cut short. Silently showing the first 60 of 200 reads
+  // as "that player is not in the pool" when they are.
+  const more = hits.length > MENU_LIMIT
+    ? '<div class="opt more"><span class="rk"></span><span class="none">' +
+      MENU_LIMIT + ' of ' + hits.length + ' shown &mdash; type to narrow</span></div>' : '';
+  whoMenu.innerHTML =
+    '<div class="opt" data-name=""><span class="rk">&mdash;</span><span class="none">No player &mdash; just watch</span></div>' +
+    (rows || '<div class="opt"><span class="none">No match among the ' + POOLS[tour].length +
+             ' ranked ' + tour + ' players</span></div>') + more;
+  whoMenu.classList.add('open');
+}
+function choose(name){
+  playable = name || null;
+  whoInput.value = playable || '';
+  whoMenu.classList.remove('open');
+}
+whoInput.addEventListener('focus', () => renderMenu(whoInput.value));
+whoInput.addEventListener('input', () => renderMenu(whoInput.value));
+whoMenu.addEventListener('mousedown', e => {                 // mousedown beats the blur
+  const opt = e.target.closest('.opt'); if(!opt || opt.dataset.name === undefined) return;
+  e.preventDefault(); choose(opt.dataset.name);
+});
+whoInput.addEventListener('blur', () => setTimeout(() => whoMenu.classList.remove('open'), 120));
+document.getElementById('whoClear').addEventListener('click', () => { choose(''); whoInput.focus(); });
+
+document.querySelectorAll('.segbtn').forEach(btn => btn.addEventListener('click', () => {
+  if(btn.dataset.tour === tour) return;
+  tour = btn.dataset.tour;
+  document.querySelectorAll('.segbtn').forEach(b => b.classList.toggle('on', b.dataset.tour === tour));
+  // A name only means something within one tour's pool.
+  if(playable && !POOLS[tour].some(p => p.name === playable)) choose('');
+  whoMenu.classList.remove('open');
+}));
+
+// One tournament every 5 seconds. Simulating costs ~40ms, so this is a courtesy
+// throttle on a button people will hammer, not a compute limit.
+const COOLDOWN = 5000;
+let cooling = 0;
+function simulate(){
+  if(cooling) return;
+  runBtn.disabled = true;
+  runBtn.textContent = 'Simulating\u2026';
+  // Yield once so the button paints its disabled state before the engine runs.
+  setTimeout(() => {
+    const seed = (Math.random() * 4294967296) >>> 0;
+    showTournament(simulateTournament(POOLS[tour], {
+      seed, playable, tour, bestOf: tour === 'ATP' ? 5 : 3, finalSetTiebreak: 10
+    }));
+    let left = COOLDOWN;
+    runBtn.textContent = 'Simulate again (' + Math.ceil(left / 1000) + 's)';
+    cooling = setInterval(() => {
+      left -= 1000;
+      if(left > 0){ runBtn.textContent = 'Simulate again (' + Math.ceil(left / 1000) + 's)'; return; }
+      clearInterval(cooling); cooling = 0;
+      runBtn.disabled = false;
+      runBtn.textContent = 'Simulate tournament';
+    }, 1000);
+  }, 16);
+}
+runBtn.addEventListener('click', simulate);
+
+// Something to look at on arrival.
+showTournament(simulateTournament(POOLS[tour], {
+  seed: (Math.random() * 4294967296) >>> 0, playable: null, tour, bestOf: 5, finalSetTiebreak: 10
+}));
+
+// ---- light / dark ---------------------------------------------------------
+// The stylesheet already carries :root[data-theme="dark"] and a
+// prefers-color-scheme block guarded by :not([data-theme="light"]), so the
+// toggle only has to stamp the root. No stamp at all means "follow the system".
+const themeBtn = document.getElementById('theme');
+function systemDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
+function paintTheme(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  themeBtn.textContent = dark ? '\u2600 Light' : '\u263E Dark';   // what clicking gives you
+}
+function setTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  try { localStorage.setItem('theme', mode); } catch (e) { /* private window */ }
+  paintTheme();
+}
+let stored = null;
+try { stored = localStorage.getItem('theme'); } catch (e) { /* blocked */ }
+setTheme(stored === 'dark' || stored === 'light' ? stored : (systemDark() ? 'dark' : 'light'));
+themeBtn.addEventListener('click', () =>
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+</script>

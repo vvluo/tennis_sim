@@ -87,14 +87,33 @@ def check_outputs() -> dict:
             'wta': sum(r['t'] == 'WTA' for r in records)}
 
 
+def build_tournament() -> None:
+    """Rebuild the landing page against the ratings that just came out.
+
+    The page carries the ranked pool and simulates in the browser, so this is
+    pure assembly -- no API calls beyond the rankings already in the cache. It
+    used to be copied through untouched, which shipped last week's pool.
+    """
+    import run_tournament
+    argv = sys.argv[1:]
+    sys.argv = ['run_tournament.py', '--out', str(ROOT / 'tournament.html')]
+    try:
+        if run_tournament.main() != 0:
+            raise SystemExit('run_tournament failed')
+    finally:
+        sys.argv = ['build_ratings.py'] + argv
+
+
 def stage_site() -> None:
-    """Collect the pages to publish. index.html is the landing page."""
+    """Collect the pages to publish. The tournament is the landing page."""
     SITE.mkdir(exist_ok=True)
-    for name in ('ratings_board.html', 'match_output.html'):
+    for name in ('ratings_board.html', 'match_output.html', 'tournament.html'):
         source = ROOT / name
         if source.exists():
             shutil.copy(source, SITE / name)
-    shutil.copy(ROOT / 'ratings_board.html', SITE / 'index.html')
+    landing = ROOT / 'tournament.html'
+    shutil.copy(landing if landing.exists() else ROOT / 'ratings_board.html',
+                SITE / 'index.html')
 
 
 def main() -> int:
@@ -120,6 +139,7 @@ def main() -> int:
 
     run_notebook()
     summary = check_outputs()
+    build_tournament()
     stage_site()
 
     cached_after = len(list(CACHE.glob('daily_*.json.gz'))) if CACHE.exists() else 0

@@ -516,8 +516,13 @@ def _players_in(match):
     return {p.id: clean_player_name(p.name) for p in (match.player1, match.player2)}
 
 
-def _game_payload(record, names):
-    """One game or tiebreak: server, winner, and the running score per point."""
+def _game_payload(record, names, tiebreak_length=7):
+    """One game or tiebreak: server, winner, and the running score per point.
+
+    `tiebreak_length` matters: a deciding-set breaker runs to 10, and scoring it
+    as though it ran to 7 declares "Game" the moment someone leads 7-5 and then
+    keeps printing it while the players are still on court.
+    """
     kind, server_id, winner_id, _, point_records = record
     other = [i for i in names if i != server_id]
     receiver_id = other[0] if other else server_id
@@ -534,7 +539,8 @@ def _game_payload(record, names):
             'n': shots,
             'f': first_serve,
             's': tennis_score(server_points, receiver_points, server_id, receiver_id,
-                              names, tiebreaker=(kind == 'tiebreak')),
+                              names, tiebreaker=(kind == 'tiebreak'),
+                              tiebreaker_win_points=tiebreak_length),
         })
     return {
         'kind': kind,
@@ -553,9 +559,16 @@ def match_payload(match, number):
 
     sets, score_parts = [], []
     final_set = len(set_records) - 1
+    # Only a match that went the full distance has a deciding set, and only that
+    # set's breaker runs to the long length. The winner took to_win sets, so the
+    # distance is 2 * to_win - 1.
+    to_win = sum(1 for s in set_records if s[2] == winner_id)
+    deciding_set = final_set if len(set_records) == 2 * to_win - 1 else None
+    long_tiebreak = getattr(match, 'final_set_tiebreak', 7)
     for set_index, set_record in enumerate(set_records):
         _, _, set_winner_id, _, game_records = set_record
-        games = [_game_payload(g, names) for g in game_records]
+        length = long_tiebreak if set_index == deciding_set else 7
+        games = [_game_payload(g, names, length) for g in game_records]
 
         # Running games score after each game, always from the match winner's
         # side, so a scoreline reads the same way down the whole match.
