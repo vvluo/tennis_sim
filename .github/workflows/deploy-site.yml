@@ -1,0 +1,78 @@
+name: Deploy site
+
+# Front-end changes should reach Pages without re-running the ratings pipeline.
+# This job never touches Sportradar: it rebuilds the pages from the committed
+# ratings.json and the cached rankings through a Client with a budget of zero,
+# so a cache miss fails the run rather than quietly spending the trial quota.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Shared with the weekly job so the two can never deploy over each other.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt pytest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The page runs simulation/engine.js, a hand port of the Python engine.
+      # Both are driven off one shared random stream and must agree point for
+      # point, so a drifted port fails here rather than reaching Pages.
+      - name: Engine parity (Python vs JS)
+        env:
+          PARITY_REQUIRE_NODE: '1'
+        run: python -m pytest tests/test_engine_parity.py tests/test_constants_parity.py -q
+
+      # Read-only: this job consumes the cache the weekly run saves, and never
+      # writes one of its own.
+      - uses: actions/cache/restore@v4
+        with:
+          path: sportradar_cache
+          key: sportradar-site
+          restore-keys: sportradar-
+
+      - name: Check the rankings snapshot is present
+        run: |
+          if [ ! -f sportradar_cache/rankings.json.gz ]; then
+            echo "::error::No cached rankings, so the player pool cannot be built."
+            echo "Run 'Weekly ratings refresh' once to populate the cache, then re-run this."
+            exit 1
+          fi
+
+      - name: Build and stage the pages
+        run: python build_ratings.py --site-only
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

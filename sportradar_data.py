@@ -73,7 +73,11 @@ class Client:
         self.api_key = api_key or load_api_key()
         self.base = BASE_URL.format(access_level=access_level, language=language)
         self.min_interval = min_interval
-        self.budget = budget
+        # $SPORTRADAR_BUDGET is a ceiling over the whole process, not a default:
+        # it has to beat an explicit budget or a caller that asks for 520 would
+        # walk straight past the cap the scheduled job was started with.
+        cap = os.environ.get("SPORTRADAR_BUDGET")
+        self.budget = min(budget, int(cap)) if cap else budget
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
         self.requests_made = 0

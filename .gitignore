@@ -3,3 +3,4 @@
 sportradar_cache/
 __pycache__/
 .DS_Store
+site/            # staged build output, rebuilt by CI

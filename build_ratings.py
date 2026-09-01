@@ -123,7 +123,20 @@ def main() -> int:
                              'a pull it cannot finish within this')
     parser.add_argument('--prune', action='store_true',
                         help='delete cached days older than the rating window')
+    parser.add_argument('--site-only', action='store_true',
+                        help='rebuild and stage the pages from the committed '
+                             'ratings, without running the notebook or spending '
+                             'a single API call; for deploying front-end changes')
     args = parser.parse_args()
+
+    if args.site_only:
+        # No notebook, no key, no network: run_tournament reads ratings.json and
+        # the cached rankings through a Client with a budget of zero, so a cache
+        # miss fails loudly rather than quietly spending the trial quota.
+        build_tournament()
+        stage_site()
+        print('staged site from the committed ratings; no API calls made')
+        return 0
 
     if not os.environ.get('SPORTRADAR_API_KEY') and not (ROOT / '.sportradar_key').exists():
         raise SystemExit('no API key: set $SPORTRADAR_API_KEY or write .sportradar_key')
@@ -133,6 +146,14 @@ def main() -> int:
 
     if args.prune:
         print(f'pruned {prune_cache()} cached days outside the window')
+        # Client.get has no TTL, so the rankings snapshot would otherwise be
+        # served from disk for ever and every week's ratings would be scored
+        # against whatever the standings were the day it was first fetched.
+        # Dropping it here costs exactly one call on the next run.
+        rankings = CACHE / 'rankings.json.gz'
+        if rankings.exists():
+            rankings.unlink()
+            print('dropped the rankings snapshot; it refetches in one call')
 
     cached_before = len(list(CACHE.glob('daily_*.json.gz'))) if CACHE.exists() else 0
     print(f'cache holds {cached_before} page files before the run')

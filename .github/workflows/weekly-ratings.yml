@@ -10,8 +10,9 @@ permissions:
   pages: write
   id-token: write
 
+# Shared with deploy-site.yml so the two can never deploy over each other.
 concurrency:
-  group: ratings
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -37,7 +38,7 @@ jobs:
       - name: Engine parity (Python vs JS)
         env:
           PARITY_REQUIRE_NODE: '1'      # a missing node must fail, not skip
-        run: pip install pytest && python -m pytest tests/test_engine_parity.py -q
+        run: pip install pytest && python -m pytest tests/test_engine_parity.py tests/test_constants_parity.py -q
 
       # The cache is what makes this affordable. Warm, a run costs ~8 API calls;
       # cold, it re-pulls the whole year for ~425 and four cold runs would blow
