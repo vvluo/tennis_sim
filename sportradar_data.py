@@ -70,7 +70,10 @@ class Client:
         budget: int = 300,
         cache_dir: Path = CACHE_DIR,
     ):
-        self.api_key = api_key or load_api_key()
+        # Deferred, not resolved here: a cache-only client (budget 0) never
+        # makes a request, so it must not demand a key. The site deploy runs
+        # exactly that way -- it has no secret, and it is not allowed to spend.
+        self._api_key = api_key
         self.base = BASE_URL.format(access_level=access_level, language=language)
         self.min_interval = min_interval
         # $SPORTRADAR_BUDGET is a ceiling over the whole process, not a default:
@@ -84,7 +87,7 @@ class Client:
         self._last_call = 0.0
         self._session = requests.Session()
         self._session.headers.update(
-            {"accept": "application/json", "x-api-key": self.api_key}
+            {"accept": "application/json"}
         )
 
     # --- transport ------------------------------------------------------
@@ -96,6 +99,18 @@ class Client:
         if wait > 0:
             time.sleep(wait)
         self._last_call = time.monotonic()
+
+    @property
+    def api_key(self) -> str:
+        """The key, resolved on demand. Reading this raises if none is set."""
+        self._authorize()
+        return self._api_key
+
+    def _authorize(self) -> None:
+        """Attach the key to the session, resolving it the first time."""
+        if self._api_key is None:
+            self._api_key = load_api_key()
+        self._session.headers["x-api-key"] = self._api_key
 
     def get(self, path: str, params: dict | None = None, cache_key: str | None = None):
         """GET one feed, served from disk when already fetched."""
@@ -112,6 +127,7 @@ class Client:
             )
 
         url = f"{self.base}/{path}"
+        self._authorize()          # a live call is due, so the key is needed now
         for attempt in range(4):
             self._throttle()
             try:
