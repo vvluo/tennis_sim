@@ -178,23 +178,36 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .setlabel{display:flex;gap:8px;align-items:baseline;font-size:10.5px;font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;color:var(--ink-2);padding-bottom:5px;border-bottom:1px solid var(--line)}
 .setlabel .s{font-family:"IBM Plex Mono",ui-monospace,monospace;letter-spacing:0;font-size:12.5px;color:var(--ink)}
-.games{display:grid;grid-template-columns:repeat(auto-fill,minmax(198px,1fr));gap:7px;margin-top:7px;align-items:start}
+.games{display:grid;grid-template-columns:repeat(var(--gamecols,2),1fr);gap:7px;margin-top:7px;align-items:start}
+/* Every tiebreak point carries both names, which will not fit a 198px column
+   without wrapping onto two or three lines. Give it the whole row. */
+.game.tbk{grid-column:1/-1}
+.game.tbk .pt .sc{margin-left:24px}
 .game{border:1px solid var(--line);border-left:3px solid var(--line);border-radius:6px;background:var(--surface-2);overflow:hidden}
 .game.hold{border-left-color:var(--hold);background:var(--hold-soft)}
 .game.brk{border-left-color:var(--brk);background:var(--brk-soft)}
 .game.tbk{border-left-color:var(--tbk);background:var(--tbk-soft)}
 .ghead{display:flex;align-items:center;gap:7px;width:100%;padding:6px 9px;font:inherit;font-size:11px;
-  color:var(--muted);background:transparent;border:0;cursor:pointer;text-align:left}
+  color:var(--muted);background:transparent;border:0;cursor:pointer;text-align:left;
+  white-space:nowrap}
+/* One line whatever the names are, so a hold and a break are the same height.
+   If something has to give it is the name, by ellipsis, never the line count. */
+.ghead .srv,.ghead .gwin{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ghead .gchev,.ghead .gsc{flex:none}
 .ghead b{color:var(--ink-2);font-weight:600}
-.tag{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.tag{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  flex:none;min-width:42px}
 .game.hold .tag{color:var(--hold)}.game.brk .tag{color:var(--brk)}.game.tbk .tag{color:var(--tbk)}
 .gwin{margin-left:auto;color:var(--ink-2);font-weight:600}
 .gsc{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .gchev{font-size:8px;transition:transform .15s}.game.open .gchev{transform:rotate(90deg)}
 .pts{display:none;padding:0 9px 7px}.game.open .pts{display:block}
 .pt{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;padding:1px 0}
-.pt .who{color:var(--ink-2)}
-.pt .sc{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--muted);font-variant-numeric:tabular-nums}
+.pt .who{display:flex;gap:4px;min-width:0;color:var(--ink-2)}
+.pt .pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pt .n{flex:none;color:var(--muted)}
+.pt .sc{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--muted);
+  font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 .stats{margin-top:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .stats h3{margin:0;padding:8px 12px;font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;
   color:var(--ink-2);background:var(--surface-2);display:flex;justify-content:space-between;border-bottom:1px solid var(--line)}
@@ -412,36 +425,184 @@ function outcome(g){
   if(g.k==='t') return {cls:'tbk',tag:'Tiebreak'};
   return g.win===g.srv ? {cls:'hold',tag:'Hold'} : {cls:'brk',tag:'Break'};
 }
-function gameHtml(g, names){
+// ---- how much to abbreviate ---------------------------------------------
+// Nothing is abbreviated unless the panel is too narrow for the line. The
+// ladder only shortens what it must, in the order the eye misses least:
+//   0  full names throughout
+//   1  the score line ("Ad Jessica Pegula" -> "Ad J Pegula")
+//   2  the name beside the shot count as well
+//   3  surnames clipped to five letters in both
+const LEVELS = [
+  {score: null, row: null},
+  {score: 0,    row: null},
+  {score: 0,    row: 0},
+  {score: 5,    row: 5},
+];
+function levelNames(names, level){
+  const spec = LEVELS[level];
+  return {
+    score: spec.score === null ? names : shortNames(names, spec.score),
+    row:   spec.row   === null ? names : shortNames(names, spec.row),
+  };
+}
+function rewrite(text, from, to){          // literal replace, names are not patterns
+  let out = text;
+  for(let i = 0; i < from.length; i++) out = out.split(from[i]).join(to[i]);
+  return out;
+}
+
+// Measure with the panel's real fonts rather than guessing at character widths.
+let gauge = null;
+function textWidth(text, font){
+  if(!gauge) gauge = document.createElement('canvas').getContext('2d');
+  gauge.font = font;
+  return gauge.measureText(text).width;
+}
+// The widest line any point in `games` would need at this level, against the
+// width those games actually get.
+function fitsAt(games, names, level, available, fonts){
+  const n = levelNames(names, level);
+  const GAPS = 12;                          // .who gap 4 + .pt gap 8
+  for(const g of games){
+    for(const p of g.pts){
+      const who   = textWidth(n.row[p[0]], fonts.name);
+      const count = textWidth(' (' + p[1] + ')', fonts.count);
+      const score = textWidth(rewrite(p[2], names, n.score), fonts.score);
+      if(who + count + score + GAPS > available) return false;
+    }
+  }
+  return true;
+}
+function chooseLevel(games, names, available, fonts){
+  for(let level = 0; level < LEVELS.length; level++){
+    if(fitsAt(games, names, level, available, fonts)) return level;
+  }
+  return LEVELS.length - 1;                 // nothing fits; clip as hard as we can
+}
+
+// full names in the header, clipped ones on the points beneath it
+function gameHtml(g, names, head, level){
   const o=outcome(g);
-  const serve = g.k==='t' ? '' : '<span>serve <b>'+names[g.srv]+'</b></span>';
-  const pts=g.pts.map(p=>'<div class="pt"><span class="who">'+names[p[0]]+' <span style="color:var(--muted)">('+p[1]+')</span></span><span class="sc">'+p[2]+'</span></div>').join('');
+  const n=levelNames(names, level);
+  const serve = g.k==='t' ? '' : '<span class="srv">serve <b>'+head[g.srv]+'</b></span>';
+  // The shot count is its own element so that a long score line ("Game Set
+  // Match ...") clips the NAME rather than eating the count off the end.
+  const pts=g.pts.map(p=>'<div class="pt"><span class="who">'+
+    '<span class="pn">'+n.row[p[0]]+'</span>'+
+    '<span class="n">('+p[1]+')</span></span>'+
+    '<span class="sc">'+rewrite(p[2], names, n.score)+'</span></div>').join('');
   return '<div class="game '+o.cls+'"><button class="ghead"><span class="gchev">&#9654;</span>'+
-    '<span class="tag">'+o.tag+'</span>'+serve+'<span class="gwin">'+names[g.win]+'</span>'+
+    '<span class="tag">'+o.tag+'</span>'+serve+'<span class="gwin">'+head[g.win]+'</span>'+
     '<span class="gsc">'+g.sc+'</span></button><div class="pts">'+pts+'</div></div>';
 }
+// Two or four game panels per row, never three and never one where two fit --
+// a bracket reads in halves, and an odd column count breaks that rhythm.
+const GAME_MIN = 198, GAME_GAP = 7;
+// Widest header this match can produce: the longer name in both the serve slot
+// and the winner slot, with the widest tag. Measured by laying one out rather
+// than adding up guesses, so letter-spacing and font fallbacks are included.
+function headerWidth(names, host){
+  const longest = names[0].length >= names[1].length ? names[0] : names[1];
+  const probe = document.createElement('div');
+  probe.className = 'game';
+  probe.style.cssText = 'position:absolute;visibility:hidden;width:max-content';
+  probe.innerHTML = '<button class="ghead"><span class="gchev">&#9654;</span>' +
+    '<span class="tag">Tiebreak</span><span class="srv">serve <b>' + longest + '</b></span>' +
+    '<span class="gwin">' + longest + '</span><span class="gsc">6(10)-7</span></button>';
+  host.appendChild(probe);
+  const width = probe.getBoundingClientRect().width;
+  probe.remove();
+  return width;
+}
+// Two or four panels per row, never three. Four only when full names fit that
+// narrow; otherwise two wide panels, which read better and leave the header room
+// to shorten instead of the layout collapsing to a single column. One column is
+// for genuinely narrow screens, not for long names.
+function gameColumns(width, names, host){
+  const panelAt = k => (width - (k - 1) * GAME_GAP) / k;
+  const room = Math.floor((width + GAME_GAP) / (GAME_MIN + GAME_GAP));
+  for(const k of [4, 2]) if(k <= room && headerWidth(names, host) <= panelAt(k)) return k;
+  return room >= 2 ? 2 : 1;
+}
+
+// Headers shorten on the same principle as the points: full names, then first
+// initial, then a clipped surname -- each step only if the one before overflows.
+const HEADER_LEVELS = [null, 0, 5];
+// The point ladder rung that shows the same form as each header rung, so the
+// header is never more abbreviated than the rows underneath it.
+const HEADER_TO_POINT = [0, 2, 3];
+function headerLevelFor(names, host, panel){
+  for(let i = 0; i < HEADER_LEVELS.length; i++){
+    const shown = HEADER_LEVELS[i] === null ? names : shortNames(names, HEADER_LEVELS[i]);
+    if(headerWidth(shown, host) <= panel) return i;
+  }
+  return HEADER_LEVELS.length - 1;
+}
+function headerNames(names, level){
+  return HEADER_LEVELS[level] === null ? names : shortNames(names, HEADER_LEVELS[level]);
+}
+// The panel's own fonts, read off a probe rather than assumed.
+function panelFonts(host){
+  const probe = document.createElement('div');
+  probe.className = 'pt';
+  probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none';
+  probe.innerHTML = '<span class="who"><span class="pn">x</span>' +
+                    '<span class="n">(1)</span></span><span class="sc">0 - 0</span>';
+  host.appendChild(probe);
+  const font = node => {
+    const c = getComputedStyle(node);
+    return c.fontStyle + ' ' + c.fontWeight + ' ' + c.fontSize + ' ' + c.fontFamily;
+  };
+  const fonts = { name: font(probe.querySelector('.pn')),
+                  count: font(probe.querySelector('.n')),
+                  score: font(probe.querySelector('.sc')) };
+  probe.remove();
+  return fonts;
+}
+
 function open(ri,mi){
   const r=D.rounds[ri], m=r.matches[mi];
   document.getElementById('mround').textContent=LABEL[r.name];
   document.getElementById('mtitle').textContent=m.top.name+' v '+m.bottom.name;
   document.getElementById('mscore').textContent=m.score;
+
+  // Open first: the panel has to be laid out before it can be measured.
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  const body=document.getElementById('mbody');
   const names=[m.top.name,m.bottom.name];
+
+  const width=body.clientWidth;
+  const cols=gameColumns(width, names, body);
+  body.style.setProperty('--gamecols', cols);
+  const fonts=panelFonts(body);
+  const PAD=18;                                   // .pts padding, 9px each side
+  const panelWidth=(width - (cols-1)*GAME_GAP)/cols;
+  const regularWidth=panelWidth - PAD;
+  const tiebreakWidth=width - PAD;                // a tiebreak takes the whole row
+  const headLevel=headerLevelFor(names, body, panelWidth);
+  const head=headerNames(names, headLevel);
+  const floor=HEADER_TO_POINT[headLevel];   // points never read longer than the header
+
+  const all=m.sets.flatMap(s=>s.g);
+  const regularLevel=Math.max(floor, chooseLevel(all.filter(g=>g.k!=='t'), names, regularWidth, fonts));
+  const tiebreakLevel=Math.max(floor, chooseLevel(all.filter(g=>g.k==='t'), names, tiebreakWidth, fonts));
+
   const sets=m.sets.map((s,i)=>
     '<div class="setrow"><div class="setlabel"><span>Set '+(i+1)+'</span><span class="s">'+s.sc+
     '</span><span style="color:var(--muted)">'+names[s.win]+'</span></div>'+
-    '<div class="games">'+s.g.map(g=>gameHtml(g,names)).join('')+'</div></div>').join('');
+    '<div class="games">'+s.g.map(g=>
+      gameHtml(g,names,head,g.k==='t'?tiebreakLevel:regularLevel)).join('')+'</div></div>').join('');
   const rows=m.stats.map(r=>
     '<div class="srow"><span class="v l'+(r.better==='a'?' best':'')+'">'+r.a+'</span>'+
     '<span class="k">'+r.label+'</span>'+
     '<span class="v r'+(r.better==='b'?' best':'')+'">'+r.b+'</span></div>').join('');
-  document.getElementById('mbody').innerHTML = sets +
+  body.innerHTML = sets +
     '<div class="stats"><h3><span class="who">'+m.statNames[0]+'</span><span>Match statistics</span>'+
     '<span class="who">'+m.statNames[1]+'</span></h3>'+rows+'</div>';
-  document.getElementById('mbody').querySelectorAll('.ghead').forEach(h=>
+  body.querySelectorAll('.ghead').forEach(h=>
     h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
   overlay.querySelector('.modal').scrollTop = 0;   // .modal scrolls, not .mbody
-  overlay.classList.add('open');            // replaces whatever was shown before
-  document.body.style.overflow='hidden';
 }
 function close(){ overlay.classList.remove('open'); document.body.style.overflow=''; }
 bracket.addEventListener('click',e=>{

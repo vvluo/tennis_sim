@@ -16,9 +16,13 @@ def abbrev_name(full_name):
 
 
 def tennis_score(server_points, receiver_points, server_id, receiver_id, player_names=None, tiebreaker=False, tiebreaker_win_points=7):
+    # Full names here: abbreviating is a presentation choice, and the page makes
+    # it from the width it actually has. Baking it into the record throws away
+    # information the renderer needs.
+    server_name = get_player_name(server_id, player_names)
+    receiver_name = get_player_name(receiver_id, player_names)
+
     if tiebreaker:
-        server_name   = abbrev_name(get_player_name(server_id,   player_names))
-        receiver_name = abbrev_name(get_player_name(receiver_id, player_names))
 
         if server_points >= tiebreaker_win_points and server_points - receiver_points >= 2:
             return f'Game {server_name}'
@@ -27,20 +31,20 @@ def tennis_score(server_points, receiver_points, server_id, receiver_id, player_
         else:
             return f'{server_name} {server_points} - {receiver_points} {receiver_name}'
 
-    # --- normal game scoring (unchanged) ---
+    # --- normal game scoring, on the same abbreviated names ---
     if server_points >= 4 and server_points - receiver_points >= 2:
-        return f'Game {get_player_name(server_id, player_names)}'
+        return f'Game {server_name}'
     elif receiver_points >= 4 and receiver_points - server_points >= 2:
-        return f'Game {get_player_name(receiver_id, player_names)}'
+        return f'Game {receiver_name}'
     elif server_points < 3 or receiver_points < 3:
         score_map = {0: "0", 1: "15", 2: "30", 3: "40"}
         return f"{score_map[server_points]} - {score_map[receiver_points]}"
     elif server_points == receiver_points:
         return "40 - 40"
     elif server_points > receiver_points:
-        return f'Ad {get_player_name(server_id, player_names)}'
+        return f'Ad {server_name}'
     else:
-        return f'Ad {get_player_name(receiver_id, player_names)}'
+        return f'Ad {receiver_name}'
 
 def format_point_record(point_record, player_names, server_id, receiver_id, cumulative_server_points, cumulative_receiver_points, tiebreaker=False):
     winner_id, shots = point_record[0], point_record[1]

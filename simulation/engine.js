@@ -69,7 +69,33 @@ function matchup(p, opp, form, oppForm){
 
 // ---- scoring strings -----------------------------------------------------
 const PT = ['0', '15', '30', '40'];
-const abbrev = n => { const i = n.indexOf(' '); return i < 0 ? n : n[0] + ' ' + n.slice(i + 1); };
+
+// Point-record names: one initial plus a surname clipped to SURNAME_LETTERS,
+// e.g. "J Pegul". Only the point-by-point uses these -- headers keep full names.
+// Mirrors frontend.short_names; the parity test compares the score strings both
+// produce, so the two must not drift.
+// "J Pegula", or "J Pegul" when surnames are clipped too. The first name grows
+// a letter at a time if the two players would otherwise read the same, and
+// falls back to the full names if that never separates them.
+function shortNames(names, surnameLetters){
+  const parts = names.map(n => {
+    const i = n.trim().indexOf(' ');
+    return i < 0 ? [n.trim(), ''] : [n.slice(0, i), n.slice(i + 1)];
+  });
+  for(let keep = 1; keep <= 12; keep++){
+    const out = parts.map(([f, l]) => {
+      if(!l) return f;
+      // Clipping takes the LAST word: "Thiago Agustin Tirante" is a Tirante,
+      // and cutting the tail off the whole remainder would leave "T Agust".
+      const surname = surnameLetters
+        ? l.split(' ').pop().slice(0, surnameLetters)
+        : l;
+      return f.slice(0, keep) + ' ' + surname;
+    });
+    if(new Set(out).size === out.length) return out;
+  }
+  return names.slice();
+}
 
 function gameScore(sp, rp, names, srv, rcv){
   if(sp >= 4 && sp - rp >= 2) return 'Game ' + names[srv];
@@ -79,7 +105,7 @@ function gameScore(sp, rp, names, srv, rcv){
   return 'Ad ' + names[sp > rp ? srv : rcv];
 }
 function tbScore(sp, rp, names, srv, rcv, len){
-  const s = abbrev(names[srv]), r = abbrev(names[rcv]);
+  const s = names[srv], r = names[rcv];
   if(sp >= len && sp - rp >= 2) return 'Game ' + s;
   if(rp >= len && rp - sp >= 2) return 'Game ' + r;
   return s + ' ' + sp + ' - ' + rp + ' ' + r;
@@ -89,6 +115,7 @@ function tbScore(sp, rp, names, srv, rcv, len){
 // Side indices: 0 = top of the tie, 1 = bottom. The Python compared Player
 // objects; here everything is an index, which is also what the page wants.
 function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak){
+  // Full names in the record; the panel abbreviates only if it has to.
   const fTop = drawForm(rng, top), fBot = drawForm(rng, bottom);
   const mu = [matchup(top, bottom, fTop, fBot), matchup(bottom, top, fBot, fTop)];
   const toWin = (bestOf + 1) / 2;

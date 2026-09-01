@@ -61,10 +61,15 @@ def test_no_token_is_declared_twice_in_a_block(template):
 
 @pytest.mark.parametrize('template', TEMPLATES, ids=lambda p: p.name)
 def test_every_token_used_is_defined(template):
+    """Only var() calls WITHOUT a fallback are at risk.
+
+    `var(--gamecols, 2)` is set from JS at runtime and carries its own default,
+    so it cannot render broken; `var(--hold)` with no fallback must resolve.
+    """
     source = template.read_text()
     match = re.search(BLOCKS['light'], source, re.S | re.M)
     if match is None:
         pytest.skip('no :root block')
-    used = set(re.findall(r'var\((--[\w-]+)', source))
+    used = set(re.findall(r'var\(\s*(--[\w-]+)\s*\)', source))
     missing = used - defined(match.group(1))
     assert not missing, f'{template.name}: var() references undefined {sorted(missing)}'
