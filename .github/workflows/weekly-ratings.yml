@@ -50,10 +50,26 @@ jobs:
           key: sportradar-${{ github.run_id }}
           restore-keys: sportradar-
 
+      # A stored secret cannot be read back, so the only way to know it is
+      # wired is to look at it from inside a run. Length only -- never the value.
+      - name: Check the key is wired
+        env:
+          SPORTRADAR_API_KEY: ${{ secrets.SPORTRADAR_API_KEY }}
+        run: |
+          if [ -z "$SPORTRADAR_API_KEY" ]; then
+            echo "::error::SPORTRADAR_API_KEY is empty. Check it is a *repository* secret"
+            echo "(not an environment secret, and not a variable) named exactly that."
+            exit 1
+          fi
+          echo "key is present: ${#SPORTRADAR_API_KEY} characters"
+
       - name: Build ratings
         env:
           # Injected by GitHub from the repository secret. Never in the repo.
           SPORTRADAR_API_KEY: ${{ secrets.SPORTRADAR_API_KEY }}
+          # The tier is in the URL, so it has to match the key. Not sensitive,
+          # so it is a repository *variable*; unset, it stays on trial.
+          SPORTRADAR_ACCESS_LEVEL: ${{ vars.SPORTRADAR_ACCESS_LEVEL || 'trial' }}
         run: python build_ratings.py --budget 60 --prune
 
       - uses: actions/upload-pages-artifact@v3

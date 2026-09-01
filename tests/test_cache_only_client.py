@@ -57,3 +57,12 @@ def test_env_budget_is_a_ceiling(monkeypatch, keyless):
     assert sd.Client(budget=0, cache_dir=keyless).budget == 0
     monkeypatch.setenv('SPORTRADAR_BUDGET', '900')
     assert sd.Client(budget=300, cache_dir=keyless).budget == 300
+
+
+def test_access_level_follows_the_key(monkeypatch, keyless):
+    """A production key aimed at /trial/ is rejected like a bad key."""
+    monkeypatch.delenv('SPORTRADAR_ACCESS_LEVEL', raising=False)
+    assert '/trial/' in sd.Client(budget=0, cache_dir=keyless).base
+    monkeypatch.setenv('SPORTRADAR_ACCESS_LEVEL', 'production')
+    assert '/production/' in sd.Client(budget=0, cache_dir=keyless).base
+    assert '/trial/' in sd.Client(budget=0, cache_dir=keyless, access_level='trial').base

@@ -24,7 +24,6 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
-  --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
     --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
     --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
     --accent:#57A6D9; --accent-soft:#1B3446;
@@ -32,16 +31,9 @@
     --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
     --thin:#D6A94A; --thin-soft:#33280F;
     --bar-track:#1E2C38;
-  --hold:#74CE8E; --hold-soft:#152C1D;
-  --brk:#EA8B83;  --brk-soft:#301715;
-  --tbk:#DFB452;  --tbk-soft:#332810;
     --hold:#74CE8E; --hold-soft:#152C1D;
     --brk:#EA8B83;  --brk-soft:#301715;
     --tbk:#DFB452;  --tbk-soft:#332810;
-  --diamond:#7FD4E8; --diamond-soft:#123642;
-  --gold:#E0B450; --gold-soft:#3A2E10;
-  --silver:#AEBCC7; --silver-soft:#232E38;
-  --bronze:#D08F5C; --bronze-soft:#3A2515;
     --diamond:#7FD4E8; --diamond-soft:#123642;
     --gold:#E0B450; --gold-soft:#3A2E10;
     --silver:#AEBCC7; --silver-soft:#232E38;
@@ -51,12 +43,20 @@
 }
 :root[data-theme="dark"]{
   --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+  --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
   --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
   --accent:#57A6D9; --accent-soft:#1B3446;
   --atp:#57A6D9; --atp-soft:#17303F;
   --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
   --thin:#D6A94A; --thin-soft:#33280F;
   --bar-track:#1E2C38;
+  --hold:#74CE8E; --hold-soft:#152C1D;
+  --brk:#EA8B83;  --brk-soft:#301715;
+  --tbk:#DFB452;  --tbk-soft:#332810;
+  --diamond:#7FD4E8; --diamond-soft:#123642;
+  --gold:#E0B450; --gold-soft:#3A2E10;
+  --silver:#AEBCC7; --silver-soft:#232E38;
+  --bronze:#D08F5C; --bronze-soft:#3A2515;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box}
@@ -77,6 +77,12 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
 .card .k{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 .card .v{font-size:17px;font-weight:700;letter-spacing:-.01em;margin-top:2px}
 .card.you .v{color:var(--accent)}
+button.card{font:inherit;text-align:left;cursor:pointer}
+button.card:hover{border-color:var(--accent)}
+button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.jump{font-size:13px;opacity:.65}
+/* brief ring so the eye lands on the right tie after the jump */
+.tie.flash{box-shadow:0 0 0 2px var(--accent)}
 .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--page-muted);margin:14px 2px 0}
 .controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;margin:18px 0 4px;
   padding:14px 16px;background:var(--surface);border:1px solid var(--line);
@@ -114,6 +120,8 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
 .run:disabled{background:var(--surface-2);color:var(--muted);border-color:var(--line);
   cursor:default;box-shadow:none}
 .pager{display:flex;align-items:center;gap:12px;margin:0 0 10px}
+.pager.whole .pgbtn{display:none}
+.pager.whole .prange{margin:0}
 .pgbtn{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:8px;cursor:pointer;
   font:inherit;font-size:13px;font-weight:700;letter-spacing:-.01em;
   background:var(--accent);color:var(--ground);border:1px solid var(--accent);
@@ -128,7 +136,7 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
 .scroll{overflow-y:auto;overflow-x:auto;max-height:78vh;padding:0 2px 10px;
   border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
 .bracket{display:flex;gap:10px;min-width:100%}
-.round{flex:1 1 0;display:flex;flex-direction:column;min-width:200px}
+.round{flex:1 1 0;display:flex;flex-direction:column;min-width:0}
 .ties{flex:1;display:flex;flex-direction:column;justify-content:space-around}
 .round h2{position:sticky;top:0;z-index:2;margin:0 0 4px;padding:6px 8px;background:var(--surface-2);
   font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
@@ -738,8 +746,13 @@ function header(){
   document.getElementById('headline').innerHTML =
     '<div class="card"><div class="k">Champion</div><div class="v">' + D.champion +
     (D.championSeed ? ' <span style="color:var(--muted);font-weight:500">[' + D.championSeed + ']</span>' : '') + '</div></div>' +
-    (D.playable ? '<div class="card you"><div class="k">You &mdash; ' + D.playable +
-      '</div><div class="v">' + D.playableResult + '</div></div>' : '');
+    (D.playable ? '<button class="card you" id="youcard" ' +
+      'title="Jump to their place in the draw">' +
+      '<div class="k">You &mdash; ' + D.playable + '</div>' +
+      '<div class="v">' + D.playableResult + ' <span class="jump">&#8594;</span></div>' +
+      '</button>' : '');
+  const card = document.getElementById('youcard');
+  if(card) card.addEventListener('click', jumpToPlayable);
 }
 
 function seedBox(p){
@@ -771,11 +784,26 @@ const scroller=document.querySelector('.scroll');
 // of 1 has to span the same height as a column of 64. Showing a WINDOW of 4
 // rounds instead means the tallest column in view is the leftmost one, so the
 // spacing stays tight and the whole window fits the frame width.
-const WIN = 4;
+// How many rounds fit: narrow screens get fewer, but never more than MAX_WIN.
+// The cap is not about width. A bracket column of one has to span the same
+// height as a column of 64, so every extra round on screen stretches the later
+// rounds further apart -- the whole draw at once is ~3,900px tall with the final
+// marooned in the middle. Four keeps the spacing tight; paging covers the rest.
+const MIN_COL = 160, COL_GAP = 10, MAX_WIN = 4;
+let WIN = 4;
 let LAST = 0;                                    // set once a tournament exists
-let start = 0;                                   // opens on Round of 16 -> Final
+let start = 0;                                   // opens on the last rounds
+
+function fitWindow(){
+  const rounds = D ? D.rounds.length : 7;
+  const width = scroller.clientWidth || innerWidth;
+  return Math.max(1, Math.min(MAX_WIN, rounds, Math.floor((width + COL_GAP) / (MIN_COL + COL_GAP))));
+}
 
 function renderWindow(){
+  WIN = fitWindow();
+  LAST = Math.max(0, D.rounds.length - WIN);
+  start = Math.max(0, Math.min(LAST, start));
   // Keep the eye at roughly the same depth in the draw across a page turn;
   // the content height doubles each step left, so an absolute scrollTop would
   // throw the view to the top.
@@ -796,12 +824,41 @@ function renderWindow(){
   const view = D.rounds.slice(start, start + WIN);
   document.getElementById('prange').textContent =
     LABEL[view[0].name] + '  \u2192  ' + LABEL[view[view.length - 1].name];
-  document.getElementById('prev').disabled = start === 0;
-  document.getElementById('next').disabled = start === LAST;
+  // With the whole draw on screen there is nothing to page through.
+  const whole = WIN >= D.rounds.length;
+  document.querySelector('.pager').classList.toggle('whole', whole);
+  document.getElementById('prev').disabled = whole || start === 0;
+  document.getElementById('next').disabled = whole || start === LAST;
 
   scroller.scrollLeft = scroller.scrollWidth;   // latest round of the window stays in view
   scroller.scrollTop = Math.max(0, frac * scroller.scrollHeight - scroller.clientHeight / 2);
 }
+// Where the playable player got to: the last round they appear in, which is
+// the final if they won it and their losing match otherwise.
+function locatePlayable(){
+  if(!D || !D.playable) return null;
+  for(let ri = D.rounds.length - 1; ri >= 0; ri--){
+    const mi = D.rounds[ri].matches.findIndex(m => m.top.playable || m.bottom.playable);
+    if(mi >= 0) return { ri, mi };
+  }
+  return null;
+}
+// Page so that round sits at the RIGHT edge of the window, the way the draw
+// reads, then centre their tie vertically. Rounds before R16 cannot be the
+// rightmost of four, so the window clamps at the start of the draw.
+function jumpToPlayable(){
+  const at = locatePlayable();
+  if(!at) return;
+  start = Math.max(0, Math.min(LAST, at.ri - WIN + 1));
+  renderWindow();
+  const tie = bracket.querySelector('.tie[data-r="' + at.ri + '"][data-m="' + at.mi + '"]');
+  if(!tie) return;
+  const box = tie.getBoundingClientRect(), frame = scroller.getBoundingClientRect();
+  scroller.scrollTop += (box.top - frame.top) - (frame.height - box.height) / 2;
+  tie.classList.add('flash');
+  setTimeout(() => tie.classList.remove('flash'), 1400);
+}
+
 function page(step){
   const next = Math.min(LAST, Math.max(0, start + step));
   if(next === start) return;
@@ -874,6 +931,7 @@ const runBtn   = document.getElementById('run');
 
 function showTournament(result){
   D = result;
+  WIN = fitWindow();
   LAST = Math.max(0, D.rounds.length - WIN);
   start = LAST;
   header();
@@ -951,6 +1009,21 @@ function simulate(){
   }, 16);
 }
 runBtn.addEventListener('click', simulate);
+
+// Refit on resize, holding the right-hand edge steady so the round you were
+// looking at stays put as columns appear or disappear.
+let refit;
+addEventListener('resize', () => {
+  clearTimeout(refit);
+  refit = setTimeout(() => {
+    if(!D) return;
+    const right = start + WIN - 1;
+    WIN = fitWindow();
+    LAST = Math.max(0, D.rounds.length - WIN);
+    start = Math.max(0, Math.min(LAST, right - WIN + 1));
+    renderWindow();
+  }, 120);
+});
 
 // Something to look at on arrival.
 showTournament(simulateTournament(POOLS[tour], {

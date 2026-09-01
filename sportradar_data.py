@@ -64,7 +64,7 @@ class Client:
     def __init__(
         self,
         api_key: str | None = None,
-        access_level: str = "trial",
+        access_level: str | None = None,
         language: str = "en",
         min_interval: float = 1.2,
         budget: int = 300,
@@ -74,6 +74,11 @@ class Client:
         # makes a request, so it must not demand a key. The site deploy runs
         # exactly that way -- it has no secret, and it is not allowed to spend.
         self._api_key = api_key
+        # The access level is part of the URL, so a production key aimed at the
+        # trial endpoint is rejected as an auth failure rather than a wrong-tier
+        # one. $SPORTRADAR_ACCESS_LEVEL lets the tier follow the key.
+        access_level = access_level or os.environ.get("SPORTRADAR_ACCESS_LEVEL", "trial")
+        self.access_level = access_level
         self.base = BASE_URL.format(access_level=access_level, language=language)
         self.min_interval = min_interval
         # $SPORTRADAR_BUDGET is a ceiling over the whole process, not a default:
@@ -155,8 +160,9 @@ class Client:
             if response.status_code in (401, 403):
                 raise SportradarError(
                     f"{response.status_code} Authentication Error for {url}\n"
-                    "The key was rejected. Check that it is the Tennis v3 trial key, "
-                    "that the trial is active, and that the access level matches."
+                    f"The key was rejected at access level {self.access_level!r}. "
+                    "A production key aimed at the trial endpoint fails exactly "
+                    "like a bad key -- set $SPORTRADAR_ACCESS_LEVEL to match it."
                 )
             raise SportradarError(f"{response.status_code} for {url}: {response.text[:200]}")
         raise SportradarError(f"Rate limited repeatedly on {url}")
