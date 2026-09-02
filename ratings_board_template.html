@@ -5,6 +5,7 @@
 <style>
 :root{
   --ground:#EDF1F5; --surface:#FFFFFF; --surface-2:#F5F8FA;
+  --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
   --ink:#101F2B; --ink-2:#3A5062; --muted:#697F92; --line:#D3DDE5;
   --accent:#1D6FA3; --accent-soft:#D6E7F2;
   --atp:#1D6FA3; --atp-soft:#DCEAF4;
@@ -20,16 +21,13 @@
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+    --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
     --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
     --accent:#57A6D9; --accent-soft:#1B3446;
     --atp:#57A6D9; --atp-soft:#17303F;
     --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
     --thin:#D6A94A; --thin-soft:#33280F;
     --bar-track:#1E2C38;
-  --diamond:#7FD4E8; --diamond-soft:#123642;
-  --gold:#E0B450; --gold-soft:#3A2E10;
-  --silver:#AEBCC7; --silver-soft:#232E38;
-  --bronze:#D08F5C; --bronze-soft:#3A2515;
     --diamond:#7FD4E8; --diamond-soft:#123642;
     --gold:#E0B450; --gold-soft:#3A2E10;
     --silver:#AEBCC7; --silver-soft:#232E38;
@@ -39,31 +37,66 @@
 }
 :root[data-theme="dark"]{
   --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
+  --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
   --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
   --accent:#57A6D9; --accent-soft:#1B3446;
   --atp:#57A6D9; --atp-soft:#17303F;
   --wta:#C79BEC; --wta-ink:#D0A9F1; --wta-soft:#2C1B40;
   --thin:#D6A94A; --thin-soft:#33280F;
   --bar-track:#1E2C38;
+  --diamond:#7FD4E8; --diamond-soft:#123642;
+  --gold:#E0B450; --gold-soft:#3A2E10;
+  --silver:#AEBCC7; --silver-soft:#232E38;
+  --bronze:#D08F5C; --bronze-soft:#3A2515;
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box}
 body{
-  margin:0; background:var(--ground); color:var(--ink);
+  margin:0; background:var(--page); color:var(--ink);
   font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
   font-size:15px; line-height:1.5;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1120px; margin:0 auto; padding:32px 20px 64px}
+.wrap{max-width:1216px; margin:0 auto; padding:32px clamp(24px,5vw,64px) 64px}
 header{margin-bottom:24px}
+.titlerow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
+.navbar{display:flex;align-items:center;gap:9px;margin-left:auto}
+.navlink{display:flex;align-items:center;padding:7px 14px;border-radius:99px;
+  font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;
+  color:var(--page-ink);background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.28);transition:background .15s}
+.navlink:hover{background:rgba(255,255,255,.20)}
+.iconbtn{width:28px;height:28px;flex:none;border-radius:50%;cursor:pointer;
+  font:inherit;font-size:12px;font-weight:700;font-style:italic;
+  color:var(--page-ink);background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.28)}
+.iconbtn:hover,.iconbtn[aria-expanded="true"]{background:rgba(255,255,255,.22)}
+.themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
+  font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
+  color:var(--page-ink);background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.28);transition:background .15s}
+.themebtn:hover{background:rgba(255,255,255,.20)}
+/* the notes that used to sit in the header and the footer, on demand */
+.tip{margin-top:14px;padding:14px 16px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.tip p{margin:0;color:var(--ink-2);font-size:13.5px;max-width:70ch}
+.foot{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;margin:22px 0 0;
+  padding-top:10px;border-top:1px solid rgba(255,255,255,.14);
+  font-size:11.5px;color:var(--page-muted)}
+.foot a{color:var(--page-ink);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.32)}
+.foot a:hover{border-bottom-color:var(--page-ink)}
+.foot .copy{margin-left:auto;white-space:nowrap}
+@media (max-width:560px){.foot .copy{margin-left:0}}
 h1{
+  color:var(--page-ink); display:flex; align-items:center; gap:.32em;
   font-size:clamp(26px,4vw,38px); font-weight:700; letter-spacing:-.02em;
   margin:0 0 6px; text-wrap:balance;
 }
 .sub{color:var(--muted); font-size:14px; max-width:64ch; margin:0}
 .sub b{color:var(--ink-2); font-weight:600}
 
-.legend{display:flex; flex-wrap:wrap; gap:18px; margin-top:18px; padding-top:16px; border-top:1px solid var(--line)}
+.legend{display:flex; flex-wrap:wrap; gap:18px; margin-top:14px; padding-top:12px; border-top:1px solid var(--line)}
 .leg{display:flex; gap:8px; align-items:baseline; font-size:12.5px; color:var(--muted)}
 .leg b{font-family:Archivo; font-weight:700; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-2)}
 
@@ -151,16 +184,27 @@ footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px
 
 <div class="wrap">
 <header>
-  <h1>Tour Ratings Board</h1>
-  <p class="sub">Four attributes per player, each scaled <b>0&ndash;10</b> within its own tour, from
-  <b>18,891</b> player-match rows across <b>9,690</b> tour-level matches, 25&nbsp;Aug&nbsp;2025&nbsp;&ndash;&nbsp;25&nbsp;Aug&nbsp;2026.
-  Ratings are credited for the level of opposition faced and pulled toward the low end where the evidence is thin.</p>
-  <div class="legend">
-    <div class="leg"><b>OVR</b><span>(SRV + RET + SHOT + &frac12;&thinsp;CONS) / 3.5</span></div>
-    <div class="leg"><b>SRV</b><span>serve</span></div>
-    <div class="leg"><b>RET</b><span>return</span></div>
-    <div class="leg"><b>SHOT</b><span>shot quality</span></div>
-    <div class="leg"><b>CONS</b><span>consistency</span></div>
+  <div class="titlerow">
+    <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Tour Ratings Board</h1>
+    <div class="navbar">
+      <a class="navlink" href="index.html">Play a Grand Slam</a>
+      <button id="about" class="iconbtn" aria-expanded="false"
+              aria-controls="aboutpanel" title="About these ratings">i</button>
+      <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
+    </div>
+  </div>
+  <div class="tip" id="aboutpanel" hidden>
+    <p>Four attributes per player, each scaled <b>0&ndash;10</b> within its own tour, from
+    <b>18,891</b> player-match rows across <b>9,690</b> tour-level matches,
+    25&nbsp;Aug&nbsp;2025&nbsp;&ndash;&nbsp;25&nbsp;Aug&nbsp;2026. Ratings are credited for the
+    level of opposition faced and pulled toward the low end where the evidence is thin.</p>
+    <div class="legend">
+      <div class="leg"><b>OVR</b><span>(SRV + RET + SHOT + &frac12;&thinsp;CONS) / 3.5</span></div>
+      <div class="leg"><b>SRV</b><span>serve</span></div>
+      <div class="leg"><b>RET</b><span>return</span></div>
+      <div class="leg"><b>SHOT</b><span>shot quality</span></div>
+      <div class="leg"><b>CONS</b><span>consistency</span></div>
+    </div>
   </div>
 </header>
 
@@ -198,16 +242,10 @@ footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px
 </div>
 <div class="empty" id="empty" hidden>No player matches that search.</div>
 
-<footer>
-  Ratings are relative within each tour, never across &mdash; WTA return rates run about
-  0.85&sigma; above ATP, so a shared scale would read that gap as skill.
-  The 40&ndash;100 view maps each rating with <code>floor(40 + 6&thinsp;&times;&thinsp;r)</code>, truncated
-  so a figure never reads higher than it is, and tiers cut the overall at
-  90&thinsp;/&thinsp;80&thinsp;/&thinsp;65.
-  Ratings resting on thin evidence are shrunk toward the low end by
-  <code>x = max(2p&minus;1, 1&minus;matches/10)</code>, where <code>p</code> is the share of that
-  rating&rsquo;s own inputs a player is missing &mdash; so a low figure on a short
-  match count reflects how little is known, not a measured weakness.
+<footer class="foot">
+  <span>Match data from <a href="https://www.sportradar.com" target="_blank"
+    rel="noopener noreferrer">Sportradar</a>. Ratings and simulation are our own.</span>
+  <span class="copy">&copy; 2026 | Aaron Guo</span>
 </footer>
 </div>
 
@@ -215,7 +253,23 @@ footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px
 const DATA = /*__DATA__*/;
 const rowsEl=document.getElementById('rows'), emptyEl=document.getElementById('empty'),
       countEl=document.getElementById('count'), qEl=document.getElementById('q');
+// localStorage is scoped to the ORIGIN, not the path. On GitHub Pages every
+// project under vvluo.github.io shares one store, so these keys are namespaced
+// to avoid colliding with anything else published from the same account.
+const NS = 'tennis:';
+
 let sortKey='o', sortDir=-1, tour='all', query='', game=false;
+// The tour choice is the one filter that follows you between the two pages --
+// alongside light/dark. Sort, search and the rating scale are per visit.
+function readTour(){
+  try {
+    const t = localStorage.getItem(NS + 'tour');
+    if(t === 'all' || t === 'ATP' || t === 'WTA') return t;
+  } catch (e) { /* private window */ }
+  return 'all';
+}
+function saveTour(t){ try { localStorage.setItem(NS + 'tour', t); } catch (e) {} }
+tour = readTour();
 
 DATA.forEach((d,i)=>d.rank=i+1);
 
@@ -268,9 +322,11 @@ document.querySelectorAll('thead button').forEach(b=>b.addEventListener('click',
 const tourButtons=document.querySelectorAll('.segs button[data-tour]');
 tourButtons.forEach(b=>b.addEventListener('click',()=>{
   tour=b.dataset.tour;
+  saveTour(tour);
   tourButtons.forEach(o=>o.setAttribute('aria-pressed', String(o===b)));
   render();
 }));
+tourButtons.forEach(b=>b.setAttribute('aria-pressed', String(b.dataset.tour===tour)));
 document.getElementById('scale10').addEventListener('click',()=>setScale(false));
 document.getElementById('scale100').addEventListener('click',()=>setScale(true));
 function setScale(on){
@@ -281,4 +337,33 @@ function setScale(on){
 }
 qEl.addEventListener('input',e=>{ query=e.target.value.trim(); render(); });
 render();
+
+// ---- light / dark ---------------------------------------------------------
+// Same contract as the simulator: the stylesheet carries both dark blocks, so
+// this only has to stamp the root. No stamp means "follow the system".
+const themeBtn = document.getElementById('theme');
+function paintTheme(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  themeBtn.textContent = dark ? '\u2600 Light' : '\u263E Dark';
+}
+function setTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  try { localStorage.setItem(NS + 'theme', mode); } catch (e) { /* private window */ }
+  paintTheme();
+}
+let stored = null;
+try { stored = localStorage.getItem(NS + 'theme'); } catch (e) { /* blocked */ }
+setTheme(stored === 'dark' || stored === 'light' ? stored
+  : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+themeBtn.addEventListener('click', () =>
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+
+// ---- what the columns mean, on demand -------------------------------------
+const aboutBtn = document.getElementById('about');
+const aboutPanel = document.getElementById('aboutpanel');
+aboutBtn.addEventListener('click', () => {
+  const open = aboutPanel.hidden;
+  aboutPanel.hidden = !open;
+  aboutBtn.setAttribute('aria-expanded', String(open));
+});
 </script>

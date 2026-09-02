@@ -14,7 +14,11 @@ from pathlib import Path
 
 import pytest
 
-TEMPLATES = sorted((Path(__file__).resolve().parents[1] / 'simulation').glob('*_template.html'))
+ROOT = Path(__file__).resolve().parents[1]
+# The ratings board template lives at the repo root, not in simulation/ -- it was
+# outside this test's reach and carried the same duplicated-token defect unseen.
+TEMPLATES = sorted((ROOT / 'simulation').glob('*_template.html')) + \
+            sorted(ROOT.glob('*_template.html'))
 assert TEMPLATES, 'no page templates found'
 
 BLOCKS = {

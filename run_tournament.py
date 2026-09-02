@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import date, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -68,9 +69,16 @@ def main() -> int:
         pools[tour] = pool
         print(f'{tour}: {len(pool)} players, ranks {pool[0]["rank"]}-{pool[-1]["rank"]}')
 
+    # The date belongs to the RATINGS, not to this build: a front-end-only
+    # rebuild must not relabel the data set. ratings.json's own mtime is the
+    # closest honest source, and it only moves when the notebook rewrites it.
+    built = datetime.fromtimestamp(RATINGS.stat().st_mtime).date().isoformat()
+    payload = {'pools': pools, 'built': built}
+    print(f'data set dated {built}')
+
     page = (TEMPLATE.read_text()
             .replace('/*__ENGINE__*/', ENGINE.read_text())
-            .replace('/*__DATA__*/', json.dumps(pools, separators=(',', ':'))))
+            .replace('/*__DATA__*/', json.dumps(payload, separators=(',', ':'))))
     Path(args.out).write_text(page)
     print(f'wrote {args.out}  ({Path(args.out).stat().st_size / 1024:.0f} KB)')
     return 0

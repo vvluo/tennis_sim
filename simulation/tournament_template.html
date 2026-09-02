@@ -60,14 +60,21 @@
   --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--page);color:var(--ink);font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
   font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
-.wrap{padding:28px 20px 60px}
+.wrap{padding:28px clamp(24px,5vw,64px) 60px}
 h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin:0 0 4px;
   color:var(--page-ink);display:flex;align-items:center;gap:.32em}
 .ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
 .titlerow{display:flex;align-items:center;gap:16px}
-.themebtn{margin-left:auto;flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
+.navbar{display:flex;align-items:center;gap:9px;margin-left:auto}
+.navlink{display:flex;align-items:center;padding:7px 14px;border-radius:99px;
+  font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;
+  color:var(--page-ink);background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.28);transition:background .15s}
+.navlink:hover{background:rgba(255,255,255,.20)}
+.themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
@@ -83,7 +90,71 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .jump{font-size:13px;opacity:.65}
 /* brief ring so the eye lands on the right tie after the jump */
 .tie.flash{box-shadow:0 0 0 2px var(--accent)}
+.sims{margin:14px 0 0;background:var(--surface);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
+.sims summary{cursor:pointer;padding:11px 14px;font-size:12.5px;font-weight:600;
+  color:var(--ink-2);list-style:none}
+.sims summary::-webkit-details-marker{display:none}
+.sims summary::before{content:"\25B6";display:inline-block;margin-right:8px;font-size:9px;
+  color:var(--muted);transition:transform .15s}
+.sims[open] summary::before{transform:rotate(90deg)}
+.simbody{border-top:1px solid var(--line);padding:10px 14px 14px}
+.simhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 12px;font-size:11px;
+  color:var(--muted);margin-bottom:8px}
+.simhead #cfgnote{margin-right:auto}
+.linknote{margin:10px 2px 0;padding:9px 12px;border-radius:8px;font-size:12px;
+  color:var(--page-ink);background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.26)}
+.prompt{margin:0;padding:38px 20px;text-align:center;font-size:14px;
+  color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);
+  border-radius:10px}
+/* The button is the only thing to do on arrival, so it says so. */
+.run.waiting{animation:invite 2.6s ease-out infinite}
+@keyframes invite{
+  0%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}
+  70%{box-shadow:0 0 0 13px rgba(255,255,255,0)}
+  100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .run.waiting{animation:none;box-shadow:0 0 0 3px rgba(255,255,255,.5)}
+}
+.copybtn:disabled{opacity:.45;cursor:default}
+.copybtn:disabled:hover{color:var(--ink-2);border-color:var(--line)}
+.copybtn{padding:10px 16px;border-radius:8px;cursor:pointer;font:inherit;font-size:13px;
+  font-weight:600;color:var(--ink-2);background:var(--surface-2);
+  border:1px solid var(--line);transition:border-color .15s,color .15s}
+.copybtn:hover{color:var(--ink);border-color:var(--accent)}
+.linkbox{width:100%;margin:10px 0 0;padding:6px 9px;font:inherit;font-size:11.5px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--ink);
+  background:var(--surface-2);border:1px solid var(--line);border-radius:6px}
+#simtable .link{font-size:11px;padding:2px 8px;cursor:pointer;color:var(--muted);
+  background:var(--surface-2);border:1px solid var(--line);border-radius:5px}
+#simtable .link:hover{color:var(--ink);border-color:var(--accent)}
+.simclear{font:inherit;font-size:11px;padding:3px 10px;cursor:pointer;
+  color:var(--muted);background:var(--surface-2);border:1px solid var(--line);border-radius:6px}
+.simclear:hover{color:var(--ink);border-color:var(--accent)}
+.simscroll{overflow-x:auto;max-height:260px;overflow-y:auto}
+#simtable{width:100%;border-collapse:collapse;font-size:12.5px}
+#simtable th{text-align:left;font-size:10px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);padding:0 10px 6px;white-space:nowrap}
+#simtable td{padding:6px 10px;border-top:1px solid var(--line);white-space:nowrap}
+#simtable tr.replay{cursor:pointer}
+#simtable tr.replay:hover td{background:var(--surface-2)}
+#simtable tr.stale{color:var(--muted)}
+#simtable tr.live td.champ{font-weight:700;color:var(--ink)}
+#simtable .rng{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;color:var(--muted)}
+#simtable .tourtag{font-size:9.5px;font-weight:700;letter-spacing:.06em;padding:1px 5px;
+  border-radius:4px;background:var(--accent-soft);color:var(--accent)}
+#simtable .why{font-size:11px;color:var(--muted)}
+.simempty{padding:6px 10px;font-size:12px;color:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--page-muted);margin:14px 2px 0}
+.foot{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;margin:10px 2px 0;
+  padding-top:10px;border-top:1px solid rgba(255,255,255,.14);
+  font-size:11.5px;color:var(--page-muted)}
+.foot a{color:var(--page-ink);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.32)}
+.foot a:hover{border-bottom-color:var(--page-ink)}
+.foot .copy{margin-left:auto;white-space:nowrap}
+@media (max-width:560px){.foot .copy{margin-left:0}}
 .controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;margin:18px 0 4px;
   padding:14px 16px;background:var(--surface);border:1px solid var(--line);
   border-radius:10px;box-shadow:var(--shadow)}
@@ -225,7 +296,10 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 <header>
   <div class="titlerow">
     <h1 id="title"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Play a Grand Slam</h1>
-    <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
+    <div class="navbar">
+      <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
+      <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
+    </div>
   </div>
   <div class="controls">
     <div class="ctl">
@@ -245,7 +319,10 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
       </div>
     </div>
     <button id="run" class="run">Simulate tournament</button>
+    <button id="simlink" class="copybtn" type="button"
+            title="Copy a link that reproduces this exact draw">Copy link</button>
   </div>
+  <input class="linkbox" id="linkbox" readonly hidden aria-label="Shareable link">
   <div class="headline" id="headline"></div>
 </header>
 
@@ -254,12 +331,29 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   <span class="prange" id="prange"></span>
   <button class="pgbtn" id="next"><span>Later rounds</span><span class="ar">&#9654;</span></button>
 </div>
+<p class="prompt" id="prompt" hidden></p>
 <div class="scroll"><div class="bracket" id="bracket"></div></div>
+<details class="sims" id="sims">
+  <summary><span class="simcount" id="simcount">Saved simulations</span></summary>
+  <div class="simbody">
+    <div class="simhead">
+      <span id="cfgnote"></span>
+      <button class="simclear" id="simclear" type="button">Clear</button>
+    </div>
+    <div class="simscroll"><table id="simtable"></table></div>
+  </div>
+</details>
+  <p class="linknote" id="linknote" hidden></p>
   <div class="legend">
     <span><span class="seed" style="display:inline-flex;vertical-align:-3px">1</span> seed</span>
     <span><span class="seed q" style="display:inline-flex;vertical-align:-3px">Q</span> qualifier</span>
     <span style="margin-left:auto">click any match for the point-by-point and statistics</span>
   </div>
+  <footer class="foot">
+    <span>Match data from <a href="https://www.sportradar.com" target="_blank"
+      rel="noopener noreferrer">Sportradar</a>. Ratings and simulation are our own.</span>
+    <span class="copy">&copy; 2026 | Aaron Guo</span>
+  </footer>
 </div>
 
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="mtitle">
@@ -277,13 +371,28 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 <script>
 /*__ENGINE__*/
 
-const POOLS = /*__DATA__*/;
+const SRC = /*__DATA__*/;
+const POOLS = SRC.pools;
+// The date of the ratings this page was built from, shown against saved runs so
+// an older one says which data set it was played under rather than just "older".
+const BUILT = SRC.built;
 const LABEL={R128:'Round of 128',R64:'Round of 64',R32:'Round of 32',R16:'Round of 16',QF:'Quarter-finals',SF:'Semi-finals',F:'Final'};
 
 // D is one played-out tournament. It starts empty and is replaced every time
 // the visitor presses Simulate; nothing is baked into the page.
 let D = null;
+// localStorage is scoped to the ORIGIN, not the path. On GitHub Pages every
+// project under vvluo.github.io shares one store, so these keys are namespaced
+// to avoid colliding with anything else published from the same account.
+const NS = 'tennis:';
+
 let tour = 'ATP';
+// Shared with the ratings board. That page also offers "all", which means
+// nothing to a draw, so it falls back to ATP here.
+try {
+  const saved = localStorage.getItem(NS + 'tour');
+  if(saved === 'ATP' || saved === 'WTA') tour = saved;
+} catch (e) { /* private window */ }
 let playable = null;
 
 function header(){
@@ -404,6 +513,7 @@ function jumpToPlayable(){
 }
 
 function page(step){
+  if(!D) return;
   const next = Math.min(LAST, Math.max(0, start + step));
   if(next === start) return;
   start = next;
@@ -621,12 +731,34 @@ const whoInput = document.getElementById('who');
 const whoMenu  = document.getElementById('whoMenu');
 const runBtn   = document.getElementById('run');
 
+// Nothing is drawn until the visitor asks for one. An arrival draw they did not
+// request reads as a result, and the tour toggle would leave a stale one on
+// screen belonging to the other tour.
+function setBoardVisible(on){
+  document.querySelector('.pager').hidden = !on;
+  document.querySelector('.scroll').hidden = !on;
+  document.querySelector('.legend').hidden = !on;
+  document.getElementById('prompt').hidden = on;
+  runBtn.classList.toggle('waiting', !on);
+  document.getElementById('simlink').disabled = !on;
+}
+const article = t => t === 'ATP' ? 'an' : 'a';   // "an ATP", "a WTA"
+function clearBoard(message){
+  D = null; currentRun = null;
+  bracket.innerHTML = '';
+  document.getElementById('headline').innerHTML = '';
+  document.getElementById('linkbox').hidden = true;
+  document.getElementById('prompt').textContent = message;
+  setBoardVisible(false);
+}
+
 function showTournament(result){
   D = result;
   WIN = fitWindow();
   LAST = Math.max(0, D.rounds.length - WIN);
   start = LAST;
   header();
+  setBoardVisible(true);
   renderWindow();
 }
 
@@ -669,10 +801,14 @@ document.getElementById('whoClear').addEventListener('click', () => { choose('')
 document.querySelectorAll('.segbtn').forEach(btn => btn.addEventListener('click', () => {
   if(btn.dataset.tour === tour) return;
   tour = btn.dataset.tour;
+  try { localStorage.setItem(NS + 'tour', tour); } catch (e) { /* private window */ }
   document.querySelectorAll('.segbtn').forEach(b => b.classList.toggle('on', b.dataset.tour === tour));
   // A name only means something within one tour's pool.
   if(playable && !POOLS[tour].some(p => p.name === playable)) choose('');
   whoMenu.classList.remove('open');
+  // The draw on screen belongs to the other tour, so it goes.
+  clearBoard('Simulate ' + article(tour) + ' ' + tour + ' draw to see the bracket.');
+  linkNote('');
 }));
 
 // One tournament every 5 seconds. Simulating costs ~40ms, so this is a courtesy
@@ -686,9 +822,12 @@ function simulate(){
   // Yield once so the button paints its disabled state before the engine runs.
   setTimeout(() => {
     const seed = (Math.random() * 4294967296) >>> 0;
-    showTournament(simulateTournament(POOLS[tour], {
+    const result = simulateTournament(POOLS[tour], {
       seed, playable, tour, bestOf: tour === 'ATP' ? 5 : 3, finalSetTiebreak: 10
-    }));
+    });
+    currentRun = { seed, tour, playable, cfg: CONFIG };
+    showTournament(result);
+    recordSim(seed, result);      // only deliberate runs are kept, not the one on arrival
     let left = COOLDOWN;
     runBtn.textContent = 'Simulate again (' + Math.ceil(left / 1000) + 's)';
     cooling = setInterval(() => {
@@ -717,10 +856,182 @@ addEventListener('resize', () => {
   }, 120);
 });
 
-// Something to look at on arrival.
-showTournament(simulateTournament(POOLS[tour], {
-  seed: (Math.random() * 4294967296) >>> 0, playable: null, tour, bestOf: 5, finalSetTiebreak: 10
-}));
+document.querySelectorAll('.segbtn').forEach(b =>
+  b.classList.toggle('on', b.dataset.tour === tour));
+
+
+// ---- saved simulations ----------------------------------------------------
+// A seed reproduces its tournament only against the same ratings and the same
+// engine. The weekly refresh rewrites ratings.json and an engine change moves
+// outcomes, so every run is stamped with the configuration it was played under.
+// Runs from an older configuration are kept and shown -- their result stands as
+// a record -- but they cannot be replayed, because replaying would silently
+// produce a different tournament under the same seed.
+//
+// Bump ENGINE_VERSION whenever a change moves match outcomes (a gradient, the
+// shrinkage, the draw); presentation-only changes leave it alone.
+const ENGINE_VERSION = 1;
+function configStamp(){
+  let h = 2166136261;
+  const eat = t => { for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } };
+  for(const t of ['ATP', 'WTA']){
+    eat(t + POOLS[t].length);
+    for(const p of POOLS[t]){
+      const r = p.ratings;
+      eat(p.name + p.rank + r.SRV + ',' + r.RET + ',' + r.SHOT + ',' + r.CONS);
+    }
+  }
+  return 'v' + ENGINE_VERSION + '.' + (h >>> 0).toString(36);
+}
+const CONFIG = configStamp();
+
+const SIMS_KEY = NS + 'sims', SIMS_MAX = 25;
+function loadSims(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(SIMS_KEY));
+    return Array.isArray(raw) ? raw : [];
+  } catch (e) { return []; }              // private window, or something else wrote the key
+}
+function saveSims(list){
+  try { localStorage.setItem(SIMS_KEY, JSON.stringify(list)); } catch (e) { /* full or blocked */ }
+}
+function recordSim(seed, result){
+  const list = loadSims();
+  list.unshift({ seed, cfg: CONFIG, built: BUILT, tour: result.tour,
+                 playable: result.playable, result: result.playableResult,
+                 champion: result.champion, championSeed: result.championSeed,
+                 at: Date.now() });
+  saveSims(list.slice(0, SIMS_MAX));
+  renderSims();
+}
+
+const simsEl = document.getElementById('sims');
+// "26 Aug 2026". Older runs carry the date of the ratings they were played
+// against; runs saved before dates were recorded fall back to when they were run.
+const DATE_FMT = { day: 'numeric', month: 'short', year: 'numeric' };
+function dataDate(entry){
+  const iso = entry.built || (entry.at && new Date(entry.at).toISOString().slice(0, 10));
+  if(!iso) return 'undated';
+  const d = new Date(iso + (iso.length === 10 ? 'T12:00:00' : ''));
+  return isNaN(d) ? 'undated' : d.toLocaleDateString(undefined, DATE_FMT);
+}
+function renderSims(){
+  const list = loadSims();
+  const live = list.filter(e => e.cfg === CONFIG).length;
+  document.getElementById('simcount').textContent =
+    list.length ? 'Saved simulations (' + list.length + ')' : 'Saved simulations';
+  simsEl.hidden = false;
+  document.getElementById('cfgnote').textContent = list.length
+    ? 'Current data set ' + dataDate({ built: BUILT }) + ' \u00b7 ' + CONFIG +
+      ' \u2014 ' + live + ' of ' + list.length + ' replayable'
+    : '';
+  const table = document.getElementById('simtable');
+  if(!list.length){ table.innerHTML = ''; return; }
+  table.innerHTML =
+    '<thead><tr><th>Tour</th><th>Champion</th><th>Seed</th><th>You</th>' +
+    '<th>Draw seed</th><th>Data set</th><th></th></tr></thead><tbody>' +
+    list.map((e, i) => {
+      const replayable = e.cfg === CONFIG;
+      return '<tr class="' + (replayable ? 'replay live' : 'stale') + '" data-i="' + i + '">' +
+        '<td><span class="tourtag">' + e.tour + '</span></td>' +
+        '<td class="champ">' + e.champion + '</td>' +
+        '<td>' + (e.championSeed ? '[' + e.championSeed + ']' : '\u2014') + '</td>' +
+        '<td>' + (e.playable ? e.playable + ' \u00b7 ' + e.result : '\u2014') + '</td>' +
+        '<td class="rng">' + e.seed + '</td>' +
+        '<td class="why">' + (replayable ? 'replay' : dataDate(e)) + '</td>' +
+        '<td>' + (replayable ? '<button class="link" data-link="' + i + '">Link</button>' : '') +
+        '</td></tr>';
+    }).join('') + '</tbody>';
+}
+document.getElementById('simtable').addEventListener('click', ev => {
+  const linkBtn = ev.target.closest('button.link');
+  if(linkBtn){
+    ev.stopPropagation();
+    const e = loadSims()[+linkBtn.dataset.link];
+    if(e) copyLink({ seed: e.seed, tour: e.tour, playable: e.playable, cfg: e.cfg }, linkBtn);
+    return;
+  }
+  const row = ev.target.closest('tr.replay');
+  if(!row) return;
+  const entry = loadSims()[+row.dataset.i];
+  if(!entry || entry.cfg !== CONFIG) return;
+  play(entry);
+});
+document.getElementById('simclear').addEventListener('click', () => {
+  saveSims([]); renderSims();
+  document.getElementById('linkbox').hidden = true;
+});
+document.getElementById('simlink').addEventListener('click', ev => {
+  if(currentRun) copyLink(currentRun, ev.currentTarget);
+});
+renderSims();
+
+
+// ---- a draw in a link -----------------------------------------------------
+// The seed regenerates the whole tournament, so sharing one costs ~37 characters
+// rather than the ~950 KB of point records. The configuration stamp travels with
+// it: a link made against last week's ratings would otherwise replay as a
+// different tournament under the same seed, which is worse than refusing.
+let currentRun = null;                       // {seed, tour, playable} now on screen
+function encodeRun(r){
+  return [r.seed.toString(36), r.tour === 'ATP' ? 'a' : 'w',
+          r.cfg || CONFIG, r.playable || ''].join('~');
+}
+function runUrl(r){ return location.origin + location.pathname + '?r=' + encodeURIComponent(encodeRun(r)); }
+function decodeRun(text){
+  const parts = String(text).split('~');
+  if(parts.length < 3) return null;
+  const seed = parseInt(parts[0], 36);
+  if(!Number.isFinite(seed)) return null;
+  return { seed, tour: parts[1] === 'w' ? 'WTA' : 'ATP', cfg: parts[2],
+           playable: parts.slice(3).join('~') || null };
+}
+function play(run){
+  tour = run.tour;
+  document.querySelectorAll('.segbtn').forEach(b => b.classList.toggle('on', b.dataset.tour === tour));
+  playable = run.playable || null;
+  whoInput.value = playable || '';
+  currentRun = { seed: run.seed, tour, playable, cfg: CONFIG };
+  showTournament(simulateTournament(POOLS[tour], {
+    seed: run.seed, playable, tour, bestOf: tour === 'ATP' ? 5 : 3, finalSetTiebreak: 10
+  }));
+}
+function linkNote(text){
+  const el = document.getElementById('linknote');
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+async function copyLink(run, btn){
+  const url = runUrl(run);
+  const said = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(url);
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = said; }, 1400);
+  } catch (e) {
+    // Clipboard is blocked in some embeds; show it so it can be copied by hand.
+    const box = document.getElementById('linkbox');
+    box.hidden = false; box.value = url; box.focus(); box.select();
+  }
+}
+function openFromLink(){
+  const param = new URLSearchParams(location.search).get('r');
+  if(!param) return false;
+  const run = decodeRun(param);
+  if(!run){ linkNote('That shared link could not be read.'); return false; }
+  if(run.cfg !== CONFIG){
+    linkNote('This link was made against an older data set, so its draw cannot be '
+      + 'reproduced exactly. Showing a fresh tournament instead.');
+    return false;
+  }
+  play(run);
+  return true;
+}
+
+// A shared draw if the link carries one; otherwise wait to be asked.
+if(!openFromLink()){
+  clearBoard('Press Simulate tournament to play ' + article(tour) + ' ' + tour + ' draw.');
+}
 
 // ---- light / dark ---------------------------------------------------------
 // The stylesheet already carries :root[data-theme="dark"] and a
@@ -734,11 +1045,11 @@ function paintTheme(){
 }
 function setTheme(mode){
   document.documentElement.setAttribute('data-theme', mode);
-  try { localStorage.setItem('theme', mode); } catch (e) { /* private window */ }
+  try { localStorage.setItem(NS + 'theme', mode); } catch (e) { /* private window */ }
   paintTheme();
 }
 let stored = null;
-try { stored = localStorage.getItem('theme'); } catch (e) { /* blocked */ }
+try { stored = localStorage.getItem(NS + 'theme'); } catch (e) { /* blocked */ }
 setTheme(stored === 'dark' || stored === 'light' ? stored : (systemDark() ? 'dark' : 'light'));
 themeBtn.addEventListener('click', () =>
   setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
