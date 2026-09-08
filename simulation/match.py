@@ -6,7 +6,7 @@ import random
 class Match:
     _id_counter = 1
 
-    def __init__(self, p1: Player, p2: Player, best_of=3, final_set_tiebreak=7):
+    def __init__(self, p1: Player, p2: Player, best_of=3, final_set_tiebreak=7, base=None):
         assert best_of % 2 == 1, "Best of must be an odd number"
         assert p1.id != p2.id, "Players must be different"
         self.player1 = p1
@@ -16,8 +16,8 @@ class Match:
         # serve against the other's return and each side is having its own day.
         p1_form = draw_form(p1)
         p2_form = draw_form(p2)
-        self.p1_matchup = Matchup(p1, p2, self.__class__._id_counter, p1_form, p2_form)
-        self.p2_matchup = Matchup(p2, p1, self.__class__._id_counter, p2_form, p1_form)
+        self.p1_matchup = Matchup(p1, p2, self.__class__._id_counter, p1_form, p2_form, base)
+        self.p2_matchup = Matchup(p2, p1, self.__class__._id_counter, p2_form, p1_form, base)
         # Grand slams play the deciding set's tiebreak to 10, everything else to 7.
         self.final_set_tiebreak = final_set_tiebreak
         self.match_id = self.__class__._id_counter

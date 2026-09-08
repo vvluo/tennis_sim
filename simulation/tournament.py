@@ -16,16 +16,65 @@ from dataclasses import dataclass, field as dc_field
 from .match import Match
 from .player import Player
 
-DRAW_SIZE = 128
-SEEDS = 32
-DIRECT_ENTRANTS = 112          # 104 by rank + 8 wildcards in reality; we do not
-QUALIFIERS = 16                # model the wildcard process, so they are ranked
-SECTION_SIZE = DRAW_SIZE // SEEDS
+MAX_DRAW = 256
+MIN_QUALIFYING_DRAW = 16        # smaller than this, everyone is a direct entrant
+MIN_SEEDS_KEEP = 4              # fewer seeded positions than this means none
+DRAW_SIZE = 128                # the slam default; any size up to MAX_DRAW works
+QUALIFIER_SHARE = 1 / 8        # 16 of 128, the slam's ratio, kept at every size
 
-ROUND_NAMES = ['R128', 'R64', 'R32', 'R16', 'QF', 'SF', 'F']
-# what a player's exit round is called when they lose in it
-EXIT_LABELS = {'R128': '1R', 'R64': '2R', 'R32': '3R', 'R16': '4R',
-               'QF': 'QF', 'SF': 'SF', 'F': 'F'}
+
+def bracket_for(draw: int) -> int:
+    """The next power of two at or above `draw` -- the slots the draw sits in."""
+    size = 1
+    while size < draw:
+        size *= 2
+    return size
+
+
+MIN_SEEDS = 4
+
+
+def seeds_for(draw: int) -> int:
+    """How many seeded positions the draw carries.
+
+    A quarter of the bracket is seeded -- 8 in a 32, 16 in a 64, 32 in a 128 --
+    checked against 116 real ATP/WTA events at 250 level and above. Two rules
+    bend that:
+
+    * Byes are a seeding privilege, so there can never be more byes than seeds.
+      A draw below three quarters of its bracket needs more byes than a quarter
+      of the bracket provides, and the count rises to the next power of two that
+      covers them. Every real draw size already satisfies this and is untouched.
+    * Below four seeds a draw is not meaningfully seeded and gets none, which
+      applies only to draws of eight or fewer. Any bye there goes to the
+      best-ranked player without calling anyone a seed.
+    """
+    bracket = bracket_for(draw)
+    needed = max(bracket // 4, bracket - draw)
+    if needed < MIN_SEEDS:
+        return 0
+    seeds = 1
+    while seeds < needed:
+        seeds *= 2
+    return min(seeds, bracket // 2)
+
+
+def round_names(bracket: int) -> list[str]:
+    """R256 ... R16, then the three rounds everyone names instead."""
+    names, size = [], bracket
+    while size >= 2:
+        names.append({2: 'F', 4: 'SF', 8: 'QF'}.get(size, f'R{size}'))
+        size //= 2
+    return names
+
+
+def exit_labels(names: list[str]) -> dict[str, str]:
+    """What a player's exit round is called when they lose in it."""
+    return {n: (f'{i + 1}R' if n.startswith('R') else n) for i, n in enumerate(names)}
+
+
+ROUND_NAMES = round_names(DRAW_SIZE)
+EXIT_LABELS = exit_labels(ROUND_NAMES)
 
 
 @dataclass
@@ -44,6 +93,7 @@ class Entrant:
 # --------------------------------------------------------------------------
 
 def build_field(candidates, rng: random.Random, playable: str | None = None,
+                draw_size: int = DRAW_SIZE,
                 dropout: float = 0.10, qualifying_dropout: float = 0.60):
     """The 128 who actually turn up.
 
@@ -52,11 +102,15 @@ def build_field(candidates, rng: random.Random, playable: str | None = None,
     players that walk passed over, with a much heavier `qualifying_dropout`
     standing in for having to win three matches to get in.
     """
+    # Below 16 a draw is too small to run a qualifying event worth modelling.
+    qualifiers_wanted = 0 if draw_size < MIN_QUALIFYING_DRAW else round(draw_size * QUALIFIER_SHARE)
+    direct_wanted = draw_size - qualifiers_wanted
+
     ranked = sorted(candidates, key=lambda c: c['rank'])
 
     accepted, index = [], 0
     for index, entry in enumerate(ranked):
-        if len(accepted) == DIRECT_ENTRANTS:
+        if len(accepted) == direct_wanted:
             break
         if rng.random() >= dropout:
             accepted.append(entry)
@@ -66,7 +120,7 @@ def build_field(candidates, rng: random.Random, playable: str | None = None,
     # do not reappear by winning three qualifying matches.
     qualifiers = []
     for entry in ranked[index:]:
-        if len(qualifiers) == QUALIFIERS:
+        if len(qualifiers) == qualifiers_wanted:
             break
         if rng.random() >= qualifying_dropout:
             qualifiers.append(entry)
@@ -92,7 +146,7 @@ def build_field(candidates, rng: random.Random, playable: str | None = None,
                                 qualifier=via_qualifying, playable=True)
 
     # seeds are the 32 best-ranked players who actually entered
-    for seed, entrant in enumerate(sorted(field, key=lambda e: e.rank)[:SEEDS], 1):
+    for seed, entrant in enumerate(sorted(field, key=lambda e: e.rank)[:seeds_for(draw_size)], 1):
         entrant.seed = seed
     return field
 
@@ -101,7 +155,7 @@ def build_field(candidates, rng: random.Random, playable: str | None = None,
 # draw
 # --------------------------------------------------------------------------
 
-def seeding_order(sections: int = SEEDS):
+def seeding_order(sections: int):
     """Standard bracket order: which section each seed belongs in.
 
     Built by repeated mirroring, so seed 1 and seed 2 land at opposite ends,
@@ -115,7 +169,7 @@ def seeding_order(sections: int = SEEDS):
     return order
 
 
-def seed_sections(rng: random.Random, sections: int = SEEDS):
+def seed_sections(rng: random.Random, sections: int):
     """Seed number -> section, with the tiers shuffled inside themselves.
 
     The mirroring above fixes which *set* of sections a tier occupies; which
@@ -139,23 +193,68 @@ def seed_sections(rng: random.Random, sections: int = SEEDS):
     return assignment
 
 
-def build_draw(field, rng: random.Random):
-    """128 slots. Seeds take the head of their section, the rest fall in."""
-    if len(field) != DRAW_SIZE:
-        raise ValueError(f'need {DRAW_SIZE} entrants, got {len(field)}')
+def build_draw(field, rng: random.Random, draw_size: int = DRAW_SIZE):
+    """Seat the field in its bracket. Empty seats are byes.
 
-    slots: list[Entrant | None] = [None] * DRAW_SIZE
-    sections = seed_sections(rng)
+    N players sit in a bracket of the next power of two, so 2^b - c seats stay
+    empty for N = 2^b + c. Byes go to the top seeds one each; a small draw can
+    need more byes than it has seeds -- nine players in a sixteen bracket need
+    seven -- and the remainder fall randomly on unseeded pairs.
+    """
+    if len(field) != draw_size:
+        raise ValueError(f'need {draw_size} entrants, got {len(field)}')
+
+    bracket = bracket_for(draw_size)
+    seeds = seeds_for(draw_size)
+    section_size = bracket // seeds if seeds else bracket
+    byes = bracket - draw_size
+
+    slots: list[Entrant | None] = [None] * bracket
+    sections = seed_sections(rng, seeds) if seeds else {}
     seeded = {e.seed: e for e in field if e.seed}
 
+    seat_of = {}
     for seed, section in sections.items():
-        slots[section * SECTION_SIZE] = seeded[seed]
+        seat = section * section_size
+        seat_of[seed] = seat
+        slots[seat] = seeded.get(seed)
 
-    rest = [e for e in field if e.seed is None]
-    rng.shuffle(rest)
-    empty = [i for i, slot in enumerate(slots) if slot is None]
-    for index, entrant in zip(empty, rest):
-        slots[index] = entrant
+    empty: set[int] = set()
+    placed = 0
+    for seed in range(1, seeds + 1):
+        if placed >= byes:
+            break
+        seat = seat_of.get(seed)
+        if seat is None:
+            continue
+        empty.add(seat ^ 1)              # the other half of that first-round pair
+        placed += 1
+
+    # A small draw can need more byes than it has seeds -- nine players in a
+    # sixteen bracket need seven -- and the surplus goes on down the ranking
+    # rather than at random: a bye is a reward for standing, so it is handed out
+    # best-ranked first, exactly as the seeded byes above are.
+    rest = sorted((e for e in field if e.seed is None), key=lambda e: e.rank)
+    surplus = max(0, byes - placed)
+    bye_getters, others = rest[:surplus], rest[surplus:]
+    rng.shuffle(others)
+
+    if surplus:
+        seed_seats = set(seat_of.values())
+        pairs = [i for i in range(0, bracket, 2)
+                 if i not in empty and i + 1 not in empty
+                 and i not in seed_seats and i + 1 not in seed_seats]
+        rng.shuffle(pairs)               # which pair is still drawn
+        for entrant, pair in zip(bye_getters, pairs):
+            seat = pair if rng.random() < 0.5 else pair + 1
+            slots[seat] = entrant
+            empty.add(seat ^ 1)
+
+    spare = iter(others)
+    for index in range(bracket):
+        if slots[index] is not None or index in empty:
+            continue
+        slots[index] = next(spare, None)
     return slots
 
 
@@ -202,35 +301,53 @@ def to_player(entrant: Entrant, shift: float, shrink: float = 1.0) -> Player:
 
 
 def run_tournament(draw, rng: random.Random, best_of: int = 5,
-                   final_set_tiebreak: int = 10, shrink: float = 1.0):
-    """Play it out. Returns every round's matches in bracket order."""
+                   final_set_tiebreak: int = 10, shrink: float = 1.0,
+                   base: dict | None = None):
+    """Play it out. Returns every round's matches in bracket order.
+
+    `draw` may hold empty seats: those are byes, and the player opposite walks
+    through without a match. The round names follow the bracket, so a 48 draw
+    starts at R64 and a 28 draw at R32.
+    """
+    entrants = [e for e in draw if e is not None]
     mean_rating = sum(sum(e.ratings[k] for k in ('SRV', 'RET', 'SHOT', 'CONS')) / 4
-                      for e in draw) / len(draw)
+                      for e in entrants) / len(entrants)
     shift = 5.0 - mean_rating
-    for entrant in draw:
+    for entrant in entrants:
         entrant.player = to_player(entrant, shift, shrink)
 
+    names = round_names(len(draw))
+    labels = exit_labels(names)
     rounds, alive = [], list(draw)
-    for name in ROUND_NAMES:
+    for name in names:
         matches, winners = [], []
         for i in range(0, len(alive), 2):
             top, bottom = alive[i], alive[i + 1]
-            played = Match(top.player, bottom.player,
-                           best_of=best_of, final_set_tiebreak=final_set_tiebreak)
+            if top is None or bottom is None:
+                through = top or bottom
+                if through is not None:
+                    matches.append({'round': name, 'top': top, 'bottom': bottom,
+                                    'winner': through, 'loser': None,
+                                    'match': None, 'bye': True})
+                    winners.append(through)
+                continue
+            played = Match(top.player, bottom.player, best_of=best_of,
+                           final_set_tiebreak=final_set_tiebreak, base=base)
             won_by_top = played.winner_id == top.player.id
             winner, loser = (top, bottom) if won_by_top else (bottom, top)
             matches.append({'round': name, 'top': top, 'bottom': bottom,
-                            'winner': winner, 'loser': loser, 'match': played})
+                            'winner': winner, 'loser': loser,
+                            'match': played, 'bye': False})
             winners.append(winner)
         rounds.append({'name': name, 'matches': matches})
         alive = winners
 
     champion = alive[0]
-    playable = next((e for e in draw if e.playable), None)
+    playable = next((e for e in entrants if e.playable), None)
     result = None
     if playable:
         result = 'Win' if playable is champion else next(
-            EXIT_LABELS[m['round']] for r in rounds for m in r['matches']
+            labels[m['round']] for r in rounds for m in r['matches']
             if m['loser'] is playable)
     return {'rounds': rounds, 'champion': champion,
             'playable': playable, 'playable_result': result}

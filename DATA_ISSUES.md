@@ -28,6 +28,20 @@ completely deterministic rather than patchy:
 cliff: events with `enhanced_stats: true` return 37 statistics fields, all others
 return 17, and no event in 56,338 observed returns more than 37.
 
+**Mechanism, confirmed.** This is a per-match *coverage* property, not a tier or
+an endpoint. Every event carries
+`sport_event.coverage.sport_event_properties.{enhanced_stats,
+detailed_serve_outcomes, play_by_play}`. Across ~57,000 matches,
+`play_by_play` and `detailed_serve_outcomes` are true almost everywhere
+(51,164 and 51,156), while **`enhanced_stats` is true on 1,941 — and only ever
+at the four Grand Slams**, across singles, doubles and mixed. The flag predicts
+the data exactly: shot totals are present in 79% of flagged matches and **0% of
+unflagged ones**. We now record the flag per row, so the shot columns are
+explicitly conditional rather than mysteriously absent. Enhanced coverage adds
+21 per-stroke fields (`forehand_winners`, `backhand_unforced_errors`,
+`volley_winners`, …) on top of the base 16; there is no aggregate `winners`
+field, so shot totals must be summed from the stroke rollups.
+
 A second, smaller oddity in the same area: **Roland Garros qualifying emits the
 shot keys with 0 in all of them** — 443 rows where 148-point matches record zero
 winners and zero unforced errors. We treat these as absent rather than as
@@ -78,21 +92,45 @@ Matching our data against the ATP and WTA ranking feeds (top 500 each, week
 Dencheva (#299), Shaikh (#306), Pavlova (#337), Vujovic (#350), Encheva (#353),
 Cayetano (#368) and others.
 
-The cause looks structural rather than incidental:
+**Correction (checked after Sportradar pointed us at the categories).** An
+earlier version of this note claimed no ITF events exist in the feed. That was
+wrong, and wrong for an avoidable reason: we searched competition *names* within
+the ~180 competitions that returned rows, instead of the category taxonomy in
+the full catalogue. The categories are there:
 
-- **No ITF events exist in the feed for either tour.** Zero competitions contain
-  "ITF" in the name, on either side.
-- The ATP's second tier **is** carried — 240 Challenger events, 23,404 rows —
-  which is exactly why ATP ranks 250–500 come out fully covered.
-- The WTA's nearest equivalent in the feed is **WTA 125, only 65 events, 4,569
-  rows** — one tier above where these players actually compete.
-- Tournaments seen against live WTA rankings return **0 rows**: *Leiria*,
-  *Tianjin 5*, *Saint Palais Sur Mer*. Checked as substrings across all 283
-  women's competitions in the unfiltered feed.
+| category | id | competitions in catalogue |
+| --- | --- | --- |
+| ITF Men | `sr:category:785` | 2,198 |
+| ITF Women | `sr:category:213` | 2,032 |
+| Challenger | `sr:category:72` | 1,057 |
+| WTA 125K | `sr:category:871` | 256 |
 
-**Question:** are ITF-level women's events (W15–W100) available on a different
-access level or a separate feed, or are they outside Sportradar's tennis
-coverage entirely?
+The real limit is narrower, and it is about statistics rather than coverage:
+
+- **ITF Women events reach the daily feed, but carry no statistics.** 44 of the
+  2,032 catalogued events appeared in our year, 242 matches in total, and
+  **0 of them carry a statistics block**. Same for ITF Men: 465 matches, 0 with
+  statistics.
+- The ATP's second tier **is** carried with statistics — 16,316 Challenger
+  matches, 95% with a statistics block — which is exactly why ATP ranks 250–500
+  come out fully covered. `sr:category:72` is men-only in our window.
+- WTA 125K carries 3,535 matches at 95%, and lifts ranked-WTA reach from 403 to
+  458 players on its own.
+- **UTR Women** is the one large uncounted women's dataset — 10,260 matches,
+  86% with statistics — but it is a different population: of 1,546 players,
+  only **34 are ranked WTA** and just 12 would become newly rateable. Including
+  it would add ~1,500 unranked players to gain 12.
+
+Counting every category, **467 of 500 ranked WTA players appear in at least one
+match with a statistics block (93%)**; 33 have none anywhere in the year. So the
+gap is not the category filter — it is that these players compete where
+statistics are not collected.
+
+**Question:** ITF Women events are in the feed but return no statistics block
+on our tier. Is that an entitlement boundary — would a production key populate
+statistics for ITF events — or are statistics not scouted at ITF level at all?
+If the latter, the 33 missing players are permanently unrateable and we should
+stop trying.
 
 ---
 
@@ -127,8 +165,27 @@ a production entitlement extend it? If so, how far back?
 
 ---
 
+## 4. Backfill should not loop Daily Summaries
+
+Noted for when a production entitlement opens the history: our loader walks the
+calendar day by day, which cost **430 cached day-pages for one year** (375 days,
+54 of them needing a second page at 200 matches per page). Sportradar's guidance
+is to use **Season Summaries** (`seasons/{id}/summaries.json`) or Competitor
+Summaries for a one-time backfill instead — far fewer calls for the same
+matches, since we only care about ATP, WTA, WTA 125K and Challenger seasons
+rather than every UTR and juniors match that shares the calendar.
+
+`Client.season_summaries()` already exists in `sportradar_data.py` and has never
+been called — there are zero `season_*` files in the cache. Worth measuring
+before any historical pull, because on a trial key the day-by-day path would
+exhaust the 1,000-call monthly quota on roughly two years of history.
+
 ## How these were checked
 
 All figures are reproducible from `sportradar_data.py` against a local cache of
 the daily summaries feed; the historical-year samples cost four live calls
 total. Coverage percentages match on `competitor.id` rather than name.
+
+The category, coverage and ITF figures in the corrected sections above were
+recomputed from the existing cache — 430 day-pages plus the competitions
+catalogue — and cost **no live calls**.

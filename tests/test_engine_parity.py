@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from simulation.match import Match
-from simulation.player import Player
+from simulation.player import Player, bases_for
 from simulation.frontend import match_payload, match_stats
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,6 +85,9 @@ def normalise(match, p1_id):
 
 @pytest.mark.parametrize('best_of,final_tb', [(5, 10), (3, 7)])
 def test_js_engine_matches_python_point_for_point(monkeypatch, best_of, final_tb):
+    # A real tour/surface pairing, so the split bases are exercised rather than
+    # the neutral defaults.
+    BASE = bases_for('ATP', 'clay')
     seed = 20260831 + best_of
     source = random.Random(seed)
     uniforms = [source.random() for _ in range(400_000)]
@@ -104,7 +107,7 @@ def test_js_engine_matches_python_point_for_point(monkeypatch, best_of, final_tb
                    volatility=top['vol'])
         b = Player('B', bottom['srv'], bottom['cons'], bottom['ret'],
                    bottom['shot'], volatility=bottom['vol'])
-        played = Match(a, b, best_of=best_of, final_set_tiebreak=final_tb)
+        played = Match(a, b, best_of=best_of, final_set_tiebreak=final_tb, base=BASE)
         py_records.append(normalise(played, a.id))
         rows, _ = match_stats(played)
         py_stats.append([[r['label'], r['a'], r['b'], r['better']] for r in rows])
@@ -121,7 +124,7 @@ def test_js_engine_matches_python_point_for_point(monkeypatch, best_of, final_tb
 
     # --- JavaScript, reading the same stream -----------------------------
     spec = {'stream': uniforms, 'normals': normals, 'bestOf': best_of,
-            'finalSetTiebreak': final_tb,
+            'finalSetTiebreak': final_tb, 'base': BASE,
             'matches': [{'top': t, 'bottom': b} for t, b in pairs]}
     proc = subprocess.run(['node', str(DRIVER)], input=json.dumps(spec),
                           capture_output=True, text=True, cwd=ROOT)

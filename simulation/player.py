@@ -43,7 +43,44 @@ DOUBLE_FAULT_GRADIENT = -0.003
 FIRST_SERVE_BOOST = 0.14
 SECOND_SERVE_BOOST = 0.0
 RETURN_GRADIENT = 0.02
-BASE_SHOT_ACCURACY = 0.78
+
+# Two baselines, one per job. BASE_SERVE_RETURN sets how often the serve comes
+# back, so it governs the share of points that end in a single shot;
+# BASE_RALLY_RETURN sets how often a rally ball comes back, so it governs how
+# long the rallies that do start will run. These were one constant, which made
+# the two impossible to fit at once -- moving it to lengthen rallies also killed
+# aces. Solved per tour against the rally-length distributions in
+# research.unipd.it/.../rally_publiished.pdf, then offset per surface.
+BASE_SERVE_RETURN = 0.78
+BASE_RALLY_RETURN = 0.78
+
+# Fitted so the simulated distribution matches the paper's, per tour, weighted by
+# our own calendar's surface mix: ATP P(1)=.294 q=.767, WTA P(1)=.248 q=.770.
+TOUR_BASE = {
+    'ATP': {'serve': 0.8986, 'rally': 0.8502},
+    'WTA': {'serve': 0.9400, 'rally': 0.8601},
+}
+# Offsets from the tour baseline. Grass shortens rallies and lets more serves
+# through; clay does the reverse. The men's surface effect is roughly three times
+# the women's on the serve, which is why the tables are separate.
+SURFACE_OFFSET = {
+    'ATP': {'hard':  {'serve': -0.0191, 'rally': -0.0033},
+            'grass': {'serve': -0.0743, 'rally': -0.0420},
+            'clay':  {'serve': +0.0589, 'rally': +0.0226}},
+    'WTA': {'hard':  {'serve': -0.0046, 'rally': +0.0000},
+            'grass': {'serve': -0.0222, 'rally': -0.0270},
+            'clay':  {'serve': +0.0466, 'rally': +0.0215}},
+}
+
+
+def bases_for(tour: str | None = None, surface: str | None = None) -> dict:
+    """The two baselines for one tour on one surface."""
+    base = TOUR_BASE.get(tour, {'serve': BASE_SERVE_RETURN, 'rally': BASE_RALLY_RETURN})
+    off = SURFACE_OFFSET.get(tour, {}).get(surface or 'hard', {'serve': 0.0, 'rally': 0.0})
+    return {'serve': base['serve'] + off['serve'], 'rally': base['rally'] + off['rally']}
+
+
+DEFAULT_BASE = {'serve': BASE_SERVE_RETURN, 'rally': BASE_RALLY_RETURN}
 BASE_INCONSISTENCY = 0.14
 INCONSISTENCY_GRADIENT = -0.012
 RALLY_ADVANTAGE_GRADIENT = 0.01
@@ -97,12 +134,14 @@ def _as_probability(value: float) -> float:
 
 class Matchup:
     def __init__(self, player: Player, opponent: Player, match_id: int,
-                 player_form: Form = NO_FORM, opponent_form: Form = NO_FORM):
+                 player_form: Form = NO_FORM, opponent_form: Form = NO_FORM,
+                 base: dict | None = None):
         self.player = player
         self.opponent = opponent
         self.match_id = match_id
         self.player_form = player_form
         self.opponent_form = opponent_form
+        base = base or DEFAULT_BASE
 
         # Effective attributes for this match: the rating plus today's form.
         # Every probability below is built from these, so the numbers
@@ -115,7 +154,7 @@ class Matchup:
         self.first_serve_percentage = _as_probability(BASE_FIRST_SERVE_PERCENTAGE + FIRST_SERVE_GRADIENT * serve)
         self.double_fault_rate = _as_probability(BASE_DOUBLE_FAULT_RATE + DOUBLE_FAULT_GRADIENT * consistency)
         self.inconsistency = _as_probability(BASE_INCONSISTENCY + INCONSISTENCY_GRADIENT * consistency)
-        self.probability_of_serve_return = _as_probability(BASE_SHOT_ACCURACY + (opponent_return * 0.5 - serve) * RETURN_GRADIENT)
+        self.probability_of_serve_return = _as_probability(base['serve'] + (opponent_return * 0.5 - serve) * RETURN_GRADIENT)
         self.first_serve_boost = FIRST_SERVE_BOOST
         self.second_serve_boost = SECOND_SERVE_BOOST
-        self.prob_returnable = _as_probability(BASE_SHOT_ACCURACY + (opponent_return * 0.5 - shot) * RALLY_ADVANTAGE_GRADIENT)
+        self.prob_returnable = _as_probability(base['rally'] + (opponent_return * 0.5 - shot) * RALLY_ADVANTAGE_GRADIENT)

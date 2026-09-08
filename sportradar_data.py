@@ -451,6 +451,16 @@ def flatten_summaries(summaries: list[dict], singles_only: bool = True) -> pd.Da
                     "gender": competition.get("gender"),
                     "competition": competition.get("name"),
                     "level": competition.get("level"),
+                    "category": context.get("category", {}).get("name"),
+                    # Shot data is a COVERAGE property, not a tier: the feed sets
+                    # enhanced_stats per match, and only the four slams have it.
+                    # Recording it makes the shot columns explicitly conditional
+                    # rather than mysteriously absent.
+                    "enhanced_stats": bool(
+                        (sport_event.get("coverage") or {})
+                        .get("sport_event_properties", {})
+                        .get("enhanced_stats")
+                    ),
                     "surface": _surface(sport_event, context),
                     "round": rnd.get("name") or rnd.get("number"),
                     "player_id": entrant.get("id"),

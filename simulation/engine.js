@@ -39,7 +39,8 @@ const K = {
   BASE_FIRST_SERVE_PERCENTAGE: 0.55, FIRST_SERVE_GRADIENT: 0.017,
   BASE_DOUBLE_FAULT_RATE: 0.06,      DOUBLE_FAULT_GRADIENT: -0.003,
   FIRST_SERVE_BOOST: 0.14,           SECOND_SERVE_BOOST: 0.0,
-  RETURN_GRADIENT: 0.02,             BASE_SHOT_ACCURACY: 0.78,
+  RETURN_GRADIENT: 0.02,             BASE_SERVE_RETURN: 0.78,
+  BASE_RALLY_RETURN: 0.78,
   BASE_INCONSISTENCY: 0.14,          INCONSISTENCY_GRADIENT: -0.012,
   RALLY_ADVANTAGE_GRADIENT: 0.01,
   BASE_FORM_SD: 4.0,                 FORM_SD_GRADIENT: -0.3
@@ -53,7 +54,7 @@ function drawForm(rng, p){
   return [rng.gauss(0, sd), rng.gauss(0, sd), rng.gauss(0, sd), rng.gauss(0, sd)];
 }                                        // [serve, consistency, shot, ret]
 
-function matchup(p, opp, form, oppForm){
+function matchup(p, opp, form, oppForm, base){
   const serve = p.srv  + form[0];
   const cons  = p.cons + form[1];
   const shot  = p.shot + form[2];
@@ -62,8 +63,8 @@ function matchup(p, opp, form, oppForm){
     firstServePct:   prob(K.BASE_FIRST_SERVE_PERCENTAGE + K.FIRST_SERVE_GRADIENT * serve),
     dfRate:          prob(K.BASE_DOUBLE_FAULT_RATE + K.DOUBLE_FAULT_GRADIENT * cons),
     inconsistency:   prob(K.BASE_INCONSISTENCY + K.INCONSISTENCY_GRADIENT * cons),
-    probServeReturn: prob(K.BASE_SHOT_ACCURACY + (oret * 0.5 - serve) * K.RETURN_GRADIENT),
-    probReturnable:  prob(K.BASE_SHOT_ACCURACY + (oret * 0.5 - shot) * K.RALLY_ADVANTAGE_GRADIENT)
+    probServeReturn: prob(base.serve + (oret * 0.5 - serve) * K.RETURN_GRADIENT),
+    probReturnable:  prob(base.rally + (oret * 0.5 - shot) * K.RALLY_ADVANTAGE_GRADIENT)
   };
 }
 
@@ -114,10 +115,10 @@ function tbScore(sp, rp, names, srv, rcv, len){
 // ---- match.py ------------------------------------------------------------
 // Side indices: 0 = top of the tie, 1 = bottom. The Python compared Player
 // objects; here everything is an index, which is also what the page wants.
-function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak){
+function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
   // Full names in the record; the panel abbreviates only if it has to.
   const fTop = drawForm(rng, top), fBot = drawForm(rng, bottom);
-  const mu = [matchup(top, bottom, fTop, fBot), matchup(bottom, top, fBot, fTop)];
+  const mu = [matchup(top, bottom, fTop, fBot, base), matchup(bottom, top, fBot, fTop, base)];
   const toWin = (bestOf + 1) / 2;
   let server = rng.random() < 0.5 ? 0 : 1;
 
@@ -303,6 +304,9 @@ function matchStats(sets, names){
     const f = Math.floor(x), d = x - f;
     return d > 0.5 ? f + 1 : d < 0.5 ? f : (f % 2 === 0 ? f : f + 1);
   };
+  // Python's f'{x:.1f}' breaks ties to even as well, so one decimal needs the
+  // same treatment as the percentages.
+  const oneDecimal = x => (pyRound(x * 10) / 10).toFixed(1);
   const pct = (n, d, i) => d[i] ? pyRound(100 * n[i] / d[i]) + '%' : '-';
   const ratio = (n, d, i) => d[i] ? n[i] / d[i] : null;
   const rows = [
@@ -312,7 +316,7 @@ function matchStats(sets, names){
     ['Win % on 2nd serve',   i => pct(st.second_won, st.second_serves, i),   i => ratio(st.second_won, st.second_serves, i), true],
     ['Break points',         i => st.break_points_won[i] + '/' + st.break_points[i], i => st.break_points_won[i], true],
     ['Unreturned serves',    i => '' + st.unreturned[i],                     i => st.unreturned[i], true],
-    ['Avg rally length',     i => st.rallies[i] ? (st.rally_shots[i] / st.rallies[i]).toFixed(1) : '-',
+    ['Avg rally length',     i => st.rallies[i] ? oneDecimal(st.rally_shots[i] / st.rallies[i]) : '-',
                              i => ratio(st.rally_shots, st.rallies, i), true],
     ['Service points won',   i => '' + st.serve_points_won[i],               i => st.serve_points_won[i], true],
     ['Service games won',    i => st.serve_games_won[i] + '/' + st.serve_games[i], i => st.serve_games_won[i], true],
@@ -332,12 +336,60 @@ function matchStats(sets, names){
 }
 
 // ---- tournament.py -------------------------------------------------------
-const DRAW_SIZE = 128, SEEDS = 32, DIRECT_ENTRANTS = 112, QUALIFIERS = 16;
-const SECTION_SIZE = DRAW_SIZE / SEEDS;
-const ROUND_NAMES = ['R128','R64','R32','R16','QF','SF','F'];
-const EXIT_LABELS = { R128:'1R', R64:'2R', R32:'3R', R16:'4R', QF:'QF', SF:'SF', F:'F' };
+// ---- draw shape -----------------------------------------------------------
+// Any draw from 2 to 256. For N players the bracket is the next power of two,
+// a quarter of the bracket is seeded, and the empty slots are byes handed to the
+// top seeds. Checked against 116 real ATP/WTA events: seeds is bracket/4 on
+// every one of them, and byes is 2^b - c for N = 2^b + c.
+const MAX_DRAW = 256;
+const QUALIFIER_SHARE = 1 / 8;          // 16 of 128, as the slam did
+const MIN_QUALIFYING_DRAW = 16;         // smaller than this, everyone is a direct entrant
 
-function buildField(candidates, rng, playable, dropout = 0.10, qualifyingDropout = 0.60){
+function bracketFor(draw){
+  let p = 1;
+  while(p < draw) p *= 2;
+  return p;
+}
+// A quarter of the bracket is seeded -- 8 in a 32, 16 in a 64, 32 in a 128,
+// checked against 116 real ATP/WTA events. Two rules bend that:
+//
+//   * Byes are a seeding privilege, so there can never be more byes than seeds.
+//     A draw below three quarters of its bracket needs more byes than a quarter
+//     of the bracket provides, and the seed count rises to the next power of two
+//     that covers them. Every real draw size -- 28, 30, 32, 48, 56, 64, 96, 128
+//     -- already satisfies this and is untouched.
+//   * Below four seeds a draw is not meaningfully seeded and gets none. That
+//     applies only to draws of eight or fewer, where any bye simply goes to the
+//     best-ranked player without calling anyone a seed.
+const MIN_SEEDS = 4;
+function seedsFor(draw){
+  const bracket = bracketFor(draw);
+  const needed = Math.max(bracket / 4, bracket - draw);   // a quarter, or enough for the byes
+  if(needed < MIN_SEEDS) return 0;
+  let seeds = 1;
+  while(seeds < needed) seeds *= 2;                       // keep the 4/8/16/32 progression
+  return Math.min(seeds, bracket / 2);
+}
+
+// Round names run R256 ... R16, then the three everyone names instead.
+function roundNames(bracket){
+  const out = [];
+  for(let size = bracket; size >= 2; size /= 2){
+    out.push(size === 2 ? 'F' : size === 4 ? 'SF' : size === 8 ? 'QF' : 'R' + size);
+  }
+  return out;
+}
+// "1R", "2R", ... for the early rounds; the last three keep their own names.
+function exitLabels(names){
+  const out = {};
+  names.forEach((n, i) => { out[n] = /^R/.test(n) ? (i + 1) + 'R' : n; });
+  return out;
+}
+
+function buildField(candidates, rng, playable, drawSize, dropout = 0.10, qualifyingDropout = 0.60){
+  // Below 16 a draw is too small to run a qualifying event worth modelling.
+  const QUALIFIERS = drawSize < MIN_QUALIFYING_DRAW ? 0 : Math.round(drawSize * QUALIFIER_SHARE);
+  const DIRECT_ENTRANTS = drawSize - QUALIFIERS;
   const ranked = candidates.slice().sort((a, b) => a.rank - b.rank);
   const accepted = [];
   let index = 0;
@@ -354,7 +406,7 @@ function buildField(candidates, rng, playable, dropout = 0.10, qualifyingDropout
   const ent = (e, q, pl) => ({ name: e.name, rank: e.rank, ratings: e.ratings,
                                qualifier: !!q, playable: !!pl, seed: null });
   const field = accepted.map(e => ent(e)).concat(qualifiers.map(e => ent(e, true)));
-  if(field.length !== DRAW_SIZE) throw new Error('field is ' + field.length + ', need ' + DRAW_SIZE);
+  if(field.length !== drawSize) throw new Error('field is ' + field.length + ', need ' + drawSize);
 
   if(playable){
     const inField = field.find(e => e.name === playable);
@@ -370,12 +422,12 @@ function buildField(candidates, rng, playable, dropout = 0.10, qualifyingDropout
       field[field.length - 1] = ent(custom, viaQualifying, true);
     }
   }
-  field.slice().sort((a, b) => a.rank - b.rank).slice(0, SEEDS)
+  field.slice().sort((a, b) => a.rank - b.rank).slice(0, seedsFor(drawSize))
        .forEach((e, i) => e.seed = i + 1);
   return field;
 }
 
-function seedingOrder(sections = SEEDS){
+function seedingOrder(sections){
   let order = [0];
   while(order.length < sections){
     const size = order.length * 2;
@@ -386,7 +438,7 @@ function seedingOrder(sections = SEEDS){
   return order;
 }
 
-function seedSections(rng, sections = SEEDS){
+function seedSections(rng, sections){
   const order = seedingOrder(sections);
   const tiers = [[0, 1], [1, 2]];
   let lo = 2;
@@ -400,16 +452,68 @@ function seedSections(rng, sections = SEEDS){
   return assignment;
 }
 
-function buildDraw(field, rng){
-  const slots = new Array(DRAW_SIZE).fill(null);
-  const sections = seedSections(rng);
+function buildDraw(field, rng, drawSize){
+  const bracket = bracketFor(drawSize);
+  const seeds = seedsFor(drawSize);
+  const sectionSize = seeds ? bracket / seeds : bracket;
+  const byes = bracket - drawSize;
+
+  const slots = new Array(bracket).fill(null);
+  const sections = seeds ? seedSections(rng, seeds) : {};
   const seeded = {};
   field.forEach(e => { if(e.seed) seeded[e.seed] = e; });
-  Object.keys(sections).forEach(seed => slots[sections[seed] * SECTION_SIZE] = seeded[seed]);
-  const rest = field.filter(e => !e.seed);
-  rng.shuffle(rest);
+
+  const seatOf = {};
+  Object.keys(sections).forEach(seed => {
+    const seat = sections[seed] * sectionSize;
+    seatOf[seed] = seat;
+    slots[seat] = seeded[seed] || null;
+  });
+
+  // Byes go to the top seeds, one each: the seed's first-round opponent seat is
+  // left empty, which is exactly how a 48 draw puts 16 seeds straight into R32.
+  const empty = new Set();
+  const seedSeats = new Set(Object.values(seatOf));
+  let placed = 0;
+  for(let seed = 1; seed <= seeds && placed < byes; seed++){
+    const seat = seatOf[seed];
+    if(seat === undefined) continue;
+    empty.add(seat ^ 1);
+    placed++;
+  }
+
+  // A small draw can need more byes than it has seeds -- nine players in a
+  // sixteen bracket need seven -- and the surplus goes on down the ranking
+  // rather than at random, because a bye is a reward for standing and byes are
+  // handed out best-ranked first.
+  const rest = field.filter(e => !e.seed).sort((a, b) => a.rank - b.rank);
+  const surplus = Math.max(0, byes - placed);
+  const byeGetters = rest.slice(0, surplus);
+  const others = rest.slice(surplus);
+  rng.shuffle(others);
+
+  if(surplus){
+    const pairs = [];
+    for(let i = 0; i < bracket; i += 2){
+      if(!empty.has(i) && !empty.has(i + 1) && !seedSeats.has(i) && !seedSeats.has(i + 1)){
+        pairs.push(i);
+      }
+    }
+    rng.shuffle(pairs);                       // which pair is still drawn
+    byeGetters.forEach((entrant, k) => {
+      const i = pairs[k];
+      if(i === undefined) return;
+      const seat = rng.random() < 0.5 ? i : i + 1;
+      slots[seat] = entrant;
+      empty.add(seat ^ 1);
+    });
+  }
+
   let r = 0;
-  for(let i = 0; i < DRAW_SIZE; i++) if(slots[i] === null) slots[i] = rest[r++];
+  for(let i = 0; i < bracket; i++){
+    if(slots[i] !== null || empty.has(i)) continue;
+    slots[i] = others[r++] || null;
+  }
   return slots;
 }
 
@@ -421,6 +525,23 @@ function buildDraw(field, rng){
 // matches for the median ATP player against 18 for the WTA.
 const SHRINK = { ATP: 0.8, WTA: 1.0 };
 
+// Two baselines, one per job. BASE_SERVE_RETURN sets how often the serve comes
+// back, so it governs the share of points that end in one shot; BASE_RALLY_RETURN
+// sets how often a rally ball comes back, so it governs how long rallies run.
+// They were a single constant, which made those two quantities impossible to fit
+// at once. Solved per tour against a year of rally lengths, then offset per
+// surface -- globally, not per player.
+const TOUR_BASE = { ATP: { serve: 0.8986, rally: 0.8502 }, WTA: { serve: 0.94, rally: 0.8601 } };
+const SURFACE_OFFSET = {
+  ATP: { hard: { serve: -0.0191, rally: -0.0033 }, grass: { serve: -0.0743, rally: -0.0420 }, clay: { serve: +0.0589, rally: +0.0226 } },
+  WTA: { hard: { serve: -0.0046, rally: +0.0000 }, grass: { serve: -0.0222, rally: -0.0270 }, clay: { serve: +0.0466, rally: +0.0215 } },
+};
+function basesFor(tour, surface){
+  const b = TOUR_BASE[tour] || TOUR_BASE.ATP;
+  const o = (SURFACE_OFFSET[tour] || {})[surface || 'hard'] || { serve: 0, rally: 0 };
+  return { serve: b.serve + o.serve, rally: b.rally + o.rally };
+}
+
 function toPlayer(entrant, shift, shrink){
   const t = entrant.ratings;
   const attr = v => 5.0 + shrink * (v + shift - 5.0);
@@ -429,38 +550,52 @@ function toPlayer(entrant, shift, shrink){
            ret: attr(t.RET), shot: attr(t.SHOT), vol: t.CONS + shift };
 }
 
-function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink){
+function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
   // The published ratings are min-max scaled so their mean is not 5, but every
   // constant above is calibrated so 5.0 gives tour-average rates. Re-centre the
   // field without touching the spread between players.
-  const mean = draw.reduce((acc, e) =>
-    acc + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0) / draw.length;
+  const entrants = draw.filter(Boolean);
+  const mean = entrants.reduce((acc, e) =>
+    acc + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0) / entrants.length;
   const shift = 5.0 - mean;
-  draw.forEach(e => e.player = toPlayer(e, shift, shrink));
+  entrants.forEach(e => e.player = toPlayer(e, shift, shrink));
 
+  const names = roundNames(draw.length);
+  const labels = exitLabels(names);
   const rounds = [];
   let alive = draw.slice();
-  ROUND_NAMES.forEach(name => {
+  names.forEach(name => {
     const matches = [], winners = [];
     for(let i = 0; i < alive.length; i += 2){
       const top = alive[i], bottom = alive[i + 1];
-      const names = [top.name, bottom.name];
-      const played = simMatch(rng, top.player, bottom.player, names, bestOf, finalSetTiebreak);
+      // An empty seat is a bye: the other player advances without playing, and
+      // the tie is still recorded so the bracket shows them sitting the round out.
+      if(!top || !bottom){
+        const through = top || bottom;
+        if(through){
+          matches.push({ top: through ? side(through, true) : null,
+                         bottom: null, bye: true, score: 'bye',
+                         setScores: [], sets: [], stats: [], statNames: [through.name, ''],
+                         round: name, winner: through, loser: null });
+          winners.push(through);
+        }
+        continue;
+      }
+      const pair = [top.name, bottom.name];
+      const played = simMatch(rng, top.player, bottom.player, pair, bestOf, finalSetTiebreak, base);
       const wonByTop = played.winner === 0;
       const winner = wonByTop ? top : bottom, loser = wonByTop ? bottom : top;
-      const score = setScoreStrings(played.sets, played.winner, names);
-      const stats = matchStats(played.sets, names);
-      const side = (e, won) => ({ name: e.name, seed: e.seed, q: e.qualifier,
-                                  playable: e.playable, won });
       matches.push({
         top: side(top, wonByTop), bottom: side(bottom, !wonByTop),
-        score, setScores: perSideSetScores(played.sets),
+        score: setScoreStrings(played.sets, played.winner, pair),
+        setScores: perSideSetScores(played.sets),
         sets: played.sets.map(s => ({
           win: s.win, sc: s.sc,
           g: s.games.map(g => ({ k: g.k, srv: g.srv, win: g.win, sc: g.sc,
                                  pts: g.pts.map(p => [p[0], p[1], p[2]]) }))
         })),
-        stats, statNames: names, round: name, winner, loser
+        stats: matchStats(played.sets, pair), statNames: pair,
+        round: name, winner, loser
       });
       winners.push(winner);
     }
@@ -469,14 +604,14 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink){
   });
 
   const champion = alive[0];
-  const playable = draw.find(e => e.playable) || null;
+  const playable = entrants.find(e => e.playable) || null;
   let playableResult = null;
   if(playable){
     if(playable === champion) playableResult = 'Win';
     else {
       for(const r of rounds){
         const m = r.matches.find(m => m.loser === playable);
-        if(m){ playableResult = EXIT_LABELS[r.name]; break; }
+        if(m){ playableResult = labels[r.name]; break; }
       }
     }
   }
@@ -485,12 +620,24 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink){
            playable: playable ? playable.name : null, playableResult };
 }
 
+function side(e, won){
+  return { name: e.name, seed: e.seed, q: e.qualifier, playable: e.playable, won };
+}
+
 function simulateTournament(pool, opts){
+  const drawSize = Math.max(2, Math.min(MAX_DRAW, opts.drawSize || 128));
+  if(pool.length < drawSize) throw new Error('pool holds ' + pool.length + ', need ' + drawSize);
   const rng = makeRandom(opts.seed);
-  const field = buildField(pool, rng, opts.playable);
-  const draw = buildDraw(field, rng);
+  const field = buildField(pool, rng, opts.playable, drawSize);
+  const draw = buildDraw(field, rng, drawSize);
   const bestOf = opts.bestOf, tb = opts.finalSetTiebreak || 10;
-  const out = runTournament(draw, rng, bestOf, tb, SHRINK[opts.tour] ?? 1.0);
-  out.tour = opts.tour; out.bestOf = bestOf;
+  const out = runTournament(draw, rng, bestOf, tb, SHRINK[opts.tour] ?? 1.0,
+                            basesFor(opts.tour, opts.surface));
+  out.tour = opts.tour;
+  out.bestOf = bestOf;
+  out.drawSize = drawSize;
+  out.bracket = bracketFor(drawSize);
+  out.seeds = seedsFor(drawSize);
+  out.byes = out.bracket - drawSize;
   return out;
 }

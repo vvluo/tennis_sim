@@ -21,7 +21,8 @@ const rng = {
 };
 
 const out = spec.matches.map(m => {
-  const played = __simMatch(rng, m.top, m.bottom, ['A', 'B'], spec.bestOf, spec.finalSetTiebreak);
+  const played = __simMatch(rng, m.top, m.bottom, ['A', 'B'], spec.bestOf,
+                            spec.finalSetTiebreak, spec.base);
   const stats = __matchStats(played.sets, ['A', 'B']);   // before the score pass mutates pts
   // setScoreStrings fills in every game's score and rewrites the closing point,
   // which is exactly the text the bracket and the popup display.
