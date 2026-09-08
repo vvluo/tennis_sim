@@ -591,8 +591,10 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
         setScores: perSideSetScores(played.sets),
         sets: played.sets.map(s => ({
           win: s.win, sc: s.sc,
+          // the 4th slot is the first-serve flag: the panel ignores it, the
+          // point-by-point export needs it to tell a second serve from a first
           g: s.games.map(g => ({ k: g.k, srv: g.srv, win: g.win, sc: g.sc,
-                                 pts: g.pts.map(p => [p[0], p[1], p[2]]) }))
+                                 pts: g.pts.map(p => [p[0], p[1], p[2], p[3] ? 1 : 0]) }))
         })),
         stats: matchStats(played.sets, pair), statNames: pair,
         round: name, winner, loser

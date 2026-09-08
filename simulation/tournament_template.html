@@ -263,6 +263,14 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .close{border:0;background:var(--surface-2);color:var(--ink-2);border-radius:6px;width:26px;height:26px;
   cursor:pointer;font-size:15px;line-height:1}
 .close:hover{background:var(--line)}
+.export{display:flex;gap:6px;margin-left:8px}
+.expbtn{padding:4px 10px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;
+  border-radius:6px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line)}
+.expbtn:hover{color:var(--ink);border-color:var(--accent)}
+.expbox{display:block;width:calc(100% - 36px);height:150px;margin:0 18px 4px;padding:8px 10px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:10.5px;line-height:1.45;
+  color:var(--ink);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+  white-space:pre;overflow:auto;resize:vertical}
 .mbody{padding:14px 18px 20px}
 .setrow{margin-top:12px}
 .setlabel{display:flex;gap:8px;align-items:baseline;font-size:10.5px;font-weight:700;letter-spacing:.09em;
@@ -403,8 +411,14 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
       <span class="r" id="mround"></span>
       <span class="t" id="mtitle"></span>
       <span class="s" id="mscore"></span>
+      <div class="export">
+        <button class="expbtn" id="expcsv" type="button" title="Point-by-point as CSV">CSV</button>
+        <button class="expbtn" id="expjson" type="button" title="Point-by-point and summary as JSON">JSON</button>
+      </div>
       <button class="close" id="mclose" aria-label="Close">&times;</button>
     </div>
+    <textarea class="expbox" id="expbox" readonly hidden
+              aria-label="Export text, select all to copy"></textarea>
     <div class="mbody" id="mbody"></div>
   </div>
 </div>
@@ -711,6 +725,142 @@ function panelFonts(host){
   return fonts;
 }
 
+
+// ---- point-by-point export -------------------------------------------------
+// One row per point. Everything here is derived from the match record rather
+// than re-simulated, so the file describes exactly the match on screen.
+function exportRows(m){
+  const names = m.statNames;
+  const rows = [];
+  let pointNo = 0, gameNo = 0;
+  m.sets.forEach((set, si) => {
+    let gameInSet = 0;
+    set.g.forEach(g => {
+      gameNo++;
+      const tiebreak = g.k === 't';
+      if(!tiebreak) gameInSet++;
+      const receiver = 1 - g.srv;
+      let sp = 0, rp = 0;              // server / receiver points so far in this game
+      g.pts.forEach((pt, pi) => {
+        const [winner, shots, , firstServe] = pt;
+        const doubleFault = shots === 0;
+        // A break point is one the RECEIVER could win the game with. Tiebreaks
+        // have no break points -- serve rotates, so no game is being held.
+        const needed = rp + 1;
+        const breakPoint = !tiebreak && needed >= 4 && needed - sp >= 2;
+        pointNo++;
+        rows.push({
+          overall_point: pointNo,
+          overall_game: gameNo,
+          set: si + 1,
+          game: tiebreak ? '' : gameInSet,
+          tiebreak: tiebreak ? 1 : 0,
+          point_in_game: pi + 1,
+          server: names[g.srv],
+          returner: names[receiver],
+          winner: names[winner],
+          server_won: winner === g.srv ? 1 : 0,
+          break_point: breakPoint ? 1 : 0,
+          break_point_converted: breakPoint && winner === receiver ? 1 : 0,
+          serve: doubleFault ? 'double_fault' : (firstServe ? 'first' : 'second'),
+          unreturned_serve: shots === 1 ? 1 : 0,
+          shots: shots,
+          score_after: pt[2],
+        });
+        if(winner === g.srv) sp++; else rp++;
+      });
+    });
+  });
+  return rows;
+}
+
+function exportMeta(m, ri){
+  return {
+    tour: D.tour, round: LABEL[D.rounds[ri].name], draw_size: D.drawSize,
+    surface: surface, best_of: D.bestOf, deciding_tiebreak: decidingTiebreak(),
+    data_set: BUILT, configuration: CONFIG,
+    draw_seed: currentRun ? currentRun.seed : null,
+    players: m.statNames, score: m.score,
+  };
+}
+
+function exportJSON(m, ri){
+  // Summary statistics ride along here, where nesting is free.
+  return JSON.stringify({
+    match: exportMeta(m, ri),
+    summary: m.stats.map(r => ({ statistic: r.label, [m.statNames[0]]: r.a,
+                                 [m.statNames[1]]: r.b, better: r.better })),
+    points: exportRows(m),
+  }, null, 2);
+}
+
+function exportCSV(m, ri){
+  const rows = exportRows(m);
+  const cols = Object.keys(rows[0]);
+  const cell = v => {
+    const t = String(v ?? '');
+    return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  // CSV has nowhere structured to put the summary, so it goes in a commented
+  // header. Every common reader can skip it: pandas read_csv(comment='#'),
+  // R read.csv(comment.char='#'), csvkit --skip-lines.
+  const meta = exportMeta(m, ri);
+  const head = Object.entries(meta)
+    .map(([k, v]) => '# ' + k + ': ' + (Array.isArray(v) ? v.join(' v ') : v));
+  const summary = m.stats.map(r =>
+    '# ' + r.label + ': ' + r.a + ' | ' + r.b);
+  return head.concat(['#', '# --- match statistics (' + m.statNames.join(' | ') + ') ---'],
+                     summary, ['#'])
+    .concat([cols.join(',')], rows.map(r => cols.map(c => cell(r[c])).join(',')))
+    .join('\n') + '\n';
+}
+
+function slug(m){
+  return (m.statNames.join('-v-') + '-' + (D.tour || '') + '-' + (D.drawSize || ''))
+    .replace(/[^A-Za-z0-9-]+/g, '_');
+}
+// Saving a file takes two different routes. On an ordinary web host an anchor
+// with `download` is all there is. Inside the claude.ai viewer the frame may not
+// download directly at all, and the `downloads` capability mediates it instead --
+// the viewer sees a confirmation and can decline. `claude.use` resolves late and
+// resolves null wherever the capability is not served, so this is asked once at
+// load and both routes end at the same copy-out box if neither works.
+const downloadsReady = (typeof window.claude === 'object' && window.claude
+                        && typeof window.claude.use === 'function')
+  ? Promise.resolve(window.claude.use('downloads')).catch(() => null)
+  : Promise.resolve(null);
+
+function showCopyBox(text){
+  const box = document.getElementById('expbox');
+  box.value = text;
+  box.hidden = false;
+  box.focus();
+  box.select();
+}
+
+async function offerDownload(text, filename, type){
+  const downloads = await downloadsReady;
+  if(downloads){
+    try {
+      await downloads.save({ filename, data: text });
+      return;                                   // the viewer accepted it
+    } catch (err) {
+      // Declining is an answer, not a failure: never retry, never fall back.
+      if(err && err.code === 'declined') return;
+    }
+  } else {
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type }));
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return;
+    } catch (err) { /* sandboxed: fall through */ }
+  }
+  showCopyBox(text);
+}
+
 function open(ri,mi){
   const r=D.rounds[ri], m=r.matches[mi];
   document.getElementById('mround').textContent=LABEL[r.name];
@@ -753,6 +903,11 @@ function open(ri,mi){
     '<span class="who">'+m.statNames[1]+'</span></h3>'+rows+'</div>';
   body.querySelectorAll('.ghead').forEach(h=>
     h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
+  document.getElementById('expbox').hidden = true;
+  document.getElementById('expcsv').onclick = () =>
+    offerDownload(exportCSV(m, ri), slug(m) + '-points.csv', 'text/csv');
+  document.getElementById('expjson').onclick = () =>
+    offerDownload(exportJSON(m, ri), slug(m) + '.json', 'application/json');
   overlay.querySelector('.modal').scrollTop = 0;   // .modal scrolls, not .mbody
 }
 function close(){ overlay.classList.remove('open'); document.body.style.overflow=''; }
@@ -866,7 +1021,7 @@ function simulate(){
     const seed = (Math.random() * 4294967296) >>> 0;
     const result = simulateTournament(POOLS[tour], {
       seed, playable, tour, surface, drawSize,
-      bestOf: tour === 'ATP' ? 5 : 3, finalSetTiebreak: 10
+      bestOf: bestOfFor(), finalSetTiebreak: decidingTiebreak()
     });
     currentRun = { seed, tour, playable, cfg: CONFIG, drawSize, surface };
     showTournament(result);
@@ -1026,6 +1181,15 @@ const drawInput = document.getElementById('draw');
 document.getElementById('presets').innerHTML = DRAW_PRESETS
   .map(n => '<button type="button" data-draw="' + n + '">' + n + '</button>').join('');
 
+// A deciding set is played to a 10-point tiebreak only at the Grand Slams;
+// every other ATP and WTA event at 250 level and above uses the ordinary 7.
+// A 128 draw is the only slam-sized draw, so it is what marks one here.
+const SLAM_DRAW = 128;
+function decidingTiebreak(){ return drawSize === SLAM_DRAW ? 10 : 7; }
+// Best of five is a Grand Slam format too: every other ATP event, 250 through
+// Masters 1000, is best of three, and the WTA plays best of three everywhere.
+function bestOfFor(){ return tour === 'ATP' && drawSize === SLAM_DRAW ? 5 : 3; }
+
 function describeShape(){
   const bracket = bracketFor(drawSize), seeds = seedsFor(drawSize);
   const byes = bracket - drawSize, rounds = roundNames(bracket).length;
@@ -1035,6 +1199,8 @@ function describeShape(){
     rounds + ' rounds',
     byes ? byes + ' byes' : 'no byes',
     seeds ? seeds + ' seeds' : 'unseeded',
+    'best of ' + bestOfFor(),
+    'deciding tiebreak to ' + decidingTiebreak(),
   ];
   document.getElementById('shape').textContent =
     parts.join(' \u00b7 ') + (drawSize > pool
@@ -1097,7 +1263,7 @@ function play(run){
   currentRun = { seed: run.seed, tour, playable, cfg: CONFIG, drawSize, surface };
   showTournament(simulateTournament(POOLS[tour], {
     seed: run.seed, playable, tour, surface, drawSize,
-    bestOf: tour === 'ATP' ? 5 : 3, finalSetTiebreak: 10
+    bestOf: bestOfFor(), finalSetTiebreak: decidingTiebreak()
   }));
 }
 function linkNote(text){
