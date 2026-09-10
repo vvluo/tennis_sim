@@ -3368,7 +3368,8 @@ reset();
 </script>
 
 <!-- The footer every page shares: attribution, copyright, the independence
-     disclaimer and the two profile links. One source, inlined by sitenote.py,
+     disclaimer, the profile links and the Buy Me a Coffee button. One source,
+     inlined by sitenote.py,
      because the season page had drifted without a copyright line at all. -->
 <style>
 .sitefoot{max-width:1180px;margin:0 auto;padding:26px clamp(18px,5vw,64px) 44px;
@@ -3383,6 +3384,12 @@ reset();
   transition:opacity .15s,transform .15s}
 .sitelinks a:hover{opacity:1;transform:translateY(-1px)}
 .sitelinks svg{width:20px;height:20px;fill:currentColor;display:block}
+/* The button arrives at its own size and font; hold it to the height of the
+   icons beside it so the row keeps one baseline. */
+.bmc{display:inline-flex;align-items:center;line-height:0}
+.bmc .bmc-btn{height:34px!important;min-width:0!important;padding:0 14px!important;
+  border-radius:9px!important;box-shadow:none!important;margin:0!important}
+.bmc .bmc-btn-text{font-size:18px!important}
 </style>
 
 <footer class="sitefoot">
@@ -3411,6 +3418,15 @@ reset();
         </svg>
       </a>
     </span>
+    <!-- Buy Me a Coffee's own button, from their script. It writes its own
+         anchor in place of this tag, so it sits OUTSIDE .sitelinks -- that rule
+         forces a 30px square on every link inside it and would crush it. -->
+    <span class="bmc"><script type="text/javascript"
+      src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js"
+      data-name="bmc-button" data-slug="vvluo" data-color="#FFDD00"
+      data-emoji="&#9749;" data-font="Cookie" data-text="Buy me a coffee"
+      data-outline-color="#000000" data-font-color="#000000"
+      data-coffee-color="#ffffff"></script></span>
   </div>
   <p class="disclaimer">This is an independent, fan-made simulation and is not
   affiliated with, endorsed by, or sponsored by the ATP, the WTA, the ITF,

@@ -112,6 +112,27 @@ def test_profile_links_are_present_and_open_safely(page):
         assert 'rel="noopener noreferrer"' in tag, f'{page.name}: unsafe link {tag[:70]}'
 
 
+@pytest.mark.parametrize('page', BUILT, ids=lambda p: p.name)
+def test_the_coffee_button_is_present(page):
+    """Buy Me a Coffee ships its own button, so the footer carries their script.
+
+    It writes its own anchor at runtime, so the URL never appears as an href in
+    the built page and the profile-link check above cannot see it -- the slug in
+    the script tag is what actually points it at the right account.
+    """
+    if not page.exists():
+        pytest.skip(f'{page.name} is not built')
+    text = page.read_text()
+    foot = text[text.index('class="sitefoot"'):]
+    assert 'cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js' in foot, (
+        f'{page.name} has no Buy Me a Coffee button')
+    assert 'data-slug="vvluo"' in foot, f'{page.name}: the button has the wrong slug'
+    # inside .sitelinks it would be forced into a 30px square
+    links = foot[foot.index('class="sitelinks"'):]
+    assert 'buymeacoffee' not in links[:links.index('</span>')], (
+        f'{page.name}: the button sits inside the 30px icon row')
+
+
 def test_the_old_per_page_footers_are_gone():
     """Replaced in place, not left alongside the shared one."""
     for page in BUILT:
@@ -166,3 +187,23 @@ def test_personal_site_icon_is_a_globe():
     assert 'M14.5 2H6' not in src, 'the contact-card icon is still in the footer'
     assert 'fill="currentColor"' in foot, (
         'the globe does not inherit the footer colour, so it will not follow the theme')
+
+
+@pytest.mark.parametrize('page', BUILT, ids=lambda p: p.name)
+def test_the_built_footer_matches_the_source(page):
+    """Every page carries the CURRENT shared footer, not a version of it.
+
+    Carrying one was never the hard part -- keeping three copies the same is.
+    The ratings board is written by the notebook rather than a build script, so
+    the first time the footer changed it kept the old one while the other two
+    moved on, and every check here still passed.
+    """
+    if not page.exists():
+        pytest.skip(f'{page.name} is not built')
+    import sitenote
+    built = sitenote.SHARED_FOOTER.search(page.read_text())
+    assert built, f'{page.name} has no shared footer block'
+    want = sitenote.SHARED_FOOTER.search(sitenote.foot_html())
+    assert want, 'the footer source no longer matches its own pattern'
+    assert built.group(0).strip() == want.group(0).strip(), (
+        f'{page.name} carries a stale copy of the shared footer')

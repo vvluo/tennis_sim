@@ -4,10 +4,14 @@ const fs = require('fs');
 const path = require('path');
 const PAGE = path.resolve(__dirname, '..', process.argv[2] || 'season.html');
 const page = fs.readFileSync(PAGE, 'utf8');
-// The LAST script block: the page also carries the shared "About this site"
-// panel, which brings its own <script> earlier in the document. Anchoring on
-// the first one spliced the two together and the whole file stopped parsing.
-const js = page.slice(page.lastIndexOf('<script>') + 8, page.lastIndexOf('</script>'));
+// The last BARE <script> block, and the first </script> that closes it.
+// Two things sit either side of it: the shared "About this site" panel brings
+// its own <script> earlier in the document, so anchoring on the first one
+// spliced the two together; and the footer's Buy Me a Coffee tag closes a
+// <script> AFTER it, so taking the last </script> swallowed the closing tag and
+// the file stopped parsing at "Unexpected token '<'".
+const open = page.lastIndexOf('<script>') + 8;
+const js = page.slice(open, page.indexOf('</script>', open));
 if(!js.includes('simulateTournament'))
   throw new Error('extracted the wrong <script> block from the page');
 

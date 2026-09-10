@@ -105,11 +105,20 @@ def build_tournament() -> None:
 
 
 def stage_site() -> None:
-    """Collect the pages to publish. The tournament is the landing page."""
+    """Collect the pages to publish. The tournament is the landing page.
+
+    The shared chrome is refreshed on the way out. The ratings board is written
+    by the notebook and never passes through run_tournament, so a change to the
+    About panel or the footer reached two pages out of three and the board
+    quietly shipped the older one.
+    """
+    import sitenote
     SITE.mkdir(exist_ok=True)
     for name in ('ratings_board.html', 'match_output.html', 'tournament.html'):
         source = ROOT / name
         if source.exists():
+            if name != 'match_output.html':
+                sitenote.inline_file(source)
             shutil.copy(source, SITE / name)
     landing = ROOT / 'tournament.html'
     shutil.copy(landing if landing.exists() else ROOT / 'ratings_board.html',
