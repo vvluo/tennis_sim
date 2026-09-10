@@ -21,6 +21,38 @@ TEMPLATES = sorted((ROOT / 'simulation').glob('*_template.html')) + \
             sorted(ROOT.glob('*_template.html'))
 assert TEMPLATES, 'no page templates found'
 
+# A template that pulls the theme in at build time has no :root of its own, so
+# checking the template would silently skip and cover nothing. Check what it
+# builds INTO instead -- that is where the stylesheet actually lands.
+THEME_MARKER = '/*__THEME__*/'
+
+
+def _subject(template: Path) -> Path:
+    if THEME_MARKER in template.read_text():
+        return ROOT / template.name.replace('_template', '')
+    return template
+
+
+SUBJECTS = [_subject(t) for t in TEMPLATES]
+
+
+def _source(subject: Path) -> str:
+    if not subject.exists():
+        pytest.skip(f'{subject.name} is not built yet -- run its build script')
+    return subject.read_text()
+
+
+def test_no_page_escapes_these_checks():
+    """Guards the suite: a template whose theme is injected must map to a page
+    that exists, or these checks quietly cover nothing at all."""
+    injected = [t for t in TEMPLATES if THEME_MARKER in t.read_text()]
+    for t in injected:
+        built = _subject(t)
+        assert built != t, f'{t.name} maps to itself'
+        assert built.exists(), (
+            f'{t.name} injects its theme at build time, so it is only checked '
+            f'through {built.name} -- which is missing, leaving it unchecked')
+
 BLOCKS = {
     'light':        r'^:root\{(.*?)^\}',
     'media dark':   r'@media \(prefers-color-scheme:dark\)\{(.*?)^\}',
@@ -32,9 +64,9 @@ def defined(block: str) -> set[str]:
     return set(re.findall(r'(--[\w-]+)\s*:', block))
 
 
-@pytest.mark.parametrize('template', TEMPLATES, ids=lambda p: p.name)
+@pytest.mark.parametrize('template', SUBJECTS, ids=lambda p: p.name)
 def test_every_token_is_defined_in_every_theme(template):
-    source = template.read_text()
+    source = _source(template)
     found = {}
     for name, pattern in BLOCKS.items():
         match = re.search(pattern, source, re.S | re.M)
@@ -50,10 +82,10 @@ def test_every_token_is_defined_in_every_theme(template):
             f'keep their light values in the {name} theme')
 
 
-@pytest.mark.parametrize('template', TEMPLATES, ids=lambda p: p.name)
+@pytest.mark.parametrize('template', SUBJECTS, ids=lambda p: p.name)
 def test_no_token_is_declared_twice_in_a_block(template):
     """A duplicated declaration means a patch landed in the wrong block."""
-    source = template.read_text()
+    source = _source(template)
     for name, pattern in BLOCKS.items():
         match = re.search(pattern, source, re.S | re.M)
         if match is None:
@@ -63,14 +95,14 @@ def test_no_token_is_declared_twice_in_a_block(template):
         assert not dupes, f'{template.name}: {sorted(dupes)} declared twice in {name}'
 
 
-@pytest.mark.parametrize('template', TEMPLATES, ids=lambda p: p.name)
+@pytest.mark.parametrize('template', SUBJECTS, ids=lambda p: p.name)
 def test_every_token_used_is_defined(template):
     """Only var() calls WITHOUT a fallback are at risk.
 
     `var(--gamecols, 2)` is set from JS at runtime and carries its own default,
     so it cannot render broken; `var(--hold)` with no fallback must resolve.
     """
-    source = template.read_text()
+    source = _source(template)
     match = re.search(BLOCKS['light'], source, re.S | re.M)
     if match is None:
         pytest.skip('no :root block')

@@ -1,0 +1,1765 @@
+<title>Simulate a Season</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/*__THEME__*/
+
+/* ---- season page ---------------------------------------------------- */
+/* The ground changes as the season moves between surfaces, so ease it. */
+body{transition:background-color .45s ease}
+/* --page-fill and --page-edge are set by applyGround() to suit whichever
+   surface is being played, so every use carries the resting-colour value as its
+   fallback and the header stays legible before any script has run. */
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px 60px}
+.controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:16px 18px;margin:18px 0}
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl > label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);font-weight:600}
+.ctl select{font:inherit;font-size:14px;padding:8px 10px;border-radius:9px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);min-width:190px}
+.go{font:inherit;font-weight:700;font-size:14px;padding:10px 22px;border-radius:99px;
+  border:0;background:var(--accent);color:#fff;cursor:pointer;
+  display:inline-flex;align-items:center;gap:9px;min-width:132px;justify-content:center}
+.go svg{width:11px;height:12px;flex:none;fill:currentColor}
+.go[disabled]{opacity:.45;cursor:not-allowed}
+.go.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+
+/* the marquee naming the tournament currently being played */
+.now{border-radius:16px;padding:18px 22px;margin:18px 0;background:var(--page);
+  color:var(--page-ink);display:none}
+/* Overlays on the header ground. They were fixed white, which vanishes the
+   moment the ground is a light one -- and grass and Australian-Open blue both
+   are. --page-fill / --page-edge / --page-ink are swapped together with the
+   ground so every one of them stays legible. */
+.now.on{display:block}
+.now h2{margin:0;font-size:26px;font-weight:700;letter-spacing:-.01em}
+.now .where{margin-top:3px;font-size:14px;color:var(--page-muted)}
+.nowchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.nowchip{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  padding:5px 11px;border-radius:99px;background:var(--page-fill,rgba(255,255,255,.17));color:var(--page-ink)}
+.bar{height:5px;border-radius:99px;background:var(--page-fill,rgba(255,255,255,.17));margin-top:14px;overflow:hidden}
+.bar > i{display:block;height:100%;background:var(--page-ink);width:0;transition:width .18s linear}
+
+/* what comes next, so a stop explains itself */
+.next{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:13px;
+  border-top:1px solid var(--page-edge,rgba(255,255,255,.30));font-size:13px;color:var(--page-muted)}
+.next b{color:var(--page-ink);font-weight:600}
+.next .lvl{background:var(--page-fill,rgba(255,255,255,.17));color:var(--page-ink);border-color:transparent}
+.next.done b{color:var(--page-muted)}
+
+/* a major won, shown beside the name in the standings */
+.majors{display:inline-flex;gap:3px;margin-left:7px;vertical-align:1px}
+.major{width:9px;height:9px;border-radius:2px;display:inline-block;cursor:help}
+
+/* the season so far, one block per event */
+.timeline{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  padding:13px 16px;margin:18px 0}
+.timeline h3{margin:0 0 10px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);font-weight:600}
+.track{display:flex;flex-wrap:wrap;gap:3px}
+/* Each block carries its event's SURFACE colour, so the shape of the year --
+   the clay swing, the short grass season -- is readable at a glance. Played is
+   the colour at full strength, still to come is the same hue held back. */
+/* Held-back blocks tint the FILL, not the whole element: element opacity drags
+   the AO / RG / WB / US letters down with it and they stop being readable. */
+.tl{width:13px;height:19px;border-radius:3px;flex:none;border:1px solid transparent;
+  background:var(--tlc,var(--bar-track));opacity:.24;transition:opacity .15s,background .15s}
+@supports (background: color-mix(in srgb, red 50%, transparent)){
+  .tl{opacity:1;color:var(--muted);
+    background:color-mix(in srgb, var(--tlc,var(--bar-track)) 26%, transparent)}
+}
+.tl.slam{width:26px}                       /* majors are double width */
+/* A 1000 carries its number and a major its initials, so the shape of the year
+   reads off the strip without hovering over anything. */
+.tl.m1000,.tl.slam,.tl.fin{font:700 9px/19px 'IBM Plex Mono',monospace;text-align:center;
+  color:var(--tlink,#fff);letter-spacing:.02em}
+.tl.done{opacity:1;background:var(--tlc,var(--bar-track));color:var(--tlink,#fff)}
+.tl.now{opacity:1;background:var(--tlc,var(--bar-track));color:var(--tlink,#fff);
+  outline:2px solid var(--ink);outline-offset:1px}
+.tl.skip{background:transparent;opacity:1;border:1px dashed var(--line)}
+.tlkey{display:flex;gap:14px;margin-top:10px;font-size:11px;color:var(--muted)}
+.tlkey i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;
+  vertical-align:-1px}
+
+/* an event you can open */
+.tl{cursor:default}
+.tl.done,.tl.now{cursor:pointer}
+tr.ev{cursor:pointer}
+tr.ev:hover td{background:var(--surface-2)}
+td.stripe{border-left:4px solid var(--rowc,transparent);white-space:nowrap}
+
+/* the detail for one tournament */
+.ovl{position:fixed;inset:0;background:rgba(8,16,24,.55);display:none;z-index:50;
+  align-items:flex-start;justify-content:center;padding:5vh 16px;overflow:auto}
+.ovl.on{display:flex}
+.sheet{background:var(--surface);border-radius:16px;max-width:640px;width:100%;
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.5);overflow:hidden}
+.sheet header{background:var(--sheetbg,var(--page));color:var(--sheetink,#fff);padding:18px 22px}
+.sheet h2{margin:0;font-size:23px;font-weight:700;letter-spacing:-.01em}
+.sheet .where{margin-top:3px;font-size:13px;opacity:.78}
+.sheet .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.sheet .chips span{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 9px;border-radius:99px;background:rgba(255,255,255,.18)}
+.sheet[data-ink="dark"] .chips span{background:rgba(14,26,34,.13)}
+.sheetbody{padding:16px 22px 22px}
+.sheetbody h4{margin:16px 0 7px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted)}
+.sheetbody h4:first-child{margin-top:0}
+.champ{display:flex;align-items:baseline;gap:10px;font-size:19px;font-weight:700}
+.champ small{font-size:12px;font-weight:600;color:var(--muted)}
+.rnd{display:grid;grid-template-columns:42px 1fr;gap:4px 10px;font-size:13px;align-items:baseline}
+.rnd b{color:var(--muted);font-weight:600;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+/* The shared .seed badge is display:flex, which makes it a block wherever it is
+   used inline -- every seed and Q pushed the name onto its own line. */
+.sheetbody .seed{display:inline-flex;vertical-align:-2px;margin-left:4px;padding:0 4px}
+.beat{color:var(--muted)}
+.mine td{font-size:13px;padding:5px 8px}
+.mine .w{color:var(--accent);font-weight:700}
+.mine .l{color:var(--muted)}
+.closebtn{position:absolute;top:0;right:0;margin:10px;border:0;border-radius:99px;
+  width:30px;height:30px;font-size:17px;line-height:1;cursor:pointer;
+  background:rgba(255,255,255,.2);color:inherit}
+.sheet header{position:relative}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:22px}
+@media (max-width:920px){ .grid{grid-template-columns:minmax(0,1fr)} }
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.card > h3{margin:0;padding:13px 16px;font-size:13px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+.sortbtn{margin-left:8px;font:inherit;font-size:11px;letter-spacing:.04em;
+  text-transform:none;padding:3px 10px;border-radius:99px;cursor:pointer;
+  color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line)}
+.sortbtn:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+#minebtn{margin-left:auto}
+#minebtn.on,#sortbtn.on{background:var(--accent-soft);color:var(--accent);
+  border-color:var(--accent)}
+.scroll{max-height:560px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-weight:600;
+  font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+  padding:8px 10px;border-bottom:1px solid var(--line);z-index:1}
+td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums}
+.you{background:var(--accent-soft)}
+.you td{font-weight:700}
+.lvl{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:2px 7px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);
+  border:1px solid var(--line);white-space:nowrap}
+.lvl.slam{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+/* Gold, silver and bronze for the three tiers below a major, so the shape of a
+   season reads down the column without anyone parsing "1000" against "250". */
+.lvl.m1000{background:var(--medal-gold-bg);color:var(--medal-gold);border-color:transparent}
+.lvl.m500{background:var(--medal-silver-bg);color:var(--medal-silver);border-color:transparent}
+.lvl.m250{background:var(--medal-bronze-bg);color:var(--medal-bronze);border-color:transparent}
+.skip td{color:var(--muted);font-style:italic}
+/* Round-robin group tables. The two who go through are held at full strength
+   and the two who do not are dimmed, so the cut reads without a legend. */
+.grp{display:flex;gap:22px;flex-wrap:wrap;margin:0 0 4px}
+.grp>div{flex:1 1 240px;min-width:0}
+.grp b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 6px}
+.grp table{width:100%;border-collapse:collapse;font-size:13px}
+.grp th{text-align:right;font-weight:500;color:var(--muted);font-size:11px;
+  padding:0 0 4px;border-bottom:1px solid var(--line)}
+.grp th:first-child{text-align:left}
+.grp th+th{padding-left:10px}
+.grp td{padding:5px 0;border-bottom:1px solid var(--line);opacity:.5}
+.grp td.num{text-align:right;font-variant-numeric:tabular-nums;
+  padding-left:10px;white-space:nowrap}
+.grp tr.thru td{opacity:1}
+/* A player's season. Results outside the counting slots are dimmed rather than
+   hidden: they were played, they just do not reach the ranking. */
+#standings tr.pl{cursor:pointer}
+table.season{width:100%;border-collapse:collapse;font-size:13px}
+table.season th{text-align:left;font-weight:500;color:var(--muted);font-size:11px;
+  letter-spacing:.06em;text-transform:uppercase;padding:0 0 6px;
+  border-bottom:1px solid var(--line)}
+table.season th.num,table.season td.num{text-align:right;padding-left:12px;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+table.season td{padding:6px 0;border-bottom:1px solid var(--line)}
+table.season td.lv{color:var(--muted);white-space:nowrap}
+table.season tr.dropped td{opacity:.45}
+table.season td.tick{width:1em;color:var(--muted)}
+table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
+  margin-right:7px;vertical-align:1px}
+.empty{padding:26px 16px;color:var(--muted);font-size:13px}
+.sumrow{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+.stat{flex:1 1 130px;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-size:24px;font-weight:700;letter-spacing:-.02em}
+.stat span{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.foot{margin-top:26px;font-size:12px;color:var(--muted);line-height:1.6}
+</style>
+
+<header class="page">
+  <div class="wrap headrow">
+    <h1 id="title">Simulate a Season</h1>
+    <div class="navbar">
+      <a class="navlink" href="tournament.html">Play a Grand Slam</a>
+      <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
+      <button class="navlink" id="themebtn" type="button">Theme</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="controls">
+    <div class="ctl">
+      <label>Tour</label>
+      <div class="segs" id="tourseg">
+        <button class="segbtn on" data-tour="ATP" type="button">ATP</button>
+        <button class="segbtn" data-tour="WTA" type="button">WTA</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <label for="playsel">Play as</label>
+      <select id="playsel"></select>
+    </div>
+    <div class="ctl">
+      <label for="modesel">Run</label>
+      <select id="modesel">
+        <option value="all">The whole schedule</option>
+        <option value="slam">Up to the next major, then stop</option>
+        <option value="step">One tournament at a time</option>
+      </select>
+    </div>
+    <div class="ctl">
+      <label>&nbsp;</label>
+      <button class="go" id="runbtn" type="button">Simulate</button>
+    </div>
+    <div class="ctl">
+      <label>&nbsp;</label>
+      <button class="go ghost" id="resetbtn" type="button">Reset</button>
+    </div>
+  </div>
+
+  <div class="now" id="now">
+    <h2 id="nowname">&nbsp;</h2>
+    <div class="where" id="nowwhere">&nbsp;</div>
+    <div class="nowchips" id="nowchips"></div>
+    <div class="bar"><i id="nowbar"></i></div>
+    <div class="next" id="next"></div>
+  </div>
+
+  <div class="timeline" id="timeline" hidden>
+    <h3>The season so far</h3>
+    <div class="track" id="track"></div>
+    <div class="tlkey">
+      <span><i style="background:#1E8FD5"></i>hard</span>
+      <span><i style="background:#BE5415"></i>clay</span>
+      <span><i style="background:#84B118"></i>grass</span>
+      <span><i style="background:#13297F"></i>hard (but darker)</span>
+      <span><i style="background:var(--bar-track)"></i>still to come</span>
+      <span><i style="border:1px dashed var(--line)"></i>not simulated</span>
+    </div>
+  </div>
+
+  <div class="sumrow" id="sumrow"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Season standings</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>#</th><th>Player</th><th class="num">Points</th>
+          <th class="num">Titles</th><th class="num">W&#8211;L</th></tr></thead>
+        <tbody id="standings"></tbody>
+      </table></div>
+      <div class="empty" id="standempty">Nothing played yet.</div>
+    </div>
+    <div class="card">
+      <h3>Calendar
+        <button class="sortbtn" id="minebtn" type="button" hidden
+                title="Show only the tournaments this player contested"></button>
+        <button class="sortbtn" id="sortbtn" type="button"
+                title="Switch between first-to-last and last-to-first"></button>
+      </h3>
+      <div class="scroll"><table>
+        <thead><tr><th>Dates</th><th>Tournament</th><th>Champion</th><th>Your result</th></tr></thead>
+        <tbody id="callist"></tbody>
+      </table></div>
+      <div class="empty" id="calempty" style="display:none">No tournaments contested yet.</div>
+    </div>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+
+<div class="ovl" id="ovl">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+  <div class="modal">
+    <div class="mhead">
+      <span class="r" id="mround"></span>
+      <span class="t" id="mtitle"></span>
+      <span class="s" id="mscore"></span>
+      <div class="export">
+        <button class="expbtn" id="expcsv" type="button" title="Point-by-point as CSV">CSV</button>
+        <button class="expbtn" id="expjson" type="button" title="Point-by-point and summary as JSON">JSON</button>
+      </div>
+      <button class="close" id="mclose" aria-label="Close">&times;</button>
+    </div>
+    <textarea class="expbox" id="expbox" readonly hidden
+              aria-label="Export text, select all to copy"></textarea>
+    <div class="mbody" id="mbody"></div>
+  </div>
+</div>
+
+<!--__SITENOTE__-->
+
+<script>
+/*__ENGINE__*/
+/*__FORECAST__*/
+/*__MATCHVIEW__*/
+const DATA = /*__DATA__*/;
+const POOLS = DATA.pools, CALS = DATA.calendars, BUILT = DATA.built;
+// Weeks from each event to the next major, so the schedule can taper into one.
+// Null once the last major of the year is behind us.
+for(const _t of Object.keys(CALS)){
+  const _list = CALS[_t];
+  const _majors = _list.filter(e => e.level === 'Grand Slam')
+                       .map(e => e.sweek).sort((a, b) => a - b);
+  _list.forEach(e => {
+    const _n = _majors.find(w => w >= e.sweek);
+    e.toMajor = _n === undefined ? null : _n - e.sweek;
+  });
+}
+const NS = 'tennis:';
+
+// ---- ranking points ------------------------------------------------------
+// Transcribed from the tours' published distribution tables. Points depend on
+// the DRAW SIZE as well as the level -- a 56-draw Masters pays its opening round
+// 10 where a 96-draw pays 30 -- so each level holds one row per draw family and
+// is keyed by the ROUND itself rather than by a "third round" label.
+//
+// Keying on the round is also what makes byes come out right with no special
+// case. A seed who sits out the first round of a 28-draw 250 and loses next time
+// out is beaten in the round of 32, which IS that event's opening round, and
+// collects its 13 points; there is no "reached the second round" to get wrong.
+const POINTS = {
+  ATP: {
+    'Grand Slam': [{ draws: [128],
+      pts: { W:2000, F:1300, SF:800, QF:400, R16:200, R32:100, R64:50, R128:10 } }],
+    'ATP 1000': [
+      { draws: [96],    pts: { W:1000, F:650, SF:400, QF:200, R16:100, R32:50, R64:30, R128:10 } },
+      { draws: [56,48], pts: { W:1000, F:650, SF:400, QF:200, R16:100, R32:50, R64:10 } }],
+    'ATP 500': [
+      { draws: [48],    pts: { W:500, F:330, SF:200, QF:100, R16:50, R32:25, R64:16 } },
+      { draws: [32],    pts: { W:500, F:330, SF:200, QF:100, R16:50, R32:25, R64:13 } }],
+    'ATP 250': [
+      { draws: [48],    pts: { W:250, F:165, SF:100, QF:50, R16:25, R32:13, R64:8, R128:4 } },
+      { draws: [32,28], pts: { W:250, F:165, SF:100, QF:50, R16:25, R32:13, R64:7 } }],
+  },
+  WTA: {
+    'Grand Slam': [{ draws: [128],
+      pts: { W:2000, F:1300, SF:780, QF:430, R16:240, R32:130, R64:70, R128:10 } }],
+    'WTA 1000': [
+      { draws: [96],    pts: { W:1000, F:650, SF:390, QF:215, R16:120, R32:65, R64:35, R128:10 } },
+      { draws: [56,48], pts: { W:1000, F:650, SF:390, QF:215, R16:120, R32:65, R64:10 } }],
+    'WTA 500': [
+      { draws: [56,48], pts: { W:500, F:325, SF:195, QF:108, R16:60, R32:32, R64:1 } },
+      { draws: [32,28], pts: { W:500, F:325, SF:195, QF:108, R16:60, R32:1 } }],
+    'WTA 250': [
+      { draws: [32,28], pts: { W:250, F:163, SF:98, QF:54, R16:30, R32:1 } }],
+  },
+};
+
+// The row for this draw, or the nearest listed one, so a 30-draw WTA 500 is paid
+// as the 32/28 family rather than dropping to nothing.
+function pointsFor(tour, level, draw){
+  const rows = (POINTS[tour] || {})[level];
+  if(!rows) return {};
+  for(const r of rows) if(r.draws.includes(draw)) return r.pts;
+  let best = rows[0], gap = Infinity;
+  for(const r of rows)
+    for(const d of r.draws)
+      if(Math.abs(d - draw) < gap){ gap = Math.abs(d - draw); best = r; }
+  return best.pts;
+}
+
+// How likely a player is to enter, by RANKING. A flat per-event rate cannot
+// describe this: the world number one skips most 250s while someone ranked
+// sixty enters anything they can, and a flat rate that made the top players
+// realistic left the small draws unable to fill. Each optional level has a
+// pivot -- the ranking at which a player is even money to enter -- and a width
+// over which that swings. Majors and 1000s are close to compulsory for
+// everyone, so they are flat.
+//
+// The four optional numbers are FITTED, not guessed: entries per player are
+// counted from the same cached season the calendar comes from, banded by
+// ranking, and these minimise the mean band error against that. See
+// tests/test_season_page.py, which holds the simulated bands to the real ones.
+// Guessed values had ranks 31-60 playing seven events a season too many while
+// ranks 121-250 barely made a draw.
+//
+// WIDTH IS NOT FITTED FREELY. Left to itself the search drove the WTA 250 width
+// to 16, which is a step rather than a curve: the world number one entered a
+// 250 twice in a thousand chances while anyone past 120 entered nearly all of
+// them. The band totals came out well and the individual seasons were nonsense
+// -- a top player would go from Ningbo to the end of the year without a
+// tournament, because the late WTA calendar is almost entirely 250s. Width is
+// held at or above MIN_ENTRY_WIDTH, which costs about 0.3 events per player on
+// the band error and buys a gradient a real entry list could plausibly have.
+const ENTRY = {
+  'Grand Slam': { flat: 0.98 },
+  'ATP 1000':   { flat: 0.96 },  'WTA 1000': { flat: 0.96 },
+  'ATP 500':    { pivot: 1,   width: 2 },   'WTA 500': { pivot: 3,   width: 16 },
+  // A step just below the very top, not a long ramp. The 250 curve used to
+  // pivot at 135, which offered a world 25 only a 24% chance of entering one --
+  // so ranks 6-50 played about 20 events a season when a fit player who
+  // qualifies by ranking anywhere should play around 25. It also made the wear
+  // model look like the culprit: turning wear off entirely moved those bands by
+  // barely one event, because this was what was actually holding them down.
+  'ATP 250':    { pivot: 35,  width: 28 },  'WTA 250': { pivot: 35,  width: 28 },
+};
+const ENTRY_MAX = 0.97;
+
+// Playing at home. Below 1000 level a player from the host country is markedly
+// likelier to enter -- it is the week they can drive to, sleep at home, and be
+// backed by the crowd, and it is where a national federation's wildcards go.
+// Majors and 1000s are left alone: those are mandatory or near enough for
+// anyone who can get in, so there is no reluctance for a home crowd to overcome.
+//
+// Applied as a multiplier on the ODDS rather than on the probability, so it can
+// lift a long shot a long way without ever pushing anyone past ENTRY_MAX. At
+// x4, a player who would enter one time in ten enters three times in ten; one
+// who was already even money goes to four in five.
+const HOME_ODDS_BOOST = 4.0;
+// A curve must span a range proportionate to where it sits. A flat floor is
+// wrong: ATP 500s pivot at rank 1 with a width of 2, which is not a step across
+// the ranking at all -- it just says nearly everyone plays them -- and forcing
+// that curve wide cost ranks 11-30 four events a season.
+const ENTRY_WIDTH_RATIO = 0.35;
+
+function entryChance(level, rank, load, home, taper){
+  const e = ENTRY[level] || { flat: 0.85 };
+  const compulsory = e.flat !== undefined;
+  let p = compulsory ? e.flat
+        : ENTRY_MAX / (1 + Math.exp(-(rank - e.pivot)
+              / Math.max(e.width, e.pivot * ENTRY_WIDTH_RATIO)));
+  // Carried load makes an event likelier to be skipped -- but how much likelier
+  // depends entirely on what the event is. See WEAR_AT_MAJOR above.
+  const strength = level === SLAM ? WEAR_AT_MAJOR
+                 : compulsory ? WEAR_AT_MANDATORY
+                 : WEAR_AT_OPTIONAL * (taper || 1);
+  const wear = Math.min(LOAD_SKIP_CAP, load * LOAD_SKIP * strength);
+  p = Math.max(0, p * (1 - wear));
+  // A home player at a 500 or a 250. e.flat marks the compulsory levels.
+  if(home && e.flat === undefined && p > 0 && p < 1){
+    const odds = (p / (1 - p)) * HOME_ODDS_BOOST;
+    p = Math.min(ENTRY_MAX, odds / (1 + odds));
+  }
+  return p;
+}
+
+// A player is at home when their country matches the host's. Neutral-designated
+// players carry no country, and no event is held where they are from, so they
+// are never at home -- which is the right answer rather than a gap.
+function atHome(player, ev){
+  return !!(player.country && ev.country && player.country === ev.country);
+}
+const SLAM = 'Grand Slam';
+
+// What a major is called on the strip. Roland Garros keeps the initials the
+// tournament is known by rather than those of its English name.
+const MAJOR_CODE = {
+  'Australian Open': 'AO', 'Roland Garros': 'RG',
+  'Wimbledon': 'WB', 'US Open': 'US',
+};
+function tierMark(ev){
+  if(ev.skip) return '';
+  if(ev.format === 'rr') return 'F';         // the tour finals
+  if(ev.level === SLAM) return MAJOR_CODE[ev.name] || '';
+  return /1000$/.test(ev.level) ? '1' : '';
+}
+
+// ---- the ground colour of the page follows the surface being played ------
+// Hard court happens twice in a season and does not feel like one thing, so it
+// is split at Roland Garros: the January hard swing takes Australian Open blue,
+// everything after the clay takes US Open blue. Indoor hard follows the same
+// rule -- it only ever falls in the late half.
+const SURFACE_BG = {
+  hardEarly: '#1E8FD5',   // Australian Open
+  hardLate:  '#13297F',   // US Open, and the page's resting colour
+  clay:      '#BE5415',   // Roland Garros terre battue, held 5% darker than
+                          // #C95917 so white type clears 4.5:1 on it
+  grass:     '#84B118',   // Radioactive Green, the more saturated of the two
+};
+const DEFAULT_BG = SURFACE_BG.hardLate;
+
+// Where the clay major sits: everything before it is the early hard swing.
+function claySlamDay(){
+  const c = cal().find(e => e.level === SLAM && e.surface === 'clay');
+  return c ? c.sday : 150;
+}
+function bgFor(ev){
+  if(ev.surface === 'clay') return SURFACE_BG.clay;
+  if(ev.surface === 'grass') return SURFACE_BG.grass;
+  return ev.sday < claySlamDay() ? SURFACE_BG.hardEarly : SURFACE_BG.hardLate;
+}
+
+// Readable type on any of them. White on grass is 2.5:1 and on Australian-Open
+// blue 3.5:1, so the ink cannot simply be assumed white -- it is whichever of
+// white or near-black actually contrasts with the ground.
+function relLum(hex){
+  const v = [1, 3, 5].map(i => {
+    const c = parseInt(hex.substr(i, 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+// White or near-black, whichever actually contrasts with this ground.
+function inkOn(hex){
+  const L = relLum(hex);
+  return 1.05 / (L + 0.05) >= (L + 0.05) / (relLum('#0E1A22') + 0.05)
+    ? '#FFFFFF' : '#0E1A22';
+}
+function applyGround(hex){
+  const light = inkOn(hex) === '#FFFFFF';
+  const root = document.documentElement.style;
+  root.setProperty('--page', hex);
+  root.setProperty('--page-ink', light ? '#FFFFFF' : '#0E1A22');
+  root.setProperty('--page-muted', light ? 'rgba(255,255,255,.74)' : 'rgba(14,26,34,.72)');
+  root.setProperty('--page-fill', light ? 'rgba(255,255,255,.17)' : 'rgba(14,26,34,.13)');
+  root.setProperty('--page-edge', light ? 'rgba(255,255,255,.30)' : 'rgba(14,26,34,.22)');
+}
+
+const state = {
+  tour: 'ATP', playable: '', mode: 'all',
+  idx: 0, seed: 0, running: false, cancel: false,
+  table: new Map(), log: [], busy: new Map(), hurt: new Map(), calMine: false,
+  absence: new Map(), calDesc: false,
+  load: new Map(), loadWeek: null, fields: new Map(), rested: 0,
+};
+
+// ---- entry lists, a week at a time --------------------------------------
+// Events starting in the same week compete for the same players, so their entry
+// lists cannot be drawn independently: doing that put Otto Virtanen in Basel and
+// Vienna at once, and gave whichever event happened to be first in the calendar
+// the stronger field. A week is allocated as a unit instead.
+
+// Every event carries sday / sday_end / sweek, its position in the CALENDAR
+// year, computed at build time. The cache is a rolling August-to-August window,
+// so raw dates run backwards halfway through a season -- and the commitment
+// ledger and the load decay are both differences between day numbers, so they
+// would unwind rather than advance. Season-relative numbers keep both monotone.
+const sdayOf = ev => ev.sday;
+const sweekOf = ev => ev.sweek;
+
+// You are committed from the day an event starts until shortly before it ends.
+// The closing days do not block the next entry -- only four players are still
+// in an event over its final weekend, and back-to-back Masters really do
+// overlap by a day or two.
+const TAIL_DAYS = 3;
+
+// Priority tiers, not a strict ranking of levels. A major (or the season finals)
+// outranks everything and a 1000 is next, both effectively compulsory at the top
+// of the game. A 500 and a 250 sit in the SAME tier: 500s pull higher-ranked
+// entries, but that is a matter of degree and belongs in the entry curve below,
+// not in a hard precedence that would send every better player to the 500.
+const TIER = {
+  'Grand Slam': 0, 'ATP Finals': 0, 'WTA Finals': 0, 'Next Gen Finals': 0,
+  'ATP 1000': 1, 'WTA 1000': 1,
+  'ATP 500': 2, 'WTA 500': 2, 'ATP 250': 2, 'WTA 250': 2,
+};
+const tierOf = lv => TIER[lv] ?? 3;
+
+// ---- wear and tear -------------------------------------------------------
+// Matches accumulate and decay week to week. A heavy load makes a player more
+// likely to sit an optional event out, and can end in a spell on the sidelines.
+const LOAD_DECAY = 0.90;          // per week
+const LOAD_SKIP = 0.014;          // extra dropout per unit of carried load
+const LOAD_SKIP_CAP = 0.45;       // however heavy, entry never collapses entirely
+const INJURY_BASE = 0.0016;       // per unit of load, per event entered
+const INJURY_MIN_WEEKS = 2, INJURY_MAX_WEEKS = 9;
+// A small share of injuries end the season rather than costing a few weeks.
+const INJURY_SEASON_ENDING = 0.07;
+
+// Being out for a week altogether -- not injured, just not entered anywhere:
+// a training block, a niggle, a week at home. This is separate from turning
+// down a particular event, because it does not depend on what is on offer; it
+// only becomes likelier when the week's biggest event is small enough to skip,
+// and when the player is carrying a heavy recent load.
+const REST_BY_TIER = [0.004, 0.022, 0.080];    // major week / 1000 week / 500-250 week
+// Load counts for much less in a major week: nobody sits a slam out to freshen
+// up, they only miss one hurt -- which the injury model handles separately.
+const REST_LOAD = 0.0032;
+const REST_LOAD_BY_TIER = [0.12, 0.45, 1.0];
+// Wear does not suppress a schedule evenly -- it REDIRECTS it. A player carrying
+// a heavy load does not skip everything in proportion; they drop the optional
+// events precisely so they can play the major, and a mandatory 1000 comes next.
+// Suppressing all three together is what made a tired top-10 player skip Roland
+// Garros and then the whole grass season with no injury behind it.
+const WEAR_AT_MAJOR = 0.0;        // a fit player does not miss a major for load
+const WEAR_AT_MANDATORY = 0.10;   // a compulsory 1000 gives way, barely
+const WEAR_AT_OPTIONAL = 1.0;     // the 500s and 250s absorb all of it
+
+// ...and absorb MORE of it with a major coming up, which is the other half of
+// the same behaviour: the week before a slam is exactly when a tired player
+// withdraws from the 250 they had entered.
+// A declined entry is only "load management" if carried load is what lowered it.
+// A world 400 turning down a 250 is not managing a workload; their chance was
+// never high to begin with.
+const WEAR_SHARE_BLAMED = 0.15;
+const TAPER_WEEKS = 3;            // how far ahead a major starts pulling
+const TAPER_STRENGTH = 1.8;       // wear bites this much harder inside that window
+function taperFor(ev){
+  const d = ev && ev.toMajor;
+  if(d === null || d === undefined || d <= 0 || d > TAPER_WEEKS) return 1;
+  return 1 + (TAPER_STRENGTH - 1) * (1 - (d - 1) / TAPER_WEEKS);
+}
+const REST_CAP = 0.32;
+function restChance(tier, load, taper){
+  const t = tier < 3 ? tier : 2;
+  return Math.min(REST_CAP,
+    REST_BY_TIER[t] + load * REST_LOAD * REST_LOAD_BY_TIER[t] * (taper || 1));
+}
+
+function decayLoads(state, week){
+  if(state.loadWeek === week) return;
+  const gap = state.loadWeek === null ? 0 : week - state.loadWeek;
+  if(gap > 0){
+    const f = Math.pow(LOAD_DECAY, gap);
+    for(const [n, v] of state.load){
+      const nv = v * f;
+      if(nv < 0.05) state.load.delete(n); else state.load.set(n, nv);
+    }
+  }
+  state.loadWeek = week;
+}
+
+// ---- qualifiers ----------------------------------------------------------
+// Main-draw qualifier counts from the tours' published breakdowns. The engine's
+// flat one-in-eight rule reproduces every ATP figure exactly -- 12 for a 96
+// draw, 7 for 56, 6 for 48, 4 for 32 and 28 -- but the WTA departs from it: its
+// one-week 1000s put EIGHT qualifiers in a 56 draw, not seven.
+const QUALIFIERS = {
+  ATP: { 128:16, 96:12, 56:7, 48:6, 32:4, 30:4, 28:4 },
+  WTA: { 128:16, 96:12, 56:8, 48:6, 32:4, 30:4, 28:4 },
+};
+
+// The WTA runs some small-draw events with a 24-player qualifying rather than
+// 16, sending six through to the main draw instead of four. It is a property of
+// the event, not of its size or level, so it cannot be derived -- these are the
+// ones the tour lists. Brisbane and Charleston are here for completeness; at 48
+// they already take six from the table.
+//
+// The WTA 500s are COMPLETE and confirmed from both directions: the seven above
+// take six, and the other nine -- Abu Dhabi, Linz, Stuttgart, Bad Homburg,
+// Washington, Monterrey, Guadalajara, Ningbo and Tokyo -- take four. Sixteen
+// events, both lists accounted for, nothing assumed.
+//
+// The 250s are not: only Auckland and Hobart are confirmed as six-qualifier
+// events, so the remaining twenty-two fall through to four on an assumption.
+const BIG_QUALIFYING = new Set([
+  // WTA 500
+  'Brisbane', 'Adelaide 1', 'Charleston', 'Strasbourg', 'London', 'Berlin', 'Merida',
+  // WTA 250
+  'Auckland', 'Hobart',
+]);
+
+// Qualifying is not played out; it is stood in for by a heavy dropout applied
+// to the players direct entry never reached, which is what the engine's own
+// buildField does for the grand-slam page. Six in ten of the players who would
+// have entered qualifying do not come through, so the survivors are drawn from
+// well below the main-draw cutoff rather than from the next names on the list.
+const QUALIFYING_DROPOUT = 0.60;
+
+function qualifiersFor(tour, draw, name){
+  if(draw < MIN_QUALIFYING_DRAW) return 0;
+  const table = QUALIFIERS[tour] || {};
+  let q = table[draw];
+  if(q === undefined) q = Math.round(draw * QUALIFIER_SHARE);   // an unlisted size
+  if(tour === 'WTA' && draw <= 48 && BIG_QUALIFYING.has(name)) q = 6;
+  return q;
+}
+
+function directEntrants(drawSize, tour, name){
+  const q = qualifiersFor(tour, drawSize, name);
+  return { direct: drawSize - q, qualifiers: q };
+}
+
+// How far below the direct cut-off an event's QUALIFYING entry list runs. A
+// grand slam's qualifying draw is 128 players and its entry list bottoms out
+// around the world 270 -- so nobody past that reaches the main draw by any
+// route, however many players above them withdraw. The 250s and 500s are left
+// effectively open: their acceptance lists really do run into the 300s, and
+// there the declines model the cut-off on their own.
+// The 500s and 250s were left effectively open here, on the grounds that their
+// acceptance lists really do run into the 300s and the declines model the
+// cut-off on their own. That is true of who ENTERS -- their draws fill around
+// the world 120, nowhere near this -- but it made the page tell a world 400 they
+// had lost in qualifying at events whose qualifying entry list stops long above
+// them. 250 is past where any draw reaches, so this bounds the wording without
+// touching who actually plays.
+const QUAL_DEPTH = { slam: 160, masters: 120, open: 250 };
+function acceptanceCut(ev, shape){
+  const depth = ev.level === SLAM ? QUAL_DEPTH.slam
+              : /1000$/.test(ev.level) ? QUAL_DEPTH.masters : QUAL_DEPTH.open;
+  return shape.direct + depth;
+}
+
+// Build every entry list for one week together.
+function allocateWeek(evs, rng, state, playable){
+  if(!evs || !evs.length) return [];
+  const tour = state.tour;
+  const week = sweekOf(evs[0]);
+  decayLoads(state, week);
+  const startN = Math.min(...evs.map(e => sdayOf(e)));
+
+  const order = evs.map((ev, i) => i)
+    .sort((a, b) => tierOf(evs[a].level) - tierOf(evs[b].level));
+  const shape = evs.map(ev => directEntrants(ev.draw, tour, ev.name));
+  // Nobody ranked past this enters this event by ANY route -- direct, qualifying
+  // or a short field. Without it a thin draw took its last places from the very
+  // bottom of the pool, which is how a world 400 turned up in a Masters.
+  const cut = evs.map((ev, i) => acceptanceCut(ev, shape[i]));
+  const fields = evs.map(() => []);
+  const taken = new Set();
+
+  // Why the player you picked is not in a given draw. "Not in the draw" was true
+  // of an injury, a withdrawal and a ranking too low to enter, which are three
+  // very different seasons.
+  const why = {};
+  const free = POOLS[tour].filter(p =>
+    (state.busy.get(p.name) ?? -Infinity) <= startN);
+  if(playable && !free.some(p => p.name === playable))
+    why.all = (state.hurt.get(playable) ?? -Infinity) > startN
+      ? 'injured' : 'playing elsewhere';
+  // Who simply takes the week off, before any event is even considered.
+  const bestTier = Math.min(...evs.map(e => tierOf(e.level)));
+  const weekTaper = taperFor(evs[0]);        // one week, so one distance to a major
+  const available = free.filter(p => {
+    const out = rng.random() < restChance(bestTier, state.load.get(p.name) || 0, weekTaper);
+    if(out){
+      state.rested = (state.rested || 0) + 1;
+      if(p.name === playable){
+        // Everyone sits out the odd week. It is only load management if carried
+        // load is what did it -- a world 400 resting on zero load is not
+        // managing a workload, and calling it that was plainly wrong.
+        const flat = restChance(bestTier, 0, weekTaper);
+        const withLoad = restChance(bestTier, state.load.get(p.name) || 0, weekTaper);
+        why.all = withLoad > 0 && 1 - flat / withLoad > WEAR_SHARE_BLAMED
+          ? 'load management' : 'rest';
+      }
+    }
+    return !out;
+  });
+
+  // Majors and 1000s are close to compulsory, so the player you picked is put
+  // in one if they are free -- and only one, since this runs per week. The
+  // guarantee only extends as far as the acceptance list does: a player ranked
+  // below the direct cut-off has no entitlement to that draw, and forcing them
+  // in anyway put ranks in the 400s into every grand slam.
+  if(playable){
+    const mand = order.find(i => evs[i].level === SLAM || /1000$/.test(evs[i].level));
+    if(mand !== undefined && available.some(p => p.name === playable)){
+      const me = POOLS[tour].find(p => p.name === playable);
+      if(me && me.rank <= shape[mand].direct){ fields[mand].push(me); taken.add(playable); }
+    }
+  }
+
+  let reached = 0;                    // how far down the list direct entry got
+  for(const p of available){
+    reached++;
+    if(taken.has(p.name)) continue;
+    // Which of the week's open events would this player go to? A better tier
+    // always wins. Inside a tier they go to whichever they are likelier to
+    // enter -- that is what makes a 500 pull better players than a 250 without
+    // the allocator hard-coding it -- and where that is a wash, as it is for two
+    // 250s, to whichever is furthest from filling, so neither ends up weaker.
+    const load = state.load.get(p.name) || 0;
+    let pick = -1, bestTier = 99, bestWant = -1, bestNeed = -1;
+    for(const i of order){
+      const need = shape[i].direct - fields[i].length;
+      if(need <= 0 || p.rank > cut[i]) continue;
+      const tier = tierOf(evs[i].level);
+      const want = entryChance(evs[i].level, p.rank, load, atHome(p, evs[i]),
+                               taperFor(evs[i]));
+      if(tier < bestTier ||
+         (tier === bestTier && (want > bestWant + 1e-9 ||
+          (Math.abs(want - bestWant) <= 1e-9 && need > bestNeed)))){
+        pick = i; bestTier = tier; bestWant = want; bestNeed = need;
+      }
+    }
+    if(pick < 0){ if(p.name === playable) why.all = 'draw full'; break; }
+    if(rng.random() >= bestWant){               // sits the week out
+      if(p.name === playable){
+        // Wear or ranking? Compare the chance they were actually offered with
+        // the one a fresh player of the same ranking would have had.
+        const fresh = entryChance(evs[pick].level, p.rank, 0, atHome(p, evs[pick]),
+                                  taperFor(evs[pick]));
+        why.all = (fresh > 0 && 1 - bestWant / fresh > WEAR_SHARE_BLAMED)
+          ? 'load management' : 'declined';
+      }
+      continue;
+    }
+    fields[pick].push(p);
+    taken.add(p.name);
+  }
+
+  // Qualifying draws ONLY from players direct entry never reached. Drawing it
+  // from the whole list instead let anyone who had just turned an event down
+  // reappear in its qualifying draw, which put the world number one into nine
+  // ATP 250s in a season.
+  if(playable && why.all === undefined && !taken.has(playable)
+     && available.slice(reached).some(p => p.name === playable))
+    why.all = 'below the cut';
+  const deeper = available.slice(reached);
+  evs.forEach((ev, i) => {
+    if(!shape[i].qualifiers) return;
+    for(const p of deeper){
+      if(fields[i].length >= shape[i].direct + shape[i].qualifiers) break;
+      if(p.rank > cut[i]) break;                  // off the acceptance list
+      if(taken.has(p.name)) continue;
+      if(rng.random() < QUALIFYING_DROPOUT) continue;
+      fields[i].push(p); taken.add(p.name);
+    }
+  });
+
+  // Anything still short is filled from the BOTTOM of the availability list --
+  // a thin field takes lucky losers and wildcards, not the world number one.
+  // Filling from the top instead meant that raising the dropout made top
+  // players enter MORE events, because a field that failed to fill promoted
+  // them straight back into the event they had just declined.
+  const spare = available.slice().reverse();
+  evs.forEach((ev, i) => {
+    const want = shape[i].direct + shape[i].qualifiers;
+    for(const p of spare){
+      if(fields[i].length >= want) break;
+      if(taken.has(p.name) || p.rank > cut[i]) continue;
+      fields[i].push(p); taken.add(p.name);
+      ev.thin = true;
+    }
+  });
+
+  if(playable){
+    const me = POOLS[tour].find(p => p.name === playable);
+    // Playing one of the week's events is itself the reason for missing the
+    // others. Without this the world number one was told he had not qualified
+    // for the 250 running alongside the Masters he was busy winning.
+    const elsewhere = fields.some(f => f.some(e => e.name === playable));
+    evs.forEach((ev, i) => {
+      if(fields[i].some(e => e.name === playable)){ state.absence.delete(ev.name); return; }
+      // An event whose acceptance list stops above this player is never a
+      // withdrawal, whatever happened elsewhere in the week.
+      state.absence.set(ev.name,
+        me && me.rank > cut[i] ? 'not qualified'
+          : elsewhere ? 'playing elsewhere'
+          : why.all === 'below the cut' && shape[i].qualifiers ? 'lost in qualifying'
+          : why.all === 'below the cut' ? 'not qualified'
+          : why.all || 'not qualified');
+    });
+  }
+
+  return evs.map((ev, i) => {
+    const direct = shape[i].direct;
+    const field = fields[i].map((e, k) => ({
+      name: e.name, rank: e.rank, ratings: e.ratings, country: e.country,
+      qualifier: k >= direct, playable: e.name === playable, seed: null }));
+    field.slice().sort((a, b) => a.rank - b.rank).slice(0, seedsFor(ev.draw))
+         .forEach((e, k) => e.seed = k + 1);
+    const freeFrom = ev.sday_end - TAIL_DAYS;
+    field.forEach(e => state.busy.set(e.name,
+      Math.max(state.busy.get(e.name) ?? -Infinity, freeFrom)));
+    return field;
+  });
+}
+
+// Wear tells afterwards: the heavier the recent load, the likelier a spell out.
+// Shared by both event types so the two cannot drift apart.
+function wearTells(ev, entrants, rng, out){
+  const endN = ev.sday_end;
+  entrants.forEach(e => {
+    const load = state.load.get(e.name) || 0;
+    if(rng.random() >= INJURY_BASE * load) return;
+    if(rng.random() < INJURY_SEASON_ENDING){
+      // Out for the year: no day left on the calendar can clear this.
+      state.busy.set(e.name, Infinity);
+      state.hurt.set(e.name, Infinity);
+      state.load.delete(e.name);
+      out.injured.push({ name: e.name, weeks: null, seasonEnding: true });
+    } else {
+      const weeks = INJURY_MIN_WEEKS +
+        Math.floor(rng.random() * (INJURY_MAX_WEEKS - INJURY_MIN_WEEKS + 1));
+      state.busy.set(e.name, endN + weeks * 7);
+      state.hurt.set(e.name, endN + weeks * 7);   // busy AND hurt, not just busy
+      state.load.delete(e.name);              // rest clears the accumulated load
+      out.injured.push({ name: e.name, weeks, seasonEnding: false });
+    }
+  });
+}
+
+// ---- one event -----------------------------------------------------------
+// Mirrors runTournament, but settles a match with the forecaster unless the
+// player you picked is in it -- those are played point by point and kept.
+function runEvent(ev, rng, playable, field){
+  const tour = state.tour;
+  const drawSize = ev.draw;
+  const bestOf = (tour === 'ATP' && ev.level === SLAM) ? 5 : 3;
+  const fst = ev.level === SLAM ? 10 : 7;
+  const base = basesFor(tour, ev.surface === 'indoor_hard' ? 'hard' : ev.surface);
+  const shrink = SHRINK[tour] ?? 1.0;
+  const draw = buildDraw(field, rng, drawSize);
+
+  const entrants = draw.filter(Boolean);
+  const mean = entrants.reduce((a, e) =>
+    a + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0) / entrants.length;
+  const shift = 5.0 - mean;
+  entrants.forEach(e => e.player = toPlayer(e, shift, shrink));
+
+  const names = roundNames(draw.length), labels = exitLabels(names);
+  const table = pointsFor(tour, ev.level, drawSize);
+  // The closing rounds are kept so a finished event can be opened and read;
+  // everything earlier is thrown away, as a season of full brackets is far more
+  // than the page needs to hold.
+  const KEEP = new Set(['QF', 'SF', 'F']);
+  const out = { champion: null, runnerUp: null, yourResult: null, yourMatches: [],
+                injured: [], closing: [], seeds: null };
+  let alive = draw.slice();
+
+  names.forEach(name => {
+    const winners = [];
+    for(let i = 0; i < alive.length; i += 2){
+      const top = alive[i], bottom = alive[i + 1];
+      if(!top || !bottom){ if(top || bottom) winners.push(top || bottom); continue; }
+      const yours = top.name === playable || bottom.name === playable;
+      let wonByTop, record = null;
+      if(yours){
+        const pair = [top.name, bottom.name];
+        const played = simMatch(rng, top.player, bottom.player, pair, bestOf, fst, base);
+        wonByTop = played.winner === 0;
+        // Every scoreline here is read from YOUR player's side, not the match
+        // winner's. This panel says "lost to X" above the score, so a
+        // winner-oriented 6-4 6-3 next to it reads as though you had won.
+        const mine = top.name === playable ? 0 : 1;
+        // The full record, not a summary: the shared match viewer renders the
+        // point-by-point from it and the CSV/JSON export is built from it.
+        record = {
+          round: name, opponent: top.name === playable ? bottom.name : top.name,
+          won: (top.name === playable) === wonByTop,
+          oppQ: (top.name === playable ? bottom : top).qualifier || false,
+          oppSeed: (top.name === playable ? bottom : top).seed || null,
+          score: setScoreStrings(played.sets, mine, pair),
+          statNames: pair,
+          stats: matchStats(played.sets, pair),
+          sets: played.sets.map(st => ({
+            win: st.win, sc: st.sc,
+            g: st.games.map(g => ({ k: g.k, srv: g.srv, win: g.win, sc: g.sc,
+              pts: g.pts.map(pt => [pt[0], pt[1], pt[2], pt[3] ? 1 : 0]) })),
+          })),
+        };
+      } else {
+        wonByTop = quickMatch(rng, top.player, bottom.player, bestOf, fst, base).winner === 0;
+      }
+      const winner = wonByTop ? top : bottom, loser = wonByTop ? bottom : top;
+      if(KEEP.has(name)) out.closing.push({ round: name, winner: winner.name,
+        loser: loser.name, wseed: winner.seed, lseed: loser.seed,
+        wq: !!winner.qualifier, lq: !!loser.qualifier });
+      if(record) out.yourMatches.push(record);
+      credit(loser.name, table[name] || 0, false, ev, name, !!loser.qualifier);
+      noteWin(winner.name); noteLoss(loser.name);
+      addLoad(winner.name); addLoad(loser.name);
+      if(name === 'F'){ out.champion = winner.name; out.runnerUp = loser.name; }
+      winners.push(winner);
+    }
+    alive = winners;
+  });
+
+  const champ = alive[0];
+  if(champ) credit(champ.name, table.W || 0, true, ev, 'W', !!champ.qualifier);
+  out.seeds = seedsFor(drawSize);
+  out.qualifiers = entrants.filter(e => e.qualifier).length;
+  out.championSeed = champ ? champ.seed : null;
+  out.championQ = champ ? !!champ.qualifier : false;
+
+  wearTells(ev, entrants, rng, out);
+
+  if(playable){
+    const inDraw = entrants.find(e => e.name === playable);
+    if(inDraw){
+      out.yourEntry = inDraw.qualifier ? 'qualifier' : 'direct';
+      out.yourResult = champ && champ.name === playable ? 'Champion'
+        : (out.runnerUp === playable ? 'Runner-up' : null);
+      if(!out.yourResult){
+        const last = out.yourMatches[out.yourMatches.length - 1];
+        out.yourResult = last ? labels[last.round] : 'did not play';
+      }
+    } else out.yourResult = state.absence.get(ev.name) || 'not in the draw';
+  }
+  return out;
+}
+
+// ---- the season finals ---------------------------------------------------
+// Eight qualifiers, two groups of four, a full round robin in each, then a
+// knockout. None of this comes from the POINTS table: the finals pay per WIN,
+// so a player who loses all three group matches leaves with nothing at all.
+const FINALS_FIELD = 8;
+const FINALS_POINTS = { rr: 200, sf: 400, f: 500 };   // 3*200 + 400 + 500 = 1500
+
+// Qualification is THIS season's standings -- the points the run has actually
+// awarded -- and not the ranking the players were seeded from. Those seed
+// rankings are a year of results that never happened here, so a season in which
+// someone came through would still send the same eight to the finals.
+// The only way to lose a place is injury: the commitment ledger already holds
+// anyone hurt past the start of the week, and the next player down takes it.
+function finalsField(ev, state, playable){
+  const start = sdayOf(ev);
+  const byName = new Map(POOLS[state.tour].map(p => [p.name, p]));
+  const standings = [...state.table.values()]
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  const field = [];
+  for(const r of standings){
+    if(field.length >= FINALS_FIELD) break;
+    if((state.busy.get(r.name) ?? -Infinity) > start) continue;   // injured
+    const p = byName.get(r.name);
+    if(!p) continue;
+    field.push({ name: p.name, rank: p.rank, ratings: p.ratings, country: p.country,
+                 qualifier: false, playable: p.name === playable,
+                 seed: field.length + 1, points: r.points });
+  }
+  const freeFrom = ev.sday_end - TAIL_DAYS;
+  field.forEach(e => state.busy.set(e.name,
+    Math.max(state.busy.get(e.name) ?? -Infinity, freeFrom)));
+  return field;
+}
+
+function runFinals(ev, rng, playable, field){
+  const tour = state.tour;
+  const bestOf = 3, fst = 7;
+  const base = basesFor(tour, ev.surface === 'indoor_hard' ? 'hard' : ev.surface);
+  const shrink = SHRINK[tour] ?? 1.0;
+  const out = { closing: [], yourMatches: [], injured: [], groups: [],
+                champion: null, runnerUp: null, seeds: 0, qualifiers: 0,
+                championSeed: null, championQ: false };
+  const entrants = (field || []).slice(0, FINALS_FIELD);
+  if(entrants.length < 4) return out;              // not enough of a season yet
+
+  const mean = entrants.reduce((a, e) =>
+    a + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0)
+    / entrants.length;
+  const shift = 5.0 - mean;
+  entrants.forEach(e => e.player = toPlayer(e, shift, shrink));
+
+  // Drawn in seeded pairs -- one of 1/2, one of 3/4, one of 5/6, one of 7/8 in
+  // each group -- so the two are of matched strength however the draw falls.
+  const A = [], B = [];
+  for(let k = 0; k * 2 + 1 < entrants.length; k++){
+    const a = entrants[k * 2], b = entrants[k * 2 + 1];
+    if(rng.random() < 0.5){ A.push(a); B.push(b); } else { B.push(a); A.push(b); }
+  }
+
+  // `pts` and `reach` accumulate across the whole week: a ranking takes ONE
+  // result per tournament, and the finals pay five times over.
+  const tally = new Map(entrants.map(e => [e.name,
+    { name: e.name, seed: e.seed, mw: 0, ml: 0, sw: 0, sl: 0, gw: 0, gl: 0,
+      pts: 0, reach: 'RR' }]));
+
+  // Every match here is played out point by point rather than settled by the
+  // forecaster. The group is decided on sets and games won, and the forecaster
+  // returns a winner and nothing else -- there would be no scoreline to count.
+  function play(top, bottom, round){
+    const pair = [top.name, bottom.name];
+    const played = simMatch(rng, top.player, bottom.player, pair, bestOf, fst, base);
+    const wonByTop = played.winner === 0;
+    const t = tally.get(top.name), b = tally.get(bottom.name);
+    played.sets.forEach(st => {
+      if(st.win === 0){ t.sw++; b.sl++; } else { b.sw++; t.sl++; }
+      st.games.forEach(g => { if(g.win === 0){ t.gw++; b.gl++; } else { b.gw++; t.gl++; } });
+    });
+    if(wonByTop){ t.mw++; b.ml++; } else { b.mw++; t.ml++; }
+    if(playable && (top.name === playable || bottom.name === playable)){
+      const mine = top.name === playable ? 0 : 1;   // scores read from your side
+      const opp = top.name === playable ? bottom : top;
+      out.yourMatches.push({
+        round, opponent: opp.name, won: (top.name === playable) === wonByTop,
+        oppQ: false, oppSeed: opp.seed || null,
+        score: setScoreStrings(played.sets, mine, pair),
+        statNames: pair, stats: matchStats(played.sets, pair),
+        sets: played.sets.map(st => ({
+          win: st.win, sc: st.sc,
+          g: st.games.map(g => ({ k: g.k, srv: g.srv, win: g.win, sc: g.sc,
+            pts: g.pts.map(pt => [pt[0], pt[1], pt[2], pt[3] ? 1 : 0]) })),
+        })),
+      });
+    }
+    const winner = wonByTop ? top : bottom, loser = wonByTop ? bottom : top;
+    noteWin(winner.name); noteLoss(loser.name);
+    addLoad(winner.name); addLoad(loser.name);
+    return { winner, loser };
+  }
+
+  const GROUP = ['Group A', 'Group B'];
+  [A, B].forEach((grp, gi) => {
+    for(let i = 0; i < grp.length; i++)
+      for(let j = i + 1; j < grp.length; j++)
+        tally.get(play(grp[i], grp[j], GROUP[gi]).winner.name).pts += FINALS_POINTS.rr;
+  });
+
+  // Matches won, then the SHARE of sets won, then the share of games won. A
+  // share and not a count: a player who went to three sets twice has played more
+  // of both than one who won in straight sets, and counting would reward that.
+  const pct = (w, l) => (w + l) ? w / (w + l) : 0;
+  const placings = grp => grp.map(e => tally.get(e.name)).sort((x, y) =>
+    y.mw - x.mw
+    || pct(y.sw, y.sl) - pct(x.sw, x.sl)
+    || pct(y.gw, y.gl) - pct(x.gw, x.gl)
+    || x.seed - y.seed);        // every tiebreak exhausted: qualification order
+  const sa = placings(A), sb = placings(B);
+  // Snapshot, not the live rows: play() keeps writing to the same tally objects
+  // through the semi-finals and the final, and a group table that counted those
+  // showed the champion 5-0 in a group of three matches.
+  const frozen = rows => rows.map(r => ({ ...r }));
+  out.groups = [{ label: GROUP[0], rows: frozen(sa) },
+                { label: GROUP[1], rows: frozen(sb) }];
+
+  if(sa.length >= 2 && sb.length >= 2){
+    const seat = new Map(entrants.map(e => [e.name, e]));
+    // First in one group meets second in the other, so the two group winners can
+    // only meet in the final.
+    const semis = [[seat.get(sa[0].name), seat.get(sb[1].name)],
+                   [seat.get(sb[0].name), seat.get(sa[1].name)]];
+    const finalists = semis.map(([t, b]) => {
+      const { winner, loser } = play(t, b, 'SF');
+      const wt = tally.get(winner.name);
+      wt.pts += FINALS_POINTS.sf; wt.reach = 'F';
+      tally.get(loser.name).reach = 'SF';
+      out.closing.push({ round: 'SF', winner: winner.name, loser: loser.name,
+                         wseed: winner.seed, lseed: loser.seed, wq: false, lq: false });
+      return winner;
+    });
+    const { winner, loser } = play(finalists[0], finalists[1], 'F');
+    const ct = tally.get(winner.name);
+    ct.pts += FINALS_POINTS.f; ct.reach = 'W';
+    out.closing.push({ round: 'F', winner: winner.name, loser: loser.name,
+                       wseed: winner.seed, lseed: loser.seed, wq: false, lq: false });
+    out.champion = winner.name; out.runnerUp = loser.name;
+    out.championSeed = winner.seed;
+  }
+
+  // Credited once each, now that the week is finished.
+  entrants.forEach(e => {
+    const t = tally.get(e.name);
+    credit(e.name, t.pts, t.reach === 'W', ev, t.reach, false);
+  });
+
+  wearTells(ev, entrants, rng, out);
+
+  if(playable){
+    const seated = entrants.find(e => e.name === playable);
+    if(seated){
+      const t = tally.get(playable);
+      out.yourEntry = 'direct';
+      out.yourResult = out.champion === playable ? 'Champion'
+        : out.runnerUp === playable ? 'Runner-up'
+        : out.yourMatches.some(m => m.round === 'SF') ? 'SF'
+        : 'RR ' + t.mw + '\u2013' + t.ml;
+    } else out.yourResult = (state.hurt.get(playable) ?? -Infinity) > sdayOf(ev)
+        ? 'injured' : 'did not qualify';
+  }
+  return out;
+}
+
+function row(name){
+  let r = state.table.get(name);
+  if(!r){ r = { name, points: 0, titles: 0, w: 0, l: 0, results: [] };
+          state.table.set(name, r); }
+  return r;
+}
+
+// ---- what actually counts towards a ranking ------------------------------
+// A ranking is not the sum of a season. It is a fixed set of slots, and only
+// the best results fill the optional ones -- so a good week at a 250 displaces
+// a bad one rather than adding to it, and a skipped major cannot be replaced by
+// anything at all.
+//
+//   ATP, best 19:  4 majors + 8 compulsory Masters + best 7 of everything else
+//   WTA, best 18:  4 majors + 6 compulsory 1000s + the best single other 1000
+//                  + best 7 of everything else
+//
+// The tour finals sit outside that count in both cases, added as a 20th (ATP)
+// or 19th (WTA) tournament.
+const OTHER_SLOTS = 7;
+const WTA_FLOATING_1000 = 1;      // one non-combined 1000 also counts in full
+const ATP_OPTIONAL_1000 = new Set(['Monte Carlo']);
+const WTA_COMPULSORY_1000 = new Set(
+  ['Indian Wells', 'Miami', 'Madrid', 'Rome', 'Toronto', 'Beijing']);
+
+// A compulsory slot follows DIRECT acceptance. A player who came through
+// qualifying was never on that entry list, so the event is an optional one for
+// them and has to compete for a best-of slot like any other.
+function slotOf(tour, ev, qualifier){
+  if(ev.format === 'rr') return 'finals';
+  if(qualifier) return 'other';
+  if(ev.level === SLAM) return 'mand';
+  if(!/1000$/.test(ev.level)) return 'other';
+  if(tour === 'ATP') return ATP_OPTIONAL_1000.has(ev.name) ? 'other' : 'mand';
+  return WTA_COMPULSORY_1000.has(ev.name) ? 'mand' : 'float';
+}
+
+// Skipping a compulsory event needs no special case: it simply leaves that slot
+// empty, and because the compulsory and optional pools are counted separately
+// it can never be papered over by a good result somewhere smaller. That is
+// exactly what "it counts as a zero" means.
+// Returns the total AND which results made it in, so the number in the
+// standings and the rows ticked in a player's card cannot disagree.
+function rankingBreakdown(r, tour){
+  const mand = [], floating = [], other = [], finals = [];
+  for(const g of r.results)
+    (g.slot === 'mand' ? mand : g.slot === 'finals' ? finals
+      : g.slot === 'float' ? floating : other).push(g);
+  const counted = new Set([...mand, ...finals]);
+  const pool = other.slice();
+  if(tour !== 'ATP'){
+    floating.sort((a, b) => b.pts - a.pts);
+    floating.forEach((g, i) => {
+      if(i < WTA_FLOATING_1000) counted.add(g);
+      else pool.push(g);                 // the rest fall back to the best-of pool
+    });
+  } else pool.push(...floating);
+  pool.sort((a, b) => b.pts - a.pts);
+  pool.slice(0, OTHER_SLOTS).forEach(g => counted.add(g));
+  let total = 0;
+  counted.forEach(g => { total += g.pts; });
+  return { counted, total };
+}
+function rankingPoints(r, tour){ return rankingBreakdown(r, tour).total; }
+
+// One result per player per event. `round` is the round they went out in, or W.
+function credit(name, pts, title, ev, round, qualifier){
+  const r = row(name);
+  r.results.push({ event: ev.name, level: ev.level, sday: ev.sday, pts,
+                   round, slot: slotOf(state.tour, ev, qualifier) });
+  if(title) r.titles++;
+  r.points = rankingPoints(r, state.tour);
+}
+function addLoad(name){ state.load.set(name, (state.load.get(name) || 0) + 1); }
+function noteWin(name){ row(name).w++; }
+function noteLoss(name){ row(name).l++; }
+
+// ---- driving the schedule ------------------------------------------------
+const $ = id => document.getElementById(id);
+const cal = () => CALS[state.tour];
+
+function playableEvents(){ return cal().filter(e => !e.skip); }
+
+// Allocate every entry list for the week this event belongs to, if that has not
+// already happened. Stepping one event at a time still sees the whole week.
+function ensureFields(idx){
+  if(state.fields.has(idx)) return;
+  const list = cal(), ev0 = list[idx];
+  if(!ev0 || ev0.skip) return;          // nothing to allocate for an event we do not play
+  if(ev0.format === 'rr'){             // the finals take the eight best of the year
+    state.fields.set(idx, finalsField(ev0, state, state.playable));
+    return;
+  }
+  const week = sweekOf(ev0);
+  const group = [];
+  list.forEach((ev, i) => {
+    if(!ev.skip && ev.format !== 'rr' && sweekOf(ev) === week) group.push(i);
+  });
+  if(!group.length) return;
+  const rng = makeRandom((state.seed ^ (week * 2654435761)) >>> 0);
+  const built = allocateWeek(group.map(i => list[i]), rng, state, state.playable);
+  group.forEach((i, k) => state.fields.set(i, built[k]));
+}
+
+function showNow(ev, done, total){
+  applyGround(bgFor(ev));
+  $('now').classList.add('on');
+  $('nowname').textContent = ev.name;
+  $('nowwhere').textContent = ev.location + '  ·  ' + ev.start + ' to ' + ev.end;
+  const chips = [state.tour, ev.level, ev.surface.replace('_', ' '),
+                 ev.format === 'rr' ? 'round robin'
+                   : ev.draw ? ev.draw + ' draw' : ev.skip];
+  $('nowchips').innerHTML = chips.filter(Boolean)
+    .map(c => '<span class="nowchip">' + esc(c) + '</span>').join('');
+  $('nowbar').style.width = Math.round(100 * done / total) + '%';
+}
+
+// The classic transport pair: a rightward triangle to run, two bars to hold.
+const ICON_PLAY = '<svg viewBox="0 0 11 12" aria-hidden="true"><path d="M1 1l9 5-9 5z"/></svg>';
+const ICON_PAUSE = '<svg viewBox="0 0 11 12" aria-hidden="true">'
+  + '<rect x="1" y="1" width="3" height="10" rx="1"/>'
+  + '<rect x="7" y="1" width="3" height="10" rx="1"/></svg>';
+
+// Rebuilt ONLY when the label actually changes. Replacing the button's
+// contents on every tournament -- sixty-odd times a run -- destroys the node
+// the pointer went down on, and a browser only raises `click` when the press
+// and the release share a target. The button looked right and could not be
+// pressed; a synthetic .click() cannot see this, because it skips that step.
+let runBtnState = null;
+function updateRunBtn(){
+  const btn = $('runbtn'), done = state.idx >= cal().length;
+  const want = done ? 'done' : state.running ? 'pause' : state.idx ? 'resume' : 'start';
+  if(want === runBtnState) return;
+  runBtnState = want;
+  btn.disabled = done;
+  btn.innerHTML = done ? 'Season complete'
+    : want === 'pause' ? ICON_PAUSE + '<span>Pause</span>'
+    : ICON_PLAY + '<span>' + (want === 'resume' ? 'Resume' : 'Simulate') + '</span>';
+}
+
+function esc(s){ return String(s).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// Naming what is queued up is what makes a stop legible: in "up to the next
+// major" the run halts on the doorstep of the major, and without this the pause
+// looks arbitrary.
+function showNext(){
+  const list = cal(), el = $('next');
+  const ev = list[state.idx];
+  if(!ev){
+    el.className = 'next done';
+    el.innerHTML = '<b>Season complete.</b>';
+    return;
+  }
+  const why = state.mode === 'slam' && ev.level === SLAM
+      ? ' — stopped here for the major' : '';
+  el.className = 'next';
+  el.innerHTML = 'Next up &nbsp;<b>' + esc(ev.name) + '</b>&nbsp; '
+    + '<span class="lvl' + (ev.level === SLAM ? ' slam' : '') + '">' + esc(ev.level) + '</span>'
+    + '&nbsp; ' + esc(ev.start.slice(5)) + ' · ' + esc(ev.location) + esc(why);
+}
+
+// One block per event, in season order, so the shape of the year is visible at
+// a glance: majors are wider, played events filled, skipped ones outlined.
+function renderTimeline(){
+  const list = cal();
+  // Shown from the start rather than only once something has been played: the
+  // untouched strip is the season ahead, every block still tinted back.
+  $('timeline').hidden = false;
+  $('track').innerHTML = list.map((ev, i) => {
+    const cls = ['tl'];
+    if(ev.level === SLAM) cls.push('slam');
+    else if(ev.format === 'rr') cls.push('fin');
+    else if(/1000$/.test(ev.level)) cls.push('m1000');
+    if(ev.skip) cls.push('skip');
+    else if(i < state.idx) cls.push('done');
+    if(i === state.idx && state.running) cls.push('now');
+    const played = i < state.idx ? state.log[i] : null;
+    const won = played && played.res && played.res.champion;
+    const c = bgFor(ev);
+    return '<span class="' + cls.join(' ') + '" data-i="' + i +
+      '" style="--tlc:' + c + ';--tlink:' + inkOn(c) + '" title="' +
+      esc(ev.start.slice(5) + '  ' + ev.name + '  (' + ev.level + ')' +
+          (won ? '\nwon by ' + won : ev.skip ? '\nnot simulated' : '')) + '">' +
+      tierMark(ev) + '</span>';
+  }).join('');
+}
+
+// Whether to halt BEFORE playing this event. Step mode stops at every one; "up
+// to the next major" stops on the doorstep of a major as well as after it, so
+// the run pauses with the major named in "next up" and you choose to play it.
+function stopAt(ev, first){
+  if(state.mode === 'step') return !first;
+  if(state.mode === 'slam') return !first && ev.level === SLAM;
+  return false;
+}
+
+async function run(){
+  if(state.running) return;
+  // Read the controls rather than trust what was last cached: a browser that
+  // restores form state on reload leaves the select and the state out of step,
+  // and the run then quietly ignores the mode showing on screen.
+  state.mode = $('modesel').value;
+  state.playable = $('playsel').value;
+  state.running = true; state.cancel = false;
+  updateRunBtn();                       // stays enabled: clicking it now pauses
+  const list = cal();
+  let first = true;
+  while(state.idx < list.length){
+    const ev = list[state.idx];
+    if(stopAt(ev, first)) break;
+    first = false;
+    showNow(ev, state.idx, list.length);
+    // yield so the marquee paints before the event is played
+    await new Promise(r => setTimeout(r, state.mode === 'all' ? 90 : 240));
+    // A pause takes effect BETWEEN tournaments -- never part-way through one,
+    // which would leave a draw half played and the standings inconsistent.
+    if(state.cancel) break;
+    if(!ev.skip){
+      ensureFields(state.idx);
+      const rng = makeRandom((state.seed + state.idx * 7919) >>> 0);
+      const field = state.fields.get(state.idx) || [];
+      const res = ev.format === 'rr'
+        ? runFinals(ev, rng, state.playable, field)
+        : runEvent(ev, rng, state.playable, field);
+      state.log.push({ ev, res });
+    } else {
+      state.log.push({ ev, res: null });
+    }
+    state.idx++;
+    render();
+    if(state.mode === 'slam' && ev.level === SLAM) break;
+    if(state.mode === 'step') break;
+  }
+  state.running = false;
+  // showNow() runs before the pause is checked, so a hold would otherwise leave
+  // the marquee naming a tournament that has not been played -- and "next up"
+  // naming the very same one. Fall back to the last event actually completed.
+  const last = state.log.length ? state.log[state.log.length - 1].ev : null;
+  if(last) showNow(last, state.idx, list.length);
+  else $('now').classList.remove('on');
+  $('nowbar').style.width = Math.round(100 * state.idx / list.length) + '%';
+  renderTimeline();
+  showNext();
+  updateRunBtn();
+}
+
+// ---- rendering -----------------------------------------------------------
+function render(){
+  const rows = [...state.table.values()].sort((a, b) =>
+    b.points - a.points || b.titles - a.titles || a.name.localeCompare(b.name));
+  // Majors won, to sit beside the name: one square per title, in that event's
+  // surface colour, so a season reads at a glance.
+  const majors = new Map();
+  state.log.forEach(({ ev, res }) => {
+    if(!res || ev.level !== SLAM || !res.champion) return;
+    if(!majors.has(res.champion)) majors.set(res.champion, []);
+    majors.get(res.champion).push({ name: ev.name, colour: bgFor(ev) });
+  });
+  const badges = name => {
+    const won = majors.get(name);
+    if(!won) return '';
+    return '<span class="majors">' + won.map(w =>
+      '<i class="major" style="background:' + w.colour + '" title="' +
+      esc(w.name) + '"></i>').join('') + '</span>';
+  };
+  $('standempty').style.display = rows.length ? 'none' : '';
+  $('standings').innerHTML = rows.slice(0, 100).map((r, i) =>
+    '<tr class="pl' + (r.name === state.playable ? ' you' : '') + '" data-p="'
+    + esc(r.name) + '" title="Open ' + esc(r.name) + '\u2019s season">'
+    + '<td class="num">' + (i + 1) +
+    '</td><td>' + esc(r.name) + badges(r.name) + '</td><td class="num">' + r.points +
+    '</td><td class="num">' + (r.titles || '') +
+    '</td><td class="num">' + r.w + '–' + r.l + '</td></tr>').join('');
+
+  $('sortbtn').textContent = state.calDesc ? 'newest first  \u2193' : 'oldest first  \u2191';
+  // Only offered once somebody is picked: with nobody selected every event is
+  // "not contested" and the filter would empty the calendar.
+  const mine = $('minebtn');
+  mine.hidden = !state.playable;
+  mine.textContent = state.calMine ? 'contested only' : 'all tournaments';
+  mine.classList.toggle('on', state.calMine && !!state.playable);
+  const idxOf = new Map(state.log.map((l, i) => [l, i]));
+  let order = state.calDesc ? [...state.log].reverse() : state.log;
+  if(state.calMine && state.playable)
+    order = order.filter(l => l.res && l.res.yourEntry);
+  $('calempty').style.display = order.length ? 'none' : '';
+  $('callist').innerHTML = order.map(entry => {
+    const { ev, res } = entry, i = idxOf.get(entry);
+    const lvl = '<span class="lvl' + (ev.level === SLAM ? ' slam'
+        : /1000$/.test(ev.level) ? ' m1000'
+        : /500$/.test(ev.level) ? ' m500'
+        : /250$/.test(ev.level) ? ' m250' : '') + '">'
+      + esc(ev.level) + '</span>';
+    const open = '<tr class="ev' + (res ? '' : ' skip') + '" data-i="' + i +
+      '" style="--rowc:' + bgFor(ev) + '" title="' +
+      esc(ev.name + ' — ' + ev.surface.replace('_', ' ') +
+          (res ? '' : ': ' + ev.skip)) + '">';
+    if(!res) return open + '<td class="num stripe">' + ev.start.slice(5) + '</td><td>' +
+      esc(ev.name) + ' ' + lvl + '</td><td colspan="2">not simulated — ' +
+      esc(ev.skip) + '</td></tr>';
+    return open + '<td class="num stripe">' + ev.start.slice(5) + '</td><td>' +
+      esc(ev.name) + ' ' + lvl + '</td><td>' + esc(res.champion || '\u2014') +
+      '</td><td' + (res.yourResult ? ' title="' + esc(res.yourResult) + '"' : '') +
+      '>' + esc(shortResult(res.yourResult)) + '</td></tr>';
+  }).join('');
+
+  renderTimeline();
+  showNext();
+  const you = state.table.get(state.playable);
+  const done = state.log.filter(l => l.res).length;
+  // With a player picked this is THEIR entry count, not the season's progress --
+  // the other four cells are all about them, so a season total read as one too.
+  const played = state.playable
+    ? state.log.filter(l => l.res && l.res.yourEntry).length : done;
+  $('sumrow').innerHTML = [
+    [state.playable ? 'Events entered' : 'Events played',
+     played + ' / ' + (state.playable ? done : playableEvents().length)],
+    ['Your points', you ? you.points : 0],
+    ['Your titles', you ? you.titles : 0],
+    ['Your record', you ? you.w + '–' + you.l : '0–0'],
+    ['Your rank', you ? (1 + [...state.table.values()]
+        .filter(r => r.points > you.points).length) : '—'],
+  ].map(([k, v]) => '<div class="stat"><b>' + esc(v) + '</b><span>' + k + '</span></div>').join('');
+}
+
+// The calendar column is narrow, so a result is written as short as it can be
+// read: a round is just "3R", anything meaning they never made the draw is a
+// dash or DNQ. The full wording stays on the row's tooltip and in the panel.
+// "draw full" is its own outcome, not a dash: the player's ranking WAS on the
+// acceptance list, and the draw filled from above before it reached them. That
+// is a different season from DNQ, where the list stopped short of them entirely.
+// The dash is left for the two states that should never arise -- an event whose
+// week was never allocated, and a player in a draw who somehow played no match.
+const RESULT_SHORT = {
+  'not qualified': 'DNQ', 'did not qualify': 'DNQ', 'lost in qualifying': 'lost Q',
+  'playing elsewhere': 'conflict', 'Runner-up': 'F', 'draw full': 'missed cut',
+  'not in the draw': '\u2014', 'did not play': '\u2014',
+};
+const shortResult = r => r ? (RESULT_SHORT[r] || r) : '';
+
+// ---- one tournament, opened ---------------------------------------------
+const ROUND_LABEL = { QF: 'QF', SF: 'SF', F: 'Final' };
+
+function openEvent(i){
+  const ev = cal()[i], entry = state.log[i];
+  if(!ev || !entry) return;                       // not played yet
+  const bg = bgFor(ev), light = inkOn(bg) === '#FFFFFF';
+  const res = entry.res;
+  const rr = ev.format === 'rr';
+  const chips = [state.tour, ev.level, ev.surface.replace('_', ' '),
+                 rr ? 'round robin' : ev.draw ? ev.draw + ' draw' : null,
+                 rr ? FINALS_FIELD + ' qualified'
+                    : res && res.seeds ? res.seeds + ' seeds' : null,
+                 !rr && res && res.qualifiers ? res.qualifiers + ' qualifiers'
+                    : null].filter(Boolean);
+
+  let body = '';
+  if(!res){
+    body = '<p class="beat">This event is on the calendar but was not simulated — '
+         + esc(ev.skip) + '.</p>';
+  } else {
+    // The same badge the grand-slam page uses: a seed number, or Q for a player
+    // who came through qualifying rather than in on their ranking.
+    const badge = (n, q) => q ? ' <span class="seed q">Q</span>'
+                    : n ? ' <span class="seed">' + n + '</span>' : '';
+    body += '<h4>Champion</h4><div class="champ">' + esc(res.champion || '—')
+          + badge(res.championSeed, res.championQ) + '</div>';
+    if(res.groups && res.groups.length){
+      const pc = (w, l) => (w + l) ? Math.round(100 * w / (w + l)) + '%' : '—';
+      body += '<h4>Round robin</h4><div class="grp">' + res.groups.map(g =>
+        '<div><b>' + esc(g.label) + '</b><table><thead><tr><th></th><th>W–L</th>'
+        + '<th>Sets</th><th>Games</th></tr></thead><tbody>' + g.rows.map((r, k) =>
+          '<tr' + (k < 2 ? ' class="thru"' : '') + '><td>' + esc(r.name)
+          + badge(r.seed, false) + '</td><td class="num">' + r.mw + '–' + r.ml
+          + '</td><td class="num">' + pc(r.sw, r.sl)
+          + '</td><td class="num">' + pc(r.gw, r.gl) + '</td></tr>').join('')
+        + '</tbody></table></div>').join('') + '</div>';
+    }
+    const by = {};
+    res.closing.forEach(m => (by[m.round] = by[m.round] || []).push(m));
+    if(res.closing.length){
+      body += '<h4>Closing rounds</h4><div class="rnd">';
+      ['F', 'SF', 'QF'].forEach(r => {
+        if(!by[r]) return;
+        body += '<b>' + ROUND_LABEL[r] + '</b><div>' + by[r].map(m =>
+          esc(m.winner) + badge(m.wseed, m.wq) + ' <span class="beat">d.</span> '
+          + esc(m.loser) + badge(m.lseed, m.lq)).join('<br>') + '</div>';
+      });
+      body += '</div>';
+    }
+    if(res.yourMatches.length){
+      body += '<h4>' + esc(state.playable) + ' at this event</h4>'
+            + '<table class="mine"><tbody>' + res.yourMatches.map((m, k) =>
+        '<tr class="ev" data-m="' + k + '" title="Open the point-by-point"><td>'
+        + esc(m.round) + '</td><td class="' + (m.won ? 'w' : 'l') + '">'
+        + (m.won ? 'beat' : 'lost to') + '</td><td>' + esc(m.opponent)
+        + badge(m.oppSeed, m.oppQ) + '</td><td>' + esc(m.score) + '</td></tr>').join('')
+        + '</tbody></table>';
+    } else if(state.playable){
+      body += '<h4>' + esc(state.playable) + '</h4><p class="beat">'
+            + esc(res.yourResult || 'not in the draw') + '</p>';
+    }
+    if(res.injured.length){
+      body += '<h4>Injuries</h4><p class="beat">' + res.injured.map(x =>
+        esc(x.name) + ' — ' + (x.seasonEnding ? 'out for the season'
+                                              : x.weeks + ' weeks')).join('<br>') + '</p>';
+    }
+  }
+
+  $('sheet').setAttribute('data-ink', light ? 'light' : 'dark');
+  $('sheet').innerHTML =
+    '<header style="--sheetbg:' + bg + ';--sheetink:' + (light ? '#FFFFFF' : '#0E1A22') + '">'
+    + '<button class="closebtn" id="sheetclose" aria-label="Close">&times;</button>'
+    + '<h2>' + esc(ev.name) + '</h2><div class="where">' + esc(ev.location)
+    + ' · ' + esc(ev.start) + ' to ' + esc(ev.end) + '</div>'
+    + '<div class="chips">' + chips.map(c => '<span>' + esc(c) + '</span>').join('') + '</div>'
+    + '</header><div class="sheetbody">' + body + '</div>';
+  $('sheetclose').addEventListener('click', closeEvent);
+  // Opening one of your own matches hands it to the shared viewer, the same
+  // panel and the same CSV/JSON export the grand-slam page uses.
+  $('sheet').querySelectorAll('tr.ev[data-m]').forEach(tr =>
+    tr.addEventListener('click', () =>
+      openMatch(res.yourMatches[Number(tr.dataset.m)], matchContext(ev,
+        res.yourMatches[Number(tr.dataset.m)].round))));
+  $('ovl').classList.add('on');
+}
+
+// What only this page knows about a match, for the shared viewer and export.
+function matchContext(ev, round){
+  return {
+    round: ROUND_NAME[round] || round,
+    tour: state.tour, drawSize: ev.draw, surface: ev.surface,
+    bestOf: (state.tour === 'ATP' && ev.level === SLAM) ? 5 : 3,
+    decidingTiebreak: ev.level === SLAM ? 10 : 7,
+    dataSet: BUILT, configuration: ev.name + ' ' + ev.start.slice(0, 4),
+    drawSeed: state.seed,
+  };
+}
+const ROUND_NAME = { R128:'Round of 128', R64:'Round of 64', R32:'Round of 32',
+                     R16:'Round of 16', QF:'Quarter-finals', SF:'Semi-finals', F:'Final' };
+// How a finish is written on a player's card. The key is the round they went
+// out in, so R32 means they lost there rather than reached it.
+const FINISH = {
+  W: 'Champion', F: 'Runner-up', SF: 'Semi-final', QF: 'Quarter-final',
+  R16: 'Round of 16', R32: 'Round of 32', R64: 'Round of 64',
+  R128: 'Round of 128', RR: 'Group stage',
+};
+const SLOT_NOTE = {
+  mand: 'compulsory', float: 'compulsory', other: 'best of the rest',
+  finals: 'the finals',
+};
+
+function openPlayer(name){
+  const r = state.table.get(name);
+  if(!r) return;
+  const tour = state.tour;
+  const { counted, total } = rankingBreakdown(r, tour);
+  const evByName = new Map(cal().map(e => [e.name, e]));
+  const played = r.results.slice().sort((a, b) => a.sday - b.sday);
+  const rank = 1 + [...state.table.values()].filter(x => x.points > r.points).length;
+
+  let body = '<table class="season"><thead><tr><th>Tournament</th><th>Level</th>'
+    + '<th>Finish</th><th class="num">Pts</th><th class="num"></th></tr></thead><tbody>'
+    + played.map(g => {
+        const inR = counted.has(g);
+        const ev = evByName.get(g.event);
+        return '<tr' + (inR ? '' : ' class="dropped"') + '><td>'
+          + '<i class="dot" style="background:' + (ev ? bgFor(ev) : 'transparent') + '"></i>'
+          + esc(g.event) + '</td><td class="lv">' + esc(g.level) + '</td><td>'
+          + esc(FINISH[g.round] || g.round) + '</td><td class="num">' + g.pts
+          + '</td><td class="num tick" title="' + (inR ? 'counts towards the ranking — '
+              + SLOT_NOTE[g.slot] : 'outside the counting slots') + '">'
+          + (inR ? '&#10003;' : '&ndash;') + '</td></tr>';
+      }).join('')
+    + '</tbody></table>';
+  if(!played.length) body = '<p class="beat">No tournaments played yet.</p>';
+  else body += '<p class="beat">' + (tour === 'ATP'
+      ? 'Best 19: the four majors and eight compulsory Masters, plus the seven '
+        + 'best of everything else. The finals are added on top as a twentieth.'
+      : 'Best 18: the four majors, six compulsory 1000s and the best single other '
+        + '1000, plus the seven best of everything else. The finals are added on '
+        + 'top as a nineteenth.')
+    + ' ' + played.length + ' played, ' + counted.size + ' counting.</p>';
+
+  const bg = DEFAULT_BG, light = inkOn(bg) === '#FFFFFF';
+  $('sheet').setAttribute('data-ink', light ? 'light' : 'dark');
+  $('sheet').innerHTML =
+    '<header style="--sheetbg:' + bg + ';--sheetink:' + (light ? '#FFFFFF' : '#0E1A22') + '">'
+    + '<button class="closebtn" id="sheetclose" aria-label="Close">&times;</button>'
+    + '<h2>' + esc(name) + '</h2><div class="where">' + tour
+    + ' &middot; number ' + rank + ' on the season standings</div>'
+    + '<div class="chips"><span>' + total + ' points</span><span>'
+    + (r.titles || 0) + ' titles</span><span>' + r.w + '\u2013' + r.l
+    + '</span></div></header><div class="sheetbody">' + body + '</div>';
+  $('sheetclose').addEventListener('click', closeEvent);
+  $('ovl').classList.add('on');
+}
+
+function closeEvent(){ $('ovl').classList.remove('on'); }
+
+$('ovl').addEventListener('click', e => { if(e.target === $('ovl')) closeEvent(); });
+$('mclose').addEventListener('click', closeMatch);
+$('overlay').addEventListener('click', e => { if(e.target === $('overlay')) closeMatch(); });
+document.addEventListener('keydown', e => {
+  if(e.key !== 'Escape') return;
+  // the match viewer sits on top of the tournament sheet, so it closes first
+  if($('overlay').classList.contains('open')) closeMatch(); else closeEvent();
+});
+$('track').addEventListener('click', e => {
+  const el = e.target.closest('.tl');
+  if(el && el.dataset.i) openEvent(Number(el.dataset.i));
+});
+$('callist').addEventListener('click', e => {
+  const tr = e.target.closest('tr');
+  if(tr && tr.dataset.i) openEvent(Number(tr.dataset.i));
+});
+$('standings').addEventListener('click', e => {
+  const tr = e.target.closest('tr');
+  if(tr && tr.dataset.p) openPlayer(tr.dataset.p);
+});
+
+function fillPlayers(){
+  const sel = $('playsel');
+  sel.innerHTML = '<option value="">Nobody — just run the season</option>' +
+    POOLS[state.tour].map(p =>
+      '<option value="' + esc(p.name) + '">' + esc(p.name) + '  (#' + p.rank + ')</option>').join('');
+  sel.value = state.playable;
+}
+
+function reset(){
+  state.idx = 0; state.table = new Map(); state.log = []; state.busy = new Map();
+  state.hurt = new Map(); state.absence = new Map();
+  state.load = new Map(); state.loadWeek = null; state.fields = new Map();
+  state.rested = 0;
+  applyGround(DEFAULT_BG);
+  state.seed = (Math.random() * 0xFFFFFFFF) >>> 0;
+  $('now').classList.remove('on');
+  state.running = false; state.cancel = false;
+  runBtnState = null;
+  render();
+  updateRunBtn();
+}
+
+document.querySelectorAll('#tourseg .segbtn[data-tour]').forEach(b =>
+  b.addEventListener('click', () => {
+    if(state.running) return;
+    document.querySelectorAll('#tourseg .segbtn[data-tour]')
+      .forEach(x => x.classList.toggle('on', x === b));
+    state.tour = b.dataset.tour;
+    try { localStorage.setItem(NS + 'tour', state.tour); } catch(e){}
+    state.playable = '';
+    fillPlayers(); reset();
+  }));
+$('playsel').addEventListener('change', e => {
+  state.playable = e.target.value;
+  if(!state.playable) state.calMine = false;
+  render();
+});
+$('modesel').addEventListener('change', e => { state.mode = e.target.value; });
+$('runbtn').addEventListener('click', () => {
+  if(state.running){ state.cancel = true; return; }   // hold after this event
+  run();
+});
+$('resetbtn').addEventListener('click', () => { if(!state.running) reset(); });
+$('sortbtn').addEventListener('click', () => { state.calDesc = !state.calDesc; render(); });
+$('minebtn').addEventListener('click', () => { state.calMine = !state.calMine; render(); });
+
+// theme, shared with the other pages through the same key
+function setTheme(mode){
+  document.documentElement.setAttribute('data-theme', mode);
+  try { localStorage.setItem(NS + 'theme', mode); } catch(e){}
+}
+try {
+  const saved = localStorage.getItem(NS + 'theme');
+  if(saved) document.documentElement.setAttribute('data-theme', saved);
+  const t = localStorage.getItem(NS + 'tour');
+  if(t === 'ATP' || t === 'WTA'){
+    state.tour = t;
+    document.querySelectorAll('#tourseg .segbtn[data-tour]')
+      .forEach(x => x.classList.toggle('on', x.dataset.tour === t));
+  }
+} catch(e){}
+$('themebtn').addEventListener('click', () =>
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+
+$('foot').innerHTML = 'Ratings data set ' + esc(BUILT) +
+  '. Calendars are reconstructed from a cached twelve-month window of results, so ' +
+  'they carry that season’s events rather than a published forward schedule. ' +
+  'Every match except the ones you play is settled by a closed-form win probability ' +
+  'rather than point by point; both give the same distribution. ' +
+  'Not affiliated with the ATP, WTA or any tournament.';
+
+fillPlayers();
+state.mode = $('modesel').value;      // as above, at load
+reset();
+</script>

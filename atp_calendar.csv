@@ -1,0 +1,62 @@
+tournament,name,location,country,competition,level,start,end,surface,surface_from,draw,seeds,byes,main_draw_matches,shape
+US Open,US Open,"New York, USA",USA,US Open Men Singles,Grand Slam,2025-08-24,2025-09-07,hard,published calendar,128,32,0,118,verified
+Australian Open,Australian Open,"Melbourne, Australia",AUS,Australian Open Men Singles,Grand Slam,2026-01-18,2026-02-01,hard,published calendar,128,32,0,126,verified
+French Open,Roland Garros,"Paris, France",FRA,French Open Men Singles,Grand Slam,2026-05-24,2026-06-07,clay,published calendar,128,32,0,121,verified
+Wimbledon,Wimbledon,"London, Great Britain",GBR,Wimbledon Men Singles,Grand Slam,2026-06-29,2026-07-12,grass,published calendar,128,32,0,122,verified
+"Shanghai, China",Shanghai,"Shanghai, China",CHN,"ATP Shanghai, China Men Singles",ATP 1000,2025-10-01,2025-10-12,hard,published calendar,96,32,32,95,verified
+"Paris, France",Paris,"Paris, France",FRA,"ATP Paris, France Men Singles",ATP 1000,2025-10-27,2025-11-02,indoor_hard,published calendar,56,16,8,54,verified
+"Indian Wells, USA",Indian Wells,"Indian Wells, USA",USA,"ATP Indian Wells, USA Men Singles",ATP 1000,2026-03-04,2026-03-15,hard,published calendar,96,32,32,95,verified
+"Miami, USA",Miami,"Miami, USA",USA,"ATP Miami, USA Men Singles",ATP 1000,2026-03-19,2026-03-29,hard,published calendar,96,32,32,95,verified
+"Monte Carlo, Monaco",Monte Carlo,"Monte Carlo, Monaco",MCO,"ATP Monte Carlo, Monaco Men Singles",ATP 1000,2026-04-05,2026-04-12,clay,published calendar,56,16,8,55,verified
+"Madrid, Spain",Madrid,"Madrid, Spain",ESP,"ATP Madrid, Spain Men Singles",ATP 1000,2026-04-22,2026-05-03,clay,published calendar,96,32,32,95,verified
+"Rome, Italy",Rome,"Rome, Italy",ITA,"ATP Rome, Italy Men Singles",ATP 1000,2026-05-06,2026-05-17,clay,published calendar,96,32,32,95,verified
+"Montreal, Canada",Montreal,"Montreal, Canada",CAN,"ATP Montreal, Canada Men Singles",ATP 1000,2026-08-02,2026-08-14,hard,published calendar,96,32,32,95,verified
+"Cincinnati, USA",Cincinnati,"Cincinnati, USA",USA,"ATP Cincinnati, USA Men Singles",ATP 1000,2026-08-13,2026-08-20,hard,published calendar,96,32,32,89,verified
+"Tokyo, Japan",Tokyo,"Tokyo, Japan",JPN,"ATP Tokyo, Japan Men Singles",ATP 500,2025-09-24,2025-09-30,hard,published calendar,32,8,0,31,verified
+"Beijing, China",Beijing,"Beijing, China",CHN,"ATP Beijing, China Men Singles",ATP 500,2025-09-25,2025-10-01,hard,published calendar,32,8,0,31,verified
+"Basel, Switzerland",Basel,"Basel, Switzerland",CHE,"ATP Basel, Switzerland Men Singles",ATP 500,2025-10-20,2025-10-26,indoor_hard,published calendar,32,8,0,31,verified
+"Vienna, Austria",Vienna,"Vienna, Austria",AUT,"ATP Vienna, Austria Men Singles",ATP 500,2025-10-20,2025-10-26,indoor_hard,published calendar,32,8,0,31,verified
+"Dallas, USA",Dallas,"Dallas, USA",USA,"ATP Dallas, USA Men Singles",ATP 500,2026-02-09,2026-02-15,indoor_hard,published calendar,32,8,0,31,verified
+"Rotterdam, Netherlands",Rotterdam,"Rotterdam, Netherlands",NLD,"ATP Rotterdam, Netherlands Men Singles",ATP 500,2026-02-09,2026-02-15,indoor_hard,published calendar,32,8,0,31,verified
+"Doha, Qatar",Doha,"Doha, Qatar",QAT,"ATP Doha, Qatar Men Singles",ATP 500,2026-02-16,2026-02-21,hard,published calendar,32,8,0,31,verified
+"Rio de Janeiro, Brazil",Rio de Janeiro,"Rio de Janeiro, Brazil",BRA,"ATP Rio de Janeiro, Brazil Men Singles",ATP 500,2026-02-16,2026-02-22,clay,published calendar,32,8,0,31,verified
+"Dubai, UAE",Dubai,"Dubai, UAE",ARE,"ATP Dubai, UAE Men Singles",ATP 500,2026-02-23,2026-02-28,hard,published calendar,32,8,0,31,verified
+"Acapulco, Mexico",Acapulco,"Acapulco, Mexico",MEX,"ATP Acapulco, Mexico Men Singles",ATP 500,2026-02-24,2026-03-01,hard,published calendar,32,8,0,31,verified
+"Barcelona, Spain",Barcelona,"Barcelona, Spain",ESP,"ATP Barcelona, Spain Men Singles",ATP 500,2026-04-13,2026-04-19,clay,published calendar,32,8,0,31,verified
+"Munich, Germany",Munich,"Munich, Germany",DEU,"ATP Munich, Germany Men Singles",ATP 500,2026-04-13,2026-04-19,clay,published calendar,32,8,0,31,verified
+"Hamburg, Germany",Hamburg,"Hamburg, Germany",DEU,"ATP Hamburg, Germany Men Singles",ATP 500,2026-05-17,2026-05-23,clay,published calendar,32,8,0,31,verified
+"Halle, Germany",Halle,"Halle, Germany",DEU,"ATP Halle, Germany Men Singles",ATP 500,2026-06-15,2026-06-21,grass,published calendar,32,8,0,31,verified
+"London, Great Britain",London,"London, Great Britain",GBR,"ATP London, Great Britain Men Singles",ATP 500,2026-06-15,2026-06-21,grass,published calendar,32,8,0,31,verified
+"Washington, USA",Washington,"Washington, USA",USA,"ATP Washington, USA Men Singles",ATP 500,2026-07-27,2026-08-03,hard,published calendar,32,,0,31,verified
+"Winston Salem, USA",Winston Salem,"Winston Salem, USA",USA,"ATP Winston Salem, USA Men Singles",ATP 250,2025-08-21,2025-08-23,hard,published calendar,48,,16,7,verified
+"Chengdu, China",Chengdu,"Chengdu, China",CHN,"ATP Chengdu, China Men Singles",ATP 250,2025-09-17,2025-09-23,hard,published calendar,28,8,4,27,verified
+"Hangzhou, China",Hangzhou,"Hangzhou, China",CHN,"ATP Hangzhou, China Men Singles",ATP 250,2025-09-17,2025-09-23,hard,published calendar,28,8,4,27,verified
+"Almaty, Kazakhstan",Almaty,"Almaty, Kazakhstan",KAZ,"ATP Almaty, Kazakhstan Men Singles",ATP 250,2025-10-13,2025-10-19,indoor_hard,published calendar,28,8,4,27,verified
+"Brussels, Belgium",Brussels,"Brussels, Belgium",BEL,"ATP Brussels, Belgium Singles",ATP 250,2025-10-13,2025-10-19,indoor_hard,published calendar,28,8,4,27,verified
+"Stockholm, Sweden",Stockholm,"Stockholm, Sweden",SWE,"ATP Stockholm, Sweden Men Singles",ATP 250,2025-10-13,2025-10-19,indoor_hard,published calendar,28,8,4,27,verified
+"Athens, Greece",Athens,"Athens, Greece",GRC,"ATP Athens, Greece Men Singles",ATP 250,2025-11-02,2025-11-08,indoor_hard,published calendar,28,8,4,27,verified
+"Metz, France",Metz,"Metz, France",FRA,"ATP Metz, France Men Singles",ATP 250,2025-11-02,2025-11-08,indoor_hard,published calendar,28,8,4,27,verified
+"Brisbane, Australia",Brisbane,"Brisbane, Australia",AUS,"ATP Brisbane, Australia Men Singles",ATP 250,2026-01-04,2026-01-11,hard,published calendar,32,8,0,31,verified
+"Hong Kong, Hong Kong",Hong Kong,"Hong Kong, Hong Kong",HKG,"ATP Hong Kong, Hong Kong Men Singles",ATP 250,2026-01-05,2026-01-11,hard,published calendar,28,8,4,27,verified
+"Auckland, New Zealand",Auckland,"Auckland, New Zealand",NZL,"ATP Auckland, New Zealand Men Singles",ATP 250,2026-01-11,2026-01-17,hard,published calendar,28,8,4,27,verified
+"Adelaide, Australia",Adelaide,"Adelaide, Australia",AUS,"ATP Adelaide, Australia Men Singles",ATP 250,2026-01-12,2026-01-17,hard,published calendar,28,8,4,26,verified
+"Montpellier, France",Montpellier,"Montpellier, France",FRA,"ATP Montpellier, France Men Singles",ATP 250,2026-02-02,2026-02-08,indoor_hard,published calendar,28,8,4,27,verified
+"Buenos Aires, Argentina",Buenos Aires,"Buenos Aires, Argentina",ARG,"ATP Buenos Aires, Argentina Men Singles",ATP 250,2026-02-07,2026-02-15,clay,published calendar,28,8,4,35,verified
+"Delray Beach, USA",Delray Beach,"Delray Beach, USA",USA,"ATP Delray Beach, USA Men Singles",ATP 250,2026-02-16,2026-02-22,hard,published calendar,28,8,4,26,verified
+"Santiago, Chile",Santiago,"Santiago, Chile",CHL,"ATP Santiago, Chile Men Singles",ATP 250,2026-02-23,2026-03-01,clay,published calendar,28,8,4,27,verified
+"Houston, USA",Houston,"Houston, USA",USA,"ATP Houston, USA Men Singles",ATP 250,2026-03-30,2026-04-05,clay,published calendar,28,8,4,27,verified
+"Marrakech, Morocco",Marrakech,"Marrakech, Morocco",MAR,"ATP Marrakech, Morocco Men Singles",ATP 250,2026-03-30,2026-04-05,clay,published calendar,28,8,4,27,verified
+"Bucharest, Romania",Bucharest,"Bucharest, Romania",ROU,"ATP Bucharest, Romania Men Singles",ATP 250,2026-03-31,2026-04-05,clay,published calendar,28,8,4,27,verified
+"Geneva, Switzerland",Geneva,"Geneva, Switzerland",CHE,"ATP Geneva, Switzerland Men Singles",ATP 250,2026-05-17,2026-05-23,clay,published calendar,28,8,4,27,verified
+"S-Hertogenbosch, Netherlands",S-Hertogenbosch,"S-Hertogenbosch, Netherlands",NLD,"ATP S-Hertogenbosch, Netherlands Men Singles",ATP 250,2026-06-08,2026-06-14,grass,published calendar,28,8,4,27,verified
+"Stuttgart, Germany",Stuttgart,"Stuttgart, Germany",DEU,"ATP Stuttgart, Germany Men Singles",ATP 250,2026-06-08,2026-06-14,grass,published calendar,28,8,4,27,verified
+"Mallorca, Spain",Mallorca,"Mallorca, Spain",ESP,"ATP Mallorca, Spain Men Singles",ATP 250,2026-06-20,2026-06-27,grass,published calendar,28,8,4,28,verified
+"Eastbourne, Great Britain",Eastbourne,"Eastbourne, Great Britain",GBR,"ATP Eastbourne, Great Britain Men Singles",ATP 250,2026-06-22,2026-06-27,grass,published calendar,28,8,4,27,verified
+"Bastad, Sweden",Bastad,"Bastad, Sweden",SWE,"ATP Bastad, Sweden Men Singles",ATP 250,2026-07-13,2026-07-19,clay,published calendar,28,8,4,27,verified
+"Gstaad, Switzerland",Gstaad,"Gstaad, Switzerland",CHE,"ATP Gstaad, Switzerland Men Singles",ATP 250,2026-07-13,2026-07-19,clay,published calendar,28,8,4,27,verified
+"Umag, Croatia",Umag,"Umag, Croatia",HRV,"ATP Umag, Croatia Men Singles",ATP 250,2026-07-13,2026-07-18,clay,published calendar,28,8,4,27,verified
+"Estoril, Portugal",Estoril,"Estoril, Portugal",PRT,"ATP Estoril, Portugal Men Singles",ATP 250,2026-07-20,2026-07-26,clay,published calendar,28,8,4,27,verified
+"Kitzbuhel, Austria",Kitzbuhel,"Kitzbuhel, Austria",AUT,"ATP Kitzbuhel, Austria Men Singles",ATP 250,2026-07-20,2026-07-25,clay,published calendar,28,8,4,27,verified
+"Los Cabos, Mexico",Los Cabos,"Los Cabos, Mexico",MEX,"ATP Los Cabos, Mexico Men Singles",ATP 250,2026-07-26,2026-08-02,hard,published calendar,28,8,4,34,verified
+World Tour Finals,World Tour Finals,"Turin, Italy",ITA,ATP World Tour Finals Men Singles,ATP Finals,2025-11-09,2025-11-16,indoor_hard,published calendar,,,,15,round robin
+Next Gen ATP Finals,Next Gen ATP Finals,"Jeddah, Saudi Arabia",SAU,Next Gen ATP Finals Men Singles,Next Gen Finals,2025-12-17,2025-12-21,indoor_hard,published calendar,,,,15,round robin

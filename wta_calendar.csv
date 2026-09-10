@@ -1,0 +1,55 @@
+tournament,name,location,country,competition,level,start,end,surface,surface_from,draw,seeds,byes,main_draw_matches,shape
+US Open,US Open,"New York, USA",USA,US Open Women Singles,Grand Slam,2025-08-24,2025-09-06,hard,published calendar,128,32,0,121,verified
+Australian Open,Australian Open,"Melbourne, Australia",AUS,Australian Open Women Singles,Grand Slam,2026-01-18,2026-01-31,hard,published calendar,128,32,0,125,verified
+French Open,Roland Garros,"Paris, France",FRA,French Open Women Singles,Grand Slam,2026-05-24,2026-06-06,clay,published calendar,128,32,0,126,verified
+Wimbledon,Wimbledon,"London, Great Britain",GBR,Wimbledon Women Singles,Grand Slam,2026-06-29,2026-07-11,grass,published calendar,128,32,0,124,verified
+"Beijing, China",Beijing,"Beijing, China",CHN,"WTA Beijing, China Women Singles",WTA 1000,2025-09-24,2025-10-05,hard,published calendar,96,32,32,92,verified
+"Wuhan, China",Wuhan,"Wuhan, China",CHN,"WTA Wuhan, China Women Singles",WTA 1000,2025-10-06,2025-10-12,hard,published calendar,56,16,8,53,verified
+"Doha, Qatar",Doha,"Doha, Qatar",QAT,"WTA Doha, Qatar Women Singles",WTA 1000,2026-02-08,2026-02-13,hard,published calendar,56,16,8,47,verified
+"Dubai, UAE",Dubai,"Dubai, UAE",ARE,"WTA Dubai, UAE Women Singles",WTA 1000,2026-02-15,2026-02-21,hard,published calendar,56,16,8,50,verified
+"Indian Wells, USA",Indian Wells,"Indian Wells, USA",USA,"WTA Indian Wells, USA Women Singles",WTA 1000,2026-03-04,2026-03-15,hard,published calendar,96,32,32,84,verified
+"Miami, USA",Miami,"Miami, USA",USA,"WTA Miami, USA Women Singles",WTA 1000,2026-03-17,2026-03-28,hard,published calendar,96,32,32,90,verified
+"Madrid, Spain",Madrid,"Madrid, Spain",ESP,"WTA Madrid, Spain Women Singles",WTA 1000,2026-04-21,2026-05-02,clay,published calendar,96,32,32,88,verified
+"Rome, Italy",Rome,"Rome, Italy",ITA,"WTA Rome, Italy Women Singles",WTA 1000,2026-05-05,2026-05-16,clay,published calendar,96,32,32,90,verified
+"Toronto, Canada",Toronto,"Toronto, Canada",CAN,"WTA Toronto, Canada Women Singles",WTA 1000,2026-08-02,2026-08-13,hard,published calendar,96,32,32,91,verified
+"Cincinnati, USA",Cincinnati,"Cincinnati, USA",USA,"WTA Cincinnati, USA Women Singles",WTA 1000,2026-08-13,2026-08-20,hard,published calendar,96,32,32,89,verified
+"Monterrey, Mexico",Monterrey,"Monterrey, Mexico",MEX,"WTA Monterrey, Mexico Women Singles",WTA 500,2025-08-21,2025-08-24,hard,published calendar,28,,4,7,verified
+"Guadalajara, Mexico",Guadalajara,"Guadalajara, Mexico",MEX,"WTA Guadalajara, Mexico Women Singles",WTA 500,2025-09-08,2025-09-14,hard,published calendar,28,8,4,22,verified
+"Ningbo, China",Ningbo,"Ningbo, China",CHN,"WTA Ningbo, China Women Singles",WTA 500,2025-10-13,2025-10-19,hard,published calendar,28,8,4,27,verified
+"Tokyo, Japan",Tokyo,"Tokyo, Japan",JPN,"WTA Tokyo, Japan Women Singles",WTA 500,2025-10-20,2025-10-26,hard,published calendar,28,8,4,23,verified
+"Brisbane, Australia",Brisbane,"Brisbane, Australia",AUS,"WTA Brisbane, Australia Women Singles",WTA 500,2026-01-04,2026-01-11,hard,published calendar,48,16,16,44,verified
+"Adelaide 1, Australia",Adelaide 1,"Adelaide 1, Australia",AUS,"WTA Adelaide 1, Australia Women Singles",WTA 500,2026-01-12,2026-01-16,hard,published calendar,30,8,2,26,verified
+"Abu Dhabi, UAE",Abu Dhabi,"Abu Dhabi, UAE",ARE,"WTA Abu Dhabi, UAE Women Singles",WTA 500,2026-02-01,2026-02-07,hard,published calendar,28,8,4,27,verified
+"Merida, Mexico",Merida,"Merida, Mexico",MEX,"WTA Merida, Mexico Women Singles",WTA 500,2026-02-23,2026-03-01,hard,published calendar,28,8,4,23,verified
+"Charleston, USA",Charleston,"Charleston, USA",USA,"WTA Charleston, USA Women Singles",WTA 500,2026-03-30,2026-04-05,clay,published calendar,48,16,16,45,verified
+"Linz, Austria",Linz,"Linz, Austria",AUT,"WTA Linz, Austria Women Singles",WTA 500,2026-04-06,2026-04-12,clay,published calendar,28,8,4,21,verified
+"Stuttgart, Germany",Stuttgart,"Stuttgart, Germany",DEU,"WTA Stuttgart, Germany Women Singles",WTA 500,2026-04-13,2026-04-19,clay,published calendar,28,8,4,24,verified
+"Strasbourg, France",Strasbourg,"Strasbourg, France",FRA,"WTA Strasbourg, France Women Singles",WTA 500,2026-05-17,2026-05-22,clay,published calendar,28,8,4,23,verified
+"London, Great Britain",London,"London, Great Britain",GBR,"WTA London, Great Britain Women Singles",WTA 500,2026-06-08,2026-06-14,grass,published calendar,28,,4,27,verified
+"Berlin, Germany",Berlin,"Berlin, Germany",DEU,"Berlin, Germany Women Singles",WTA 500,2026-06-15,2026-06-21,grass,published calendar,28,8,4,25,verified
+"Bad Homburg, Germany",Bad Homburg,"Bad Homburg, Germany",DEU,"WTA Bad Homburg, Germany Women Singles",WTA 500,2026-06-21,2026-06-27,grass,published calendar,28,8,4,22,verified
+"Washington, USA",Washington,"Washington, USA",USA,"WTA Washington, USA Women Singles",WTA 500,2026-07-25,2026-08-02,hard,published calendar,28,8,4,29,verified
+"Sao Paulo, Brazil",Sao Paulo,"Sao Paulo, Brazil",BRA,"WTA Sao Paulo, Brazil Women, Singles",WTA 250,2025-09-08,2025-09-14,hard,published calendar,32,8,0,29,verified
+"Seoul, Korea Republic",Seoul,"Seoul, Korea Republic",KOR,"WTA Seoul, Korea Republic Women Singles",WTA 250,2025-09-15,2025-09-21,hard,published calendar,28,8,4,27,verified
+"Osaka, Japan",Osaka,"Osaka, Japan",JPN,"WTA Osaka, Japan Women Singles",WTA 250,2025-10-13,2025-10-19,hard,published calendar,32,8,0,28,verified
+"Guangzhou, China",Guangzhou,"Guangzhou, China",CHN,"WTA Guangzhou, China Women Singles",WTA 250,2025-10-20,2025-10-26,hard,published calendar,32,8,0,29,verified
+"Hong Kong, Hong Kong",Hong Kong,"Hong Kong, Hong Kong",HKG,"WTA Hong Kong, Hong Kong Women Singles",WTA 250,2025-10-27,2025-11-02,hard,published calendar,32,8,0,29,verified
+"Jiujiang, China",Jiujiang,"Jiujiang, China",CHN,"WTA Jiujiang, China Women Singles",WTA 250,2025-10-27,2025-11-02,hard,published calendar,32,8,0,31,verified
+"Chennai, India,",Chennai,"Chennai, India,",IND,"WTA Chennai, India, Women Singles",WTA 250,2025-10-29,2025-11-01,hard,published calendar,32,8,0,27,verified
+"Auckland, New Zealand",Auckland,"Auckland, New Zealand",NZL,"WTA Auckland, New Zealand Women Singles",WTA 250,2026-01-04,2026-01-11,hard,published calendar,32,8,0,28,verified
+"Hobart, Australia",Hobart,"Hobart, Australia",AUS,"WTA Hobart, Australia Women Singles",WTA 250,2026-01-12,2026-01-17,hard,published calendar,32,8,0,25,verified
+"Cluj Napoca, Romania",Cluj Napoca,"Cluj Napoca, Romania",ROU,"WTA Cluj Napoca, Romania Women Singles",WTA 250,2026-02-01,2026-02-07,indoor_hard,published calendar,32,8,0,27,verified
+"Ostrava, Czech Republic",Ostrava,"Ostrava, Czech Republic",CZE,"WTA Ostrava, Czech Republic Women Singles",WTA 250,2026-02-01,2026-02-07,indoor_hard,published calendar,30,8,2,25,verified
+"Austin, USA",Austin,"Austin, USA",USA,"WTA Austin, USA Women Singles",WTA 250,2026-02-23,2026-03-01,hard,published calendar,32,8,0,29,verified
+"Bogota, Colombia",Bogota,"Bogota, Colombia",COL,"WTA Bogota, Colombia Women Singles",WTA 250,2026-03-30,2026-04-05,clay,published calendar,32,8,0,25,verified
+"Rouen, France",Rouen,"Rouen, France",FRA,"WTA Rouen, France Women Singles",WTA 250,2026-04-13,2026-04-19,clay,published calendar,32,8,0,23,verified
+"Rabat, Morocco",Rabat,"Rabat, Morocco",MAR,"WTA Rabat, Morocco Women Singles",WTA 250,2026-05-18,2026-05-22,clay,published calendar,32,8,0,28,verified
+"S-Hertogenbosch, Netherlands",S-Hertogenbosch,"S-Hertogenbosch, Netherlands",NLD,"WTA S-Hertogenbosch, Netherlands Women Singles",WTA 250,2026-06-08,2026-06-13,grass,published calendar,32,8,0,26,verified
+"Nottingham, Great Britain",Nottingham,"Nottingham, Great Britain",GBR,"WTA Nottingham, Great Britain Women Singles",WTA 250,2026-06-15,2026-06-21,grass,published calendar,32,8,0,31,verified
+"Eastbourne, Great Britain",Eastbourne,"Eastbourne, Great Britain",GBR,"WTA Eastbourne, Great Britain Women Singles",WTA 250,2026-06-22,2026-06-27,grass,published calendar,32,8,0,29,verified
+"Athens, Greece",Athens,"Athens, Greece",GRC,"WTA Athens, Greece Women Singles",WTA 250,2026-07-13,2026-07-18,hard,published calendar,32,8,0,30,verified
+"Iasi, Romania",Iasi,"Iasi, Romania",ROU,"WTA Iasi, Romania Women Singles",WTA 250,2026-07-13,2026-07-20,clay,published calendar,32,8,0,31,verified
+"Hamburg, Germany",Hamburg,"Hamburg, Germany",DEU,"WTA Hamburg, Germany Women Singles",WTA 250,2026-07-20,2026-07-26,clay,published calendar,32,8,0,26,verified
+"Prague, Czech Republic",Prague,"Prague, Czech Republic",CZE,"WTA Prague, Czech Republic Women Singles",WTA 250,2026-07-20,2026-07-25,hard,published calendar,32,8,0,30,verified
+"Memphis, USA",Memphis,"Memphis, USA",USA,"WTA Memphis, USA Women Singles",WTA 250,2026-07-25,2026-08-02,hard,published calendar,32,8,0,36,verified
+Finals,Finals,"Riyadh, Saudi Arabia",SAU,WTA Finals Women Singles,WTA Finals,2025-11-01,2025-11-08,hard,published calendar,,,,14,round robin

@@ -1,0 +1,74 @@
+<!-- Shared across all three pages: the tournament simulator, the season
+     simulator and the ratings board. One source, inlined at build time by
+     sitenote.py, because three copies of the same paragraph drift.
+
+     Self-contained on purpose: it adds its own button to whatever .navbar the
+     host page has, so no page needs its header edited. -->
+<style>
+.snbtn{cursor:pointer}
+.snwrap{position:fixed;inset:0;background:rgba(8,16,24,.55);z-index:80;
+  display:none;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow:auto}
+.snwrap.on{display:flex}
+.snbox{background:var(--surface);color:var(--ink);border-radius:16px;max-width:620px;width:100%;
+  box-shadow:0 24px 60px -20px rgba(0,0,0,.5);overflow:hidden}
+.snbox header{background:var(--page);color:var(--page-ink,#fff);
+  padding:16px 20px;display:flex;align-items:center;gap:12px}
+.snbox header h2{margin:0;font-size:19px;font-weight:700;letter-spacing:-.01em}
+.snbox header button{margin-left:auto;border:0;border-radius:99px;width:28px;height:28px;
+  font-size:16px;line-height:1;cursor:pointer;background:rgba(255,255,255,.2);color:inherit}
+.snbody{padding:16px 20px 20px;font-size:14px;line-height:1.62;color:var(--ink-2)}
+.snbody p{margin:0 0 12px}
+.snbody p:last-child{margin-bottom:0}
+.snbody b{color:var(--ink)}
+.snbody .foot{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  font-size:12px;color:var(--muted)}
+</style>
+
+<div class="snwrap" id="snwrap">
+  <div class="snbox" role="dialog" aria-modal="true" aria-labelledby="sntitle">
+    <header>
+      <h2 id="sntitle">About this site</h2>
+      <button type="button" id="snclose" aria-label="Close">&times;</button>
+    </header>
+    <div class="snbody">
+      <p>Sportradar box scores become per-player rates &mdash; serves in, points won
+      on each serve, returns, winners, unforced errors, and the same figures from
+      the other side of the net &mdash; averaged over a rolling twelve months and
+      z&#8209;scored against the tour.</p>
+
+      <p>Each z&#8209;score is folded into <b>SRV</b>, <b>RET</b>, <b>SHOT</b> or
+      <b>CONS</b> &mdash; oriented by how a unit of that rating moves that statistic
+      in the simulator&rsquo;s own point model, and weighted by how repeatably the
+      statistic measures the same player &mdash; then scaled 0&ndash;10 and averaged
+      into <b>OVR</b>, the ratings shown on the <b>Tour Ratings Board</b>.</p>
+
+      <div class="foot">Every match on this site is simulated from those ratings.
+      Not affiliated with the ATP, WTA or any tournament.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var wrap = document.getElementById('snwrap');
+  var open = function(){ wrap.classList.add('on'); };
+  var shut = function(){ wrap.classList.remove('on'); };
+  document.getElementById('snclose').addEventListener('click', shut);
+  wrap.addEventListener('click', function(e){ if(e.target === wrap) shut(); });
+  document.addEventListener('keydown', function(e){
+    // only close if nothing else is stacked on top of this
+    if(e.key === 'Escape' && wrap.classList.contains('on')) shut();
+  });
+  // Put the trigger in whatever navbar the page has, so no header needs editing.
+  var bar = document.querySelector('.navbar');
+  if(bar){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'navlink snbtn';
+    b.id = 'snopen';
+    b.textContent = 'About this site';
+    b.addEventListener('click', open);
+    bar.appendChild(b);
+  }
+})();
+</script>

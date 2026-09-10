@@ -16,25 +16,62 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+import sitenote
+
 ROOT = Path(__file__).resolve().parent
 TEMPLATE = ROOT / 'simulation' / 'tournament_template.html'
 ENGINE = ROOT / 'simulation' / 'engine.js'
+MATCHVIEW = ROOT / 'simulation' / 'matchview.js'
 RATINGS = ROOT / 'ratings.json'
 
 MIN_POOL = 200          # a 128 draw with 10% dropout needs well over 128
 
 
-def candidates(tour: str, ranks_by_tour):
-    """Ranked pool for one tour: everyone with both a rating and a ranking."""
+def candidates(tour: str, ranks_by_tour, nations_by_tour=None):
+    """Ranked pool for one tour: everyone with both a rating and a ranking.
+
+    `country` is the three-letter code the ranking feed carries, or None for a
+    player under the neutral designation. No tournament is held in the countries
+    those players come from, so a missing code costs them nothing.
+    """
     ranks = ranks_by_tour[tour]
+    nations = (nations_by_tour or {}).get(tour, {})
     pool = []
     for row in json.loads(RATINGS.read_text()):
         if row['t'] != tour or row['p'] not in ranks:
             continue
-        pool.append({'name': row['p'], 'rank': ranks[row['p']],
-                     'ratings': {'SRV': row['s'], 'RET': row['r'],
-                                 'SHOT': row['h'], 'CONS': row['c']}})
+        entry = {'name': row['p'], 'rank': ranks[row['p']],
+                 'ratings': {'SRV': row['s'], 'RET': row['r'],
+                             'SHOT': row['h'], 'CONS': row['c']}}
+        code = nations.get(row['p'])
+        if code:
+            entry['country'] = code
+        pool.append(entry)
     return sorted(pool, key=lambda p: p['rank'])
+
+
+def nationalities():
+    """Three-letter country code per player, from the same cached rankings call.
+
+    Players under the neutral designation carry a country of 'Neutral' and no
+    code; they are simply left out, which is what the boost expects.
+    """
+    from sportradar_data import Client
+    client = Client(budget=0)
+
+    def flip(name):
+        last, _, first = name.partition(',')
+        return f'{first.strip()} {last.strip()}' if first else name.strip()
+
+    out = {}
+    for ranking in client.rankings():
+        if ranking['name'] not in ('ATP', 'WTA'):
+            continue
+        out[ranking['name']] = {
+            flip(e['competitor']['name']): e['competitor'].get('country_code')
+            for e in ranking['competitor_rankings']
+            if e['competitor'].get('country_code')}
+    return out
 
 
 def rankings():
@@ -60,9 +97,10 @@ def main() -> int:
     args = parser.parse_args()
 
     ranks = rankings()
+    nations = nationalities()
     pools = {}
     for tour in ('ATP', 'WTA'):
-        pool = candidates(tour, ranks)
+        pool = candidates(tour, ranks, nations)
         if len(pool) < MIN_POOL:
             raise SystemExit(f'only {len(pool)} rated+ranked {tour} players; '
                              f'need at least {MIN_POOL}')
@@ -78,7 +116,12 @@ def main() -> int:
 
     page = (TEMPLATE.read_text()
             .replace('/*__ENGINE__*/', ENGINE.read_text())
+            .replace('/*__MATCHVIEW__*/', MATCHVIEW.read_text())
             .replace('/*__DATA__*/', json.dumps(payload, separators=(',', ':'))))
+    page = sitenote.inline(page)
+    for marker in ('/*__ENGINE__*/', '/*__MATCHVIEW__*/', '/*__DATA__*/'):
+        if marker in page:
+            raise SystemExit(f'{marker} was not substituted')
     Path(args.out).write_text(page)
     print(f'wrote {args.out}  ({Path(args.out).stat().st_size / 1024:.0f} KB)')
     return 0

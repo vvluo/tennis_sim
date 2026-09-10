@@ -180,6 +180,86 @@ been called — there are zero `season_*` files in the cache. Worth measuring
 before any historical pull, because on a trial key the day-by-day path would
 exhaust the 1,000-call monthly quota on roughly two years of history.
 
+## 5. Main draws arrive a few matches short, and some are missing their final
+
+Counting cached main-draw matches against the draw size — a draw of N plays
+N&minus;1 matches — leaves **262 matches unaccounted for across the 2025-26
+season**, spread over 54 events at roughly four per event.
+
+Walkovers are not the explanation. They *are* in the feed, flagged in
+`winning_reason` and carrying zero statistics, so they occupy a row like any
+other match; only 2 of the 262 fall inside the short events. Nor are the missing
+matches present-but-statless: just 13 cached rows in the whole season have no
+serve points recorded (12 ATP, 1 WTA). The matches are simply absent.
+
+The shortfall lands much harder on the WTA: 44 of the 54 short events are WTA,
+and the worst non-window-edge cases are Indian Wells (11 short of 95), Doha and
+Rouen (8), and Madrid (7). On the ATP side only the US Open (9), Roland Garros
+and Cincinnati (6) lose more than five.
+
+### Which rounds, and which players
+
+Missing matches are **scattered rather than structural**. Pooling every event,
+the shortfall rate is roughly flat across the draw and only drifts up in the
+late rounds, so this is not a case of early rounds being skipped:
+
+| round | expected | missing | rate |
+|-------|---------:|--------:|-----:|
+| R128  | 960      | 22      | 2.3% |
+| R64   | 872      | 41      | 4.7% |
+| R32   | 1620     | 98      | 6.0% |
+| R16   | 896      | 52      | 5.8% |
+| QF    | 448      | 25      | 5.6% |
+| SF    | 224      | 15      | 6.7% |
+| F     | 112      | 11      | 9.8% |
+
+Whole rounds vanish only at the two events the cache window cuts into
+(Winston-Salem, Monterrey).
+
+A sharper test than counting is **continuity**: whoever wins a match must appear
+in the next round. Across the simulated calendars that fails **294 times**,
+touching 171 players — and the imbalance is stark:
+
+- **WTA 230, ATP 64**, nearly four to one, on calendars of similar size.
+- By level: WTA 1000 (73), WTA 250 (69), Grand Slams (64), WTA 500 (62), against
+  ATP 250 (18) and ATP 1000 (8).
+- Worst events: Indian Wells WTA (16), Roland Garros ATP (15), Madrid WTA (13),
+  both US Opens (12 each).
+- Most affected players are WTA: Bencic (7), Osaka, Keys, Svitolina and Kostyuk
+  (4 each).
+
+So a player's own record can be short even where the draw looks complete, and
+the gaps fall disproportionately on the women's tour — the same asymmetry as
+issue 2, and a reason to treat WTA per-player rates as resting on slightly
+thinner evidence than the ATP ones.
+
+Six events have **no final recorded at all**, so "who won this" comes back empty
+for them — Roland Garros (ATP), Cincinnati (ATP), and Shanghai among them.
+
+### What this affects
+
+- **Reconstructing ranking points understates players**, because a missing deep
+  run is invisible. The ~90% coverage measured against official totals is partly
+  this rather than only the best-18 rule and the events we do not carry.
+- **Champion lookups are unreliable** for the six events with no final.
+
+### What it does not affect
+
+- **Draw shapes**, which are derived from which *rounds* are present rather than
+  from match counts, so a short draw still resolves correctly.
+- **The simulator**, which consumes ratings and draw sizes and never reads an
+  individual result.
+- **The ratings themselves**, which are per-player rate averages: fewer matches
+  means a slightly noisier average, not a biased one, unless the absences
+  correlate with performance. That has not been checked.
+
+Two individual seasons were verified by hand against the feed and came back
+exactly right, which is what narrows this to missing rows rather than a broken
+pipeline: Djokovic's nine cached events match his real season, and Alcaraz's ten
+end at Barcelona on 2026-04-17 with a `walkover` in the round of 16 — his injury
+withdrawal — after which he is absent for the remaining four months of the
+window.
+
 ## How these were checked
 
 All figures are reproducible from `sportradar_data.py` against a local cache of
