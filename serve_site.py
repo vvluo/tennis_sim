@@ -19,7 +19,19 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'site')
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8777
 
 os.chdir(ROOT)
-handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=ROOT)
+class Handler(http.server.SimpleHTTPRequestHandler):
+    """SimpleHTTPRequestHandler serves .html as bare 'text/html' with no charset,
+    so a browser guesses -- and guesses Latin-1, which renders every UTF-8 em
+    dash as 'a EUR "'. GitHub Pages sends the charset; this now does too, so what
+    is checked locally is what ships."""
+
+    extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map,
+                      '.html': 'text/html; charset=utf-8',
+                      '.js': 'text/javascript; charset=utf-8',
+                      '.json': 'application/json; charset=utf-8'}
+
+
+handler = functools.partial(Handler, directory=ROOT)
 socketserver.TCPServer.allow_reuse_address = True
 with socketserver.TCPServer(('127.0.0.1', PORT), handler) as httpd:
     print(f'serving {ROOT} on http://127.0.0.1:{PORT}')

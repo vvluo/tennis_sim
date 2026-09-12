@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Simulate a Season</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -170,6 +171,18 @@ tbody tr:last-child td{border-bottom:0}
   text-transform:uppercase;padding:3px 8px;border-radius:99px;
   color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
 .nowres .sheetbody{padding:12px 14px 14px}
+/* A white cross in a red circle: this player was hurt. */
+.hurt{display:inline-flex;flex:none;align-items:center;margin-left:5px;
+  vertical-align:-2px;padding:3px;margin-top:-3px;margin-bottom:-3px;cursor:help}
+/* The span owns the hover, not the svg: a child svg can swallow the tooltip,
+   and 12px is a small thing to have to hit. The padding enlarges the target
+   without changing what is drawn. */
+.hurt svg{width:12px;height:12px;display:block;pointer-events:none}
+.hurt circle{fill:#C0392B}
+.hurt path{fill:#FFFFFF}
+.spell{margin-left:4px;font-size:10px;font-weight:700;letter-spacing:.04em;
+  color:var(--bp);white-space:nowrap}
+table.mine tr.wo td{color:var(--muted);font-style:italic}
 .skip td{color:var(--muted);font-style:italic}
 /* Round-robin group tables. The two who go through are held at full strength
    and the two who do not are dimmed, so the cut reads without a legend. */
@@ -616,7 +629,12 @@ const tierOf = lv => TIER[lv] ?? 3;
 const LOAD_DECAY = 0.90;          // per week
 const LOAD_SKIP = 0.014;          // extra dropout per unit of carried load
 const LOAD_SKIP_CAP = 0.45;       // however heavy, entry never collapses entirely
-const INJURY_BASE = 0.0016;       // per unit of load, per event entered
+// Per unit of load, per MATCH played -- not per event entered. A player runs
+// one to six matches at an event, so the per-roll figure has to come down from
+// the 0.0016 the per-event model used. Fitted, not divided by a guess: the old
+// model produced 35.0 injuries in an ATP season and this reproduces 35.7, with
+// the same ~5.5 weeks out and the same season-ending share.
+const INJURY_PER_MATCH = 0.00085;
 const INJURY_MIN_WEEKS = 2, INJURY_MAX_WEEKS = 9;
 // A small share of injuries end the season rather than costing a few weeks.
 const INJURY_SEASON_ENDING = 0.07;
@@ -679,10 +697,6 @@ function decayLoads(state, week){
 // flat one-in-eight rule reproduces every ATP figure exactly -- 12 for a 96
 // draw, 7 for 56, 6 for 48, 4 for 32 and 28 -- but the WTA departs from it: its
 // one-week 1000s put EIGHT qualifiers in a 56 draw, not seven.
-const QUALIFIERS = {
-  ATP: { 128:16, 96:12, 56:7, 48:6, 32:4, 30:4, 28:4 },
-  WTA: { 128:16, 96:12, 56:8, 48:6, 32:4, 30:4, 28:4 },
-};
 
 // The WTA runs some small-draw events with a 24-player qualifying rather than
 // 16, sending six through to the main draw instead of four. It is a property of
@@ -712,11 +726,11 @@ const BIG_QUALIFYING = new Set([
 const QUALIFYING_DROPOUT = 0.60;
 
 function qualifiersFor(tour, draw, name){
-  if(draw < MIN_QUALIFYING_DRAW) return 0;
-  const table = QUALIFIERS[tour] || {};
-  let q = table[draw];
-  if(q === undefined) q = Math.round(draw * QUALIFIER_SHARE);   // an unlisted size
-  if(tour === 'WTA' && draw <= 48 && BIG_QUALIFYING.has(name)) q = 6;
+  // The table itself lives in engine.js and is shared with the tournament
+  // simulator, so the same draw gets the same qualifying either way. Only the
+  // by-name override is a season concern -- a standalone draw has no name.
+  let q = qualifierCount(tour, draw);
+  if(q && tour === 'WTA' && draw <= 48 && BIG_QUALIFYING.has(name)) q = 6;
   return q;
 }
 
@@ -912,28 +926,33 @@ function allocateWeek(evs, rng, state, playable){
   });
 }
 
-// Wear tells afterwards: the heavier the recent load, the likelier a spell out.
-// Shared by both event types so the two cannot drift apart.
-function wearTells(ev, entrants, rng, out){
+// Wear tells AFTER A MATCH, not after a tournament: the heavier the carried
+// load, the likelier a spell out. Rolled per player per match, so a run to the
+// final is four or five chances rather than one, and a first-round loss is one.
+//
+// Nobody retires mid-match. A player hurt by a match finishes it and then does
+// not come out for the next one -- their opponent advances by walkover -- which
+// is how the real tours record almost all of this. The tournament's injury list
+// is therefore whatever the matches inside it produced.
+function hurtBy(name, ev, rng, out){
+  const load = state.load.get(name) || 0;
+  if(rng.random() >= INJURY_PER_MATCH * load) return false;
   const endN = ev.sday_end;
-  entrants.forEach(e => {
-    const load = state.load.get(e.name) || 0;
-    if(rng.random() >= INJURY_BASE * load) return;
-    if(rng.random() < INJURY_SEASON_ENDING){
-      // Out for the year: no day left on the calendar can clear this.
-      state.busy.set(e.name, Infinity);
-      state.hurt.set(e.name, Infinity);
-      state.load.delete(e.name);
-      out.injured.push({ name: e.name, weeks: null, seasonEnding: true });
-    } else {
-      const weeks = INJURY_MIN_WEEKS +
-        Math.floor(rng.random() * (INJURY_MAX_WEEKS - INJURY_MIN_WEEKS + 1));
-      state.busy.set(e.name, endN + weeks * 7);
-      state.hurt.set(e.name, endN + weeks * 7);   // busy AND hurt, not just busy
-      state.load.delete(e.name);              // rest clears the accumulated load
-      out.injured.push({ name: e.name, weeks, seasonEnding: false });
-    }
-  });
+  if(rng.random() < INJURY_SEASON_ENDING){
+    // Out for the year: no day left on the calendar can clear this.
+    state.busy.set(name, Infinity);
+    state.hurt.set(name, Infinity);
+    state.load.delete(name);
+    out.injured.push({ name, weeks: null, seasonEnding: true });
+  } else {
+    const weeks = INJURY_MIN_WEEKS +
+      Math.floor(rng.random() * (INJURY_MAX_WEEKS - INJURY_MIN_WEEKS + 1));
+    state.busy.set(name, endN + weeks * 7);
+    state.hurt.set(name, endN + weeks * 7);   // busy AND hurt, not just busy
+    state.load.delete(name);                  // rest clears the accumulated load
+    out.injured.push({ name, weeks, seasonEnding: false });
+  }
+  return true;
 }
 
 // ---- one event -----------------------------------------------------------
@@ -955,13 +974,14 @@ function runEvent(ev, rng, playable, field){
   entrants.forEach(e => e.player = toPlayer(e, shift, shrink));
 
   const names = roundNames(draw.length), labels = exitLabels(names);
+  const sidelined = new Set();          // hurt during this event, so out of the next round
   const table = pointsFor(tour, ev.level, drawSize);
   // The closing rounds are kept so a finished event can be opened and read;
   // everything earlier is thrown away, as a season of full brackets is far more
   // than the page needs to hold.
   const KEEP = new Set(['QF', 'SF', 'F']);
   const out = { champion: null, runnerUp: null, yourResult: null, yourMatches: [],
-                injured: [], closing: [], seeds: null };
+                injured: [], walkovers: [], closing: [], seeds: null };
   let alive = draw.slice();
 
   names.forEach(name => {
@@ -969,6 +989,35 @@ function runEvent(ev, rng, playable, field){
     for(let i = 0; i < alive.length; i += 2){
       const top = alive[i], bottom = alive[i + 1];
       if(!top || !bottom){ if(top || bottom) winners.push(top || bottom); continue; }
+      // A player hurt earlier in this event does not come out. Their opponent
+      // advances without playing, so no points are struck, no load is added and
+      // no statistics are produced -- a walkover is the absence of a match, not
+      // a 6-0 6-0 one.
+      const topOut = sidelined.has(top.name), botOut = sidelined.has(bottom.name);
+      if(topOut || botOut){
+        // Both hurt is vanishingly rare; the better seed is the one put through.
+        const through = topOut && botOut ? (top.rank <= bottom.rank ? top : bottom)
+                      : topOut ? bottom : top;
+        const gone = through === top ? bottom : top;
+        out.walkovers.push({ round: name, advanced: through.name, withdrew: gone.name,
+                             aseed: through.seed, wseed: gone.seed });
+        if(KEEP.has(name)) out.closing.push({ round: name, winner: through.name,
+          loser: gone.name, wseed: through.seed, lseed: gone.seed,
+          wq: !!through.qualifier, lq: !!gone.qualifier, walkover: true });
+        if(playable === through.name || playable === gone.name){
+          out.yourMatches.push({
+            round: name, opponent: (playable === through.name ? gone : through).name,
+            won: playable === through.name, walkover: true,
+            oppQ: (playable === through.name ? gone : through).qualifier || false,
+            oppSeed: (playable === through.name ? gone : through).seed || null,
+            score: 'w/o',
+          });
+        }
+        credit(gone.name, table[name] || 0, false, ev, name, !!gone.qualifier);
+        if(name === 'F'){ out.champion = through.name; out.runnerUp = gone.name; }
+        winners.push(through);
+        continue;
+      }
       const yours = top.name === playable || bottom.name === playable;
       let wonByTop, record = null;
       if(yours){
@@ -1006,6 +1055,12 @@ function runEvent(ev, rng, playable, field){
       credit(loser.name, table[name] || 0, false, ev, name, !!loser.qualifier);
       noteWin(winner.name); noteLoss(loser.name);
       addLoad(winner.name); addLoad(loser.name);
+      // ...and the match itself may have broken either of them. Rolled after the
+      // load is added, so the match just played counts towards its own risk.
+      // Only the winner can produce a walkover here -- the loser has no next
+      // match to miss -- but both carry the injury out of the tournament.
+      if(hurtBy(winner.name, ev, rng, out)) sidelined.add(winner.name);
+      hurtBy(loser.name, ev, rng, out);
       if(name === 'F'){ out.champion = winner.name; out.runnerUp = loser.name; }
       winners.push(winner);
     }
@@ -1018,8 +1073,6 @@ function runEvent(ev, rng, playable, field){
   out.qualifiers = entrants.filter(e => e.qualifier).length;
   out.championSeed = champ ? champ.seed : null;
   out.championQ = champ ? !!champ.qualifier : false;
-
-  wearTells(ev, entrants, rng, out);
 
   if(playable){
     const inDraw = entrants.find(e => e.name === playable);
@@ -1075,7 +1128,7 @@ function runFinals(ev, rng, playable, field){
   const bestOf = 3, fst = 7;
   const base = basesFor(tour, ev.surface === 'indoor_hard' ? 'hard' : ev.surface);
   const shrink = SHRINK[tour] ?? 1.0;
-  const out = { closing: [], yourMatches: [], injured: [], groups: [],
+  const out = { closing: [], yourMatches: [], injured: [], walkovers: [], groups: [],
                 champion: null, runnerUp: null, seeds: 0, qualifiers: 0,
                 championSeed: null, championQ: false };
   const entrants = (field || []).slice(0, FINALS_FIELD);
@@ -1132,6 +1185,12 @@ function runFinals(ev, rng, playable, field){
     const winner = wonByTop ? top : bottom, loser = wonByTop ? bottom : top;
     noteWin(winner.name); noteLoss(loser.name);
     addLoad(winner.name); addLoad(loser.name);
+    // Per-match wear here too, so the finals contribute to the injury list like
+    // any other event. No walkovers: a withdrawal from a round robin would leave
+    // the group decided partly on matches that were never played, and the real
+    // tours bring in an alternate rather than award one.
+    hurtBy(winner.name, ev, rng, out);
+    hurtBy(loser.name, ev, rng, out);
     return { winner, loser };
   }
 
@@ -1188,8 +1247,6 @@ function runFinals(ev, rng, playable, field){
     const t = tally.get(e.name);
     credit(e.name, t.pts, t.reach === 'W', ev, t.reach, false);
   });
-
-  wearTells(ev, entrants, rng, out);
 
   if(playable){
     const seated = entrants.find(e => e.name === playable);
@@ -1516,6 +1573,28 @@ function restoreSeason(saved){
   return true;
 }
 
+// Replay the season already played, for whoever is picked now.
+//
+// The standings CHANGE, and that is not a bug. The player you pick has their
+// matches played out point by point while everyone else's are settled by the
+// forecaster, and the two draw wildly different amounts from the same random
+// stream -- so every match after their first one lands differently. A season
+// watched through Sinner is a different season from one watched through nobody.
+// The alternative was worse: re-rendering alone kept the old standings and
+// relabelled the previous player's rounds, matches and absences with the new
+// player's name.
+function replayAs(){
+  if(state.running || !state.idx) return;
+  const upto = state.idx;
+  state.idx = 0; state.table = new Map(); state.log = [];
+  state.busy = new Map(); state.hurt = new Map(); state.absence = new Map();
+  state.load = new Map(); state.loadWeek = null; state.fields = new Map();
+  state.rested = 0;
+  while(state.idx < upto) playNext();
+  const last = state.log.length ? state.log[state.log.length - 1].ev : null;
+  if(last) showNow(last, state.idx, cal().length);
+}
+
 async function run(){
   if(state.running) return;
   // Read the controls rather than trust what was last cached: a browser that
@@ -1577,11 +1656,19 @@ function render(){
       esc(w.name) + '"></i>').join('') + '</span>';
   };
   $('standempty').style.display = rows.length ? 'none' : '';
+  // Anyone the season has hurt carries the marker, with every spell on the hover.
+  const hurtBy = injuryIndex();
+  const hurtMark = name => {
+    const list = hurtBy.get(name);
+    if(!list) return '';
+    return hospital(list.map(x => x.ev + ' \u2014 ' + spellOf(x)).join(', '));
+  };
   $('standings').innerHTML = rows.slice(0, 100).map((r, i) =>
     '<tr class="pl' + (r.name === state.playable ? ' you' : '') + '" data-p="'
     + esc(r.name) + '" title="Open ' + esc(r.name) + '\u2019s season">'
     + '<td class="num">' + (i + 1) +
-    '</td><td>' + esc(r.name) + badges(r.name) + '</td><td class="num">' + r.points +
+    '</td><td>' + esc(r.name) + hurtMark(r.name) + badges(r.name)
+    + '</td><td class="num">' + r.points +
     '</td><td class="num">' + (r.titles || '') +
     '</td><td class="num">' + r.w + '–' + r.l + '</td></tr>').join('');
 
@@ -1613,7 +1700,7 @@ function render(){
     return open + '<td class="num stripe">' + ev.start.slice(5) + '</td><td>' +
       esc(ev.name) + ' ' + lvl + '</td><td>' + esc(res.champion || '\u2014') +
       '</td><td' + (res.yourResult ? ' title="' + esc(res.yourResult) + '"' : '') +
-      '>' + esc(shortResult(res.yourResult)) + '</td></tr>';
+      '>' + esc(shortResult(res.yourResult)) + yourHurt(res) + '</td></tr>';
   }).join('');
 
   renderTimeline();
@@ -1650,6 +1737,42 @@ const RESULT_SHORT = {
   'not in the draw': '\u2014', 'did not play': '\u2014',
 };
 const shortResult = r => r ? (RESULT_SHORT[r] || r) : '';
+
+// A white cross in a red circle: this player was hurt. The title carries how
+// long for, so hovering answers the only follow-up question it raises.
+function hospital(title){
+  return '<span class="hurt" title="' + esc(title) + '" aria-label="' + esc(title)
+    + '">' + '<svg viewBox="0 0 16 16" aria-hidden="true">'
+    + '<circle cx="8" cy="8" r="8"/>'
+    + '<path d="M6.6 3.2h2.8v3.4h3.4v2.8H9.4v3.4H6.6V9.4H3.2V6.6h3.4z"/></svg></span>';
+}
+function spellOf(x){
+  return x.seasonEnding ? 'out for the season' : x.weeks + ' weeks out';
+}
+// Every injury the season has produced so far, by player. Rebuilt from the log
+// rather than tracked alongside it, so it cannot fall out of step with it.
+function injuryIndex(){
+  const by = new Map();
+  state.log.forEach(({ ev, res }) => {
+    if(!res) return;
+    (res.injured || []).forEach(x => {
+      if(!by.has(x.name)) by.set(x.name, []);
+      by.get(x.name).push({ ev: ev.name, ...x });
+    });
+  });
+  return by;
+}
+// If the tournament on a calendar row is where your player got hurt, the round
+// they reached is only half the story. A walkover still counts as a round
+// reached, so that stays in the round label and this sits beside it.
+function yourHurt(res){
+  if(!res || !state.playable) return '';
+  const mine = (res.injured || []).filter(x => x.name === state.playable);
+  if(!mine.length) return '';
+  return mine.map(x => hospital(state.playable + ' \u2014 ' + spellOf(x))
+    + '<span class="spell">' + esc(x.seasonEnding ? 'season' : x.weeks + 'w')
+    + '</span>').join('');
+}
 
 // ---- one tournament, opened ---------------------------------------------
 const ROUND_LABEL = { QF: 'QF', SF: 'SF', F: 'Final' };
@@ -1689,7 +1812,8 @@ function eventBody(ev, res){
       ['F', 'SF', 'QF'].forEach(r => {
         if(!by[r]) return;
         body += '<b>' + ROUND_LABEL[r] + '</b><div>' + by[r].map(m =>
-          esc(m.winner) + badge(m.wseed, m.wq) + ' <span class="beat">d.</span> '
+          esc(m.winner) + badge(m.wseed, m.wq)
+          + ' <span class="beat">' + (m.walkover ? 'w/o' : 'd.') + '</span> '
           + esc(m.loser) + badge(m.lseed, m.lq)).join('<br>') + '</div>';
       });
       body += '</div>';
@@ -1697,14 +1821,24 @@ function eventBody(ev, res){
     if(res.yourMatches.length){
       body += '<h4>' + esc(state.playable) + ' at this event</h4>'
             + '<table class="mine"><tbody>' + res.yourMatches.map((m, k) =>
-        '<tr class="ev" data-m="' + k + '" title="Open the point-by-point"><td>'
+        // A walkover has no points, so there is nothing to open.
+        (m.walkover
+          ? '<tr class="wo"><td>'
+          : '<tr class="ev" data-m="' + k + '" title="Open the point-by-point"><td>')
         + esc(m.round) + '</td><td class="' + (m.won ? 'w' : 'l') + '">'
-        + (m.won ? 'beat' : 'lost to') + '</td><td>' + esc(m.opponent)
+        + (m.walkover ? (m.won ? 'advanced' : 'withdrew') : (m.won ? 'beat' : 'lost to'))
+        + '</td><td>' + esc(m.opponent)
         + badge(m.oppSeed, m.oppQ) + '</td><td>' + esc(m.score) + '</td></tr>').join('')
         + '</tbody></table>';
     } else if(state.playable){
       body += '<h4>' + esc(state.playable) + '</h4><p class="beat">'
             + esc(res.yourResult || 'not in the draw') + '</p>';
+    }
+    if(res.walkovers && res.walkovers.length){
+      body += '<h4>Walkovers</h4><p class="beat">' + res.walkovers.map(x =>
+        esc(x.advanced) + ' <span class="beat">w/o</span> ' + esc(x.withdrew)
+        + ' <span class="beat">(' + esc(ROUND_LABEL[x.round] || x.round)
+        + ')</span>').join('<br>') + '</p>';
     }
     if(res.injured.length){
       body += '<h4>Injuries</h4><p class="beat">' + res.injured.map(x =>
@@ -1913,6 +2047,13 @@ document.querySelectorAll('#tourseg .segbtn[data-tour]').forEach(b =>
 $('playsel').addEventListener('change', e => {
   state.playable = e.target.value;
   if(!state.playable) state.calMine = false;
+  // Every per-player field in the log -- the round reached, your own matches,
+  // why you were absent -- was worked out for whoever was picked when the
+  // season ran. Re-rendering alone relabelled the old player's results with the
+  // new player's name: a row could read "declined" while showing an injury the
+  // new player picked up at that very event. The season is a pure function of
+  // its seed, so it is replayed for the new player instead, which takes ~80ms.
+  replayAs();
   render();
 });
 $('modesel').addEventListener('change', e => { state.mode = e.target.value; });

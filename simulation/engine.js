@@ -411,6 +411,21 @@ const MAX_DRAW = 256;
 const QUALIFIER_SHARE = 1 / 8;          // 16 of 128, as the slam did
 const MIN_QUALIFYING_DRAW = 16;         // smaller than this, everyone is a direct entrant
 
+// Main-draw qualifiers by tour and draw size, transcribed from the published
+// ATP and WTA breakdowns. The 1/8 share reproduces every one of these except a
+// WTA 56, which takes eight -- which is exactly why the table exists rather
+// than the share alone. One copy, read by both the tournament simulator and the
+// season page, so a 56-draw event has the same qualifying either way.
+const QUALIFIERS_BY_DRAW = {
+  ATP: { 128: 16, 96: 12, 56: 7, 48: 6, 32: 4, 30: 4, 28: 4 },
+  WTA: { 128: 16, 96: 12, 56: 8, 48: 6, 32: 4, 30: 4, 28: 4 },
+};
+function qualifierCount(tour, drawSize){
+  if(drawSize < MIN_QUALIFYING_DRAW) return 0;
+  const listed = (QUALIFIERS_BY_DRAW[tour] || {})[drawSize];
+  return listed === undefined ? Math.round(drawSize * QUALIFIER_SHARE) : listed;
+}
+
 function bracketFor(draw){
   let p = 1;
   while(p < draw) p *= 2;
@@ -452,9 +467,10 @@ function exitLabels(names){
   return out;
 }
 
-function buildField(candidates, rng, playable, drawSize, dropout = 0.10, qualifyingDropout = 0.60){
+function buildField(candidates, rng, playable, drawSize, dropout = 0.10,
+                   qualifyingDropout = 0.60, tour){
   // Below 16 a draw is too small to run a qualifying event worth modelling.
-  const QUALIFIERS = drawSize < MIN_QUALIFYING_DRAW ? 0 : Math.round(drawSize * QUALIFIER_SHARE);
+  const QUALIFIERS = qualifierCount(tour, drawSize);
   const DIRECT_ENTRANTS = drawSize - QUALIFIERS;
   const ranked = candidates.slice().sort((a, b) => a.rank - b.rank);
   const accepted = [];
@@ -616,7 +632,22 @@ function toPlayer(entrant, shift, shrink){
            ret: attr(t.RET), shot: attr(t.SHOT), vol: t.CONS + shift };
 }
 
-function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
+// Per-match wear, off unless asked for. The Python original has no injury model
+// and tests/test_engine_parity.py holds this function to it point for point, so
+// a default-on version would make the two engines disagree by construction.
+//
+//   injuryRate      chance per unit of carried load, per player per match
+//   baseLoad        load every entrant arrives with. Without it a draw played on
+//                   its own is almost injury-free: load counts matches played
+//                   HERE, so everyone's first match carries zero risk and a 128
+//                   draw produced 0.3 injuries. A player at a real major has a
+//                   season behind them, and the season page measures that at
+//                   around nine.
+//   seasonEnding    share of those that end a player's year
+//   minWeeks/maxWeeks  the spell out, drawn uniformly
+const INJURY_OFF = { injuryRate: 0 };
+
+function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base, wear){
   // The published ratings are min-max scaled so their mean is not 5, but every
   // constant above is calibrated so 5.0 gives tour-average rates. Re-centre the
   // field without touching the spread between players.
@@ -625,6 +656,23 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
     acc + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0) / entrants.length;
   const shift = 5.0 - mean;
   entrants.forEach(e => e.player = toPlayer(e, shift, shrink));
+
+  const W = Object.assign({ injuryRate: 0, baseLoad: 0, seasonEnding: 0.07,
+                            minWeeks: 2, maxWeeks: 9 }, wear || INJURY_OFF);
+  const matchesPlayed = {};             // matches each player has played here
+  const sidelined = new Set();          // hurt here, so not coming out again
+  const injuries = [];
+  // Nobody retires mid-match: a player hurt by one finishes it and does not come
+  // out for the next, which is how the tours record almost all of this.
+  function hurtBy(name){
+    const load = W.baseLoad + (matchesPlayed[name] || 0);
+    if(!(rng.random() < W.injuryRate * load)) return false;
+    const seasonEnding = rng.random() < W.seasonEnding;
+    const weeks = seasonEnding ? null
+      : W.minWeeks + Math.floor(rng.random() * (W.maxWeeks - W.minWeeks + 1));
+    injuries.push({ name, weeks, seasonEnding });
+    return true;
+  }
 
   const names = roundNames(draw.length);
   const labels = exitLabels(names);
@@ -647,6 +695,22 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
         }
         continue;
       }
+      // A walkover: one of them was hurt earlier in this draw. No match is
+      // played, so there are no points, no statistics and no scoreline.
+      const topOut = sidelined.has(top.name), botOut = sidelined.has(bottom.name);
+      if(topOut || botOut){
+        const through = topOut && botOut ? (top.rank <= bottom.rank ? top : bottom)
+                      : topOut ? bottom : top;
+        const gone = through === top ? bottom : top;
+        matches.push({
+          top: side(top, through === top), bottom: side(bottom, through === bottom),
+          walkover: true, withdrew: gone.name, score: 'w/o',
+          setScores: [], sets: [], stats: [], statNames: [top.name, bottom.name],
+          round: name, winner: through, loser: gone,
+        });
+        winners.push(through);
+        continue;
+      }
       const pair = [top.name, bottom.name];
       const played = simMatch(rng, top.player, bottom.player, pair, bestOf, finalSetTiebreak, base);
       const wonByTop = played.winner === 0;
@@ -665,6 +729,12 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
         stats: matchStats(played.sets, pair), statNames: pair,
         round: name, winner, loser
       });
+      matchesPlayed[winner.name] = (matchesPlayed[winner.name] || 0) + 1;
+      matchesPlayed[loser.name] = (matchesPlayed[loser.name] || 0) + 1;
+      // ...and the match may have broken either of them. Only the winner can
+      // produce a walkover -- the loser has no next round to miss.
+      if(hurtBy(winner.name)) sidelined.add(winner.name);
+      hurtBy(loser.name);
       winners.push(winner);
     }
     rounds.push({ name, matches });
@@ -672,6 +742,8 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
   });
 
   const champion = alive[0];
+  const injuryOf = {};
+  injuries.forEach(x => injuryOf[x.name] = x);
   const playable = entrants.find(e => e.playable) || null;
   let playableResult = null;
   if(playable){
@@ -685,6 +757,7 @@ function runTournament(draw, rng, bestOf, finalSetTiebreak, shrink, base){
   }
   rounds.forEach(r => r.matches.forEach(m => { delete m.winner; delete m.loser; delete m.round; }));
   return { rounds, champion: champion.name, championSeed: champion.seed,
+           injuries, injuryOf,
            playable: playable ? playable.name : null, playableResult };
 }
 
@@ -696,11 +769,11 @@ function simulateTournament(pool, opts){
   const drawSize = Math.max(2, Math.min(MAX_DRAW, opts.drawSize || 128));
   if(pool.length < drawSize) throw new Error('pool holds ' + pool.length + ', need ' + drawSize);
   const rng = makeRandom(opts.seed);
-  const field = buildField(pool, rng, opts.playable, drawSize);
+  const field = buildField(pool, rng, opts.playable, drawSize, 0.10, 0.60, opts.tour);
   const draw = buildDraw(field, rng, drawSize);
   const bestOf = opts.bestOf, tb = opts.finalSetTiebreak || 10;
   const out = runTournament(draw, rng, bestOf, tb, SHRINK[opts.tour] ?? 1.0,
-                            basesFor(opts.tour, opts.surface));
+                            basesFor(opts.tour, opts.surface), opts.wear);
   out.tour = opts.tour;
   out.bestOf = bestOf;
   out.drawSize = drawSize;

@@ -73,6 +73,8 @@ function season(tour, who, seed){
       });
       const r = P.runEvent(ev, makeRandom(4321 + w * 7919 + k), who, fields[k]);
       res.pbp += r.yourMatches.length;
+      res.wo = (res.wo || 0) + r.yourMatches.filter(m => m.walkover).length;
+      res.eventWalkovers = (res.eventWalkovers || 0) + (r.walkovers || []).length;
       res.injuries += r.injured.length;
       r.injured.forEach(i => res.injuryWeeks += i.weeks);
       if(r.yourEntry) res.entered++;
@@ -93,6 +95,8 @@ function season(tour, who, seed){
     });
     const r = P.runFinals(ev, makeRandom(4321 + k * 7919), who, f);
     res.pbp += r.yourMatches.length;
+    res.wo = (res.wo || 0) + r.yourMatches.filter(m => m.walkover).length;
+    res.eventWalkovers = (res.eventWalkovers || 0) + (r.walkovers || []).length;
     res.injuries += r.injured.length;
     r.injured.forEach(i => res.injuryWeeks += i.weeks);
     // yourEntry, not the reason string: matching on the wording counted a
@@ -498,7 +502,9 @@ for(const tour of ['ATP', 'WTA']){
     entersTop10: nobody.bands.top10, entersRank21to40: nobody.bands.r31_60,
     levels: [...new Set(cal.map(e => e.level))],
     pointsTables: Object.keys(P.POINTS[tour]),
-    you: { ...someone.you, entered: someone.entered, matches: someone.pbp },
+    you: { ...someone.you, entered: someone.entered, matches: someone.pbp,
+           walkovers: someone.wo || 0 },
+    walkovers: nobody.eventWalkovers || 0,
   };
 }
 // Control for the clash test: allocate every event on its own with an empty

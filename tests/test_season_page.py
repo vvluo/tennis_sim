@@ -75,10 +75,18 @@ def test_forecaster_carries_the_season(season):
 
 
 def test_only_your_own_matches_are_played_out(season):
+    """One point-by-point record per match your player actually played.
+
+    A walkover also produces a row -- it has to, or the card would show a gap
+    where a round went missing -- but it is not a match: nobody played, so it
+    carries no points, no statistics and no W-L.
+    """
     for tour, v in season.items():
         you = v['you']
-        assert you['matches'] == you['record'][0] + you['record'][1], (
-            f'{tour}: {you["matches"]} point-by-point records for a '
+        played = you['matches'] - you['walkovers']
+        assert played == you['record'][0] + you['record'][1], (
+            f'{tour}: {played} played records ({you["matches"]} rows less '
+            f'{you["walkovers"]} walkovers) for a '
             f'{you["record"][0]}-{you["record"][1]} season')
 
 
@@ -1242,3 +1250,61 @@ def test_a_top_player_rests_up_rather_than_failing_to_qualify(season):
         assert top['missedSlams'] <= 0.5 * 4 * top['seasons'], (
             f'{tour}: #{top["rank"]} missed {top["missedSlams"]} majors in '
             f'{top["seasons"]} seasons')
+
+
+# ---- wear is managed per match, not per tournament -----------------------
+
+def test_injuries_come_from_matches_not_from_entering(season):
+    """A run to the final is five chances to break down; a first-round loss is one.
+
+    The rate was refitted rather than divided by a guess: the per-event model
+    produced 35.0 injuries in an ATP season, and the per-match one reproduces
+    that within noise. This holds the season total, which is what the fit is
+    actually pinning -- the per-roll constant on its own says nothing.
+    """
+    # The band comes from the spread of 60 seasons at the fitted rate: ATP runs
+    # 19-49 with a median of 37, WTA 23-43 with a median of 33. It is set tight
+    # enough to catch the per-roll constant being left at the per-event value,
+    # which produces 61 a season -- a wider band let that mutation through.
+    for tour, v in season.items():
+        assert 15 <= v['injuries'] <= 52, (
+            f'{tour}: {v["injuries"]} injuries in a season; the per-match rate has '
+            f'drifted from the season total it was fitted to (ATP 19-49, WTA 23-43 '
+            f'over 60 seasons)')
+
+
+def test_an_injury_costs_the_next_match_not_the_current_one(season):
+    """Nobody retires mid-match: they finish, then do not come out again.
+
+    So an injury inside a tournament shows up as a walkover in a later round of
+    that same tournament, and the tournament's injury list is whatever its
+    matches produced.
+    """
+    for tour, v in season.items():
+        # 8-29 over those same 60 seasons
+        assert 3 <= v['walkovers'] <= 40, (
+            f'{tour}: {v["walkovers"]} walkovers in a season, outside the 8-29 '
+            f'the fitted injury rate produces')
+        assert v['walkovers'] > 0, (
+            f'{tour}: no walkovers in a season, so an injury mid-tournament never '
+            f'costs the next match')
+        # they are a consequence of injuries, so far fewer than there are injuries
+        assert v['walkovers'] < v['injuries'], (
+            f'{tour}: {v["walkovers"]} walkovers against {v["injuries"]} injuries -- '
+            f'more withdrawals than injuries to explain them')
+
+
+def test_a_walkover_is_the_absence_of_a_match(season):
+    """No points, no statistics, no W-L, and nothing to open.
+
+    A 6-0 6-0 would contaminate every rate the ratings read. The row exists so
+    the card does not skip a round, and that is all it is.
+    """
+    for tour, v in season.items():
+        wo = v['you']['walkovers']
+        if not wo:
+            continue
+        # covered by test_only_your_own_matches_are_played_out: the played count
+        # is the row count LESS the walkovers, and that is what matches W-L
+        assert v['you']['matches'] - wo == sum(v['you']['record']), (
+            f'{tour}: a walkover is being counted as a played match')

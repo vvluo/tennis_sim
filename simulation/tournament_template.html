@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Play a Grand Slam</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -268,7 +269,16 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .ties{flex:1;display:flex;flex-direction:column;justify-content:space-around}
 .round h2{position:sticky;top:0;z-index:2;margin:0 0 4px;padding:6px 8px;background:var(--surface-2);
   font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
-.tie.hasbye{cursor:default}
+.tie.hasbye,.tie.haswo{cursor:default}
+/* A white cross in a red circle: the player did not come out for this match. */
+.hurt{display:inline-flex;flex:none;align-items:center;margin-left:5px;
+  padding:3px;margin-top:-3px;margin-bottom:-3px;cursor:help}
+/* The span owns the hover, not the svg: a child svg can swallow the tooltip,
+   and 12px is a small thing to have to hit. The padding enlarges the target
+   without changing what is drawn. */
+.hurt svg{width:12px;height:12px;display:block;pointer-events:none}
+.hurt circle{fill:#C0392B}
+.hurt path{fill:#FFFFFF}
 .side.bye .nm{color:var(--muted);font-style:italic}
 .tie{background:var(--surface);border:1px solid var(--line);border-radius:7px;overflow:hidden;
   cursor:pointer;margin:3px 0}
@@ -584,8 +594,38 @@ function setCells(m, which){
     return '<b'+won+'>'+g+sup+'</b>';
   }).join('') + '</span>';
 }
+// The same per-match wear the season page runs on, so a draw played here
+// behaves like the same draw played inside a season.
+// baseLoad 8 is what the season page measures a top-30 player carrying by the
+// middle of a year, and without it a standalone draw is almost injury-free:
+// load counts matches played in THIS event, so at 0 a 128 draw produced 0.44
+// injuries and a walkover in 23% of draws. At 8 it is 2.3 and 67%.
+const WEAR = { injuryRate: 0.00085, baseLoad: 8, seasonEnding: 0.07,
+               minWeeks: 2, maxWeeks: 9 };
+
+// A white cross in a red circle, next to the player it happened to.
+function hospital(title){
+  return '<span class="hurt" title="' + esc(title) + '" aria-label="' + esc(title) + '">'
+    + '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="8"/>'
+    + '<path d="M6.6 3.2h2.8v3.4h3.4v2.8H9.4v3.4H6.6V9.4H3.2V6.6h3.4z"/></svg></span>';
+}
+function hurtNote(name){
+  const x = D && D.injuryOf ? D.injuryOf[name] : null;
+  if(!x) return '';
+  return hospital(x.seasonEnding ? name + ' — out for the season'
+                                 : name + ' — ' + x.weeks + ' weeks out');
+}
+
 function sideHtml(m, which){
   const p=m[which];
+  if(m.walkover && p){
+    // No match was played, so there is no scoreline; the withdrawing player
+    // carries the marker that explains why.
+    const cls=['side', p.won?'won':'lost', p.playable?'me':''].filter(Boolean).join(' ');
+    return '<div class="'+cls+'">'+seedBox(p)+'<span class="nm">'+p.name+'</span>'
+      + (p.name === m.withdrew ? hurtNote(p.name) : '')
+      + '<span class="sets"><b>'+(p.won?'w/o':'')+'</b></span></div>';
+  }
   // A bye has no opponent on one side -- the seed advances against nothing.
   // Reading p.won on that null threw mid-render, which froze the bracket on the
   // last good window AND left the pager enabled, because the buttons are updated
@@ -636,8 +676,9 @@ function renderWindow(){
     const ri = start + i;                        // absolute index: the popup keys off it
     return '<div class="round"><h2>' + LABEL[r.name] + '</h2><div class="ties">' +
       r.matches.map((m, mi) =>
-        '<div class="tie' + (m.bye ? ' hasbye' : '') + '"' +
-        (m.bye ? '' : ' tabindex="0"') + ' data-r="' + ri + '" data-m="' + mi + '">' +
+        '<div class="tie' + (m.bye ? ' hasbye' : '') + (m.walkover ? ' haswo' : '') + '"' +
+        (m.bye || m.walkover ? '' : ' tabindex="0"') +
+        ' data-r="' + ri + '" data-m="' + mi + '">' +
         sideHtml(m, 'top') + sideHtml(m, 'bottom') + '</div>').join('') +
       '</div></div>';
   }).join('');
@@ -714,7 +755,7 @@ function matchContext(roundName){
 function open(ri, mi){
   const r = D.rounds[ri];
   const m = r.matches[mi];
-  if(!m || m.bye) return;            // nothing was played, so there is nothing to show
+  if(!m || m.bye || m.walkover) return;   // nothing was played, so nothing to show
   openMatch(m, matchContext(r.name));
 }
 const close = closeMatch;
@@ -829,7 +870,7 @@ function simulate(){
     const seed = (Math.random() * 4294967296) >>> 0;
     const result = simulateTournament(POOLS[tour], {
       seed, playable, tour, surface, drawSize,
-      bestOf: bestOfFor(), finalSetTiebreak: decidingTiebreak()
+      bestOf: bestOfFor(), finalSetTiebreak: decidingTiebreak(), wear: WEAR
     });
     currentRun = { seed, tour, playable, cfg: CONFIG, drawSize, surface };
     showTournament(result);
@@ -1072,7 +1113,7 @@ function play(run){
   currentRun = { seed: run.seed, tour, playable, cfg: CONFIG, drawSize, surface };
   showTournament(simulateTournament(POOLS[tour], {
     seed: run.seed, playable, tour, surface, drawSize,
-    bestOf: bestOfFor(), finalSetTiebreak: decidingTiebreak()
+    bestOf: bestOfFor(), finalSetTiebreak: decidingTiebreak(), wear: WEAR
   }));
   saveTourney();
 }
