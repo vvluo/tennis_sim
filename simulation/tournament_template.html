@@ -16,6 +16,9 @@
   --thin:#9A6B12; --thin-soft:#F5E9CE;
   --bar-track:#E1E9EF;
   --hold:#2E7D46; --hold-soft:#DEEFE4;
+  --bp:#B03A34; --bp-soft:#F6E1DF;
+  --sp:#8A6612; --sp-soft:#F5EBCC;
+  --mp:#7A3FA8; --mp-soft:#EADDF5;
   --brk:#B03A34;  --brk-soft:#F6E1DF;
   --tbk:#8A6612;  --tbk-soft:#F5EBCC;
   --diamond:#2E8CA6; --diamond-soft:#D6EFF5;
@@ -38,6 +41,9 @@
     --thin:#D6A94A; --thin-soft:#33280F;
     --bar-track:#1E2C38;
     --hold:#74CE8E; --hold-soft:#152C1D;
+    --bp:#EA8B83; --bp-soft:#301715;
+    --sp:#DFB452; --sp-soft:#332810;
+    --mp:#C79BEC; --mp-soft:#2C1B40;
     --brk:#EA8B83;  --brk-soft:#301715;
     --tbk:#DFB452;  --tbk-soft:#332810;
     --diamond:#7FD4E8; --diamond-soft:#123642;
@@ -60,6 +66,9 @@
   --thin:#D6A94A; --thin-soft:#33280F;
   --bar-track:#1E2C38;
   --hold:#74CE8E; --hold-soft:#152C1D;
+  --bp:#EA8B83; --bp-soft:#301715;
+  --sp:#DFB452; --sp-soft:#332810;
+  --mp:#C79BEC; --mp-soft:#2C1B40;
   --brk:#EA8B83;  --brk-soft:#301715;
   --tbk:#DFB452;  --tbk-soft:#332810;
   --diamond:#7FD4E8; --diamond-soft:#123642;
@@ -239,6 +248,8 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .ties{flex:1;display:flex;flex-direction:column;justify-content:space-around}
 .round h2{position:sticky;top:0;z-index:2;margin:0 0 4px;padding:6px 8px;background:var(--surface-2);
   font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.tie.hasbye{cursor:default}
+.side.bye .nm{color:var(--muted);font-style:italic}
 .tie{background:var(--surface);border:1px solid var(--line);border-radius:7px;overflow:hidden;
   cursor:pointer;margin:3px 0}
 .tie:hover{border-color:var(--accent)}
@@ -313,6 +324,57 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .pt .who{display:flex;gap:4px;min-width:0;color:var(--ink-2)}
 .pt .pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pt .n{flex:none;color:var(--muted)}
+/* The transposed scoreboard: a row per point, a column per player. The winner
+   of each point carries the emphasis and the other is held back, which is what
+   makes the progression readable at a glance without reading any numbers. */
+.pgrid{font-variant-numeric:tabular-nums}
+.prow{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:1px 0}
+.prow .pc{display:flex;align-items:center;justify-content:flex-end;gap:5px;
+  min-width:0;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;
+  color:var(--muted);font-weight:500}
+.prow .pc.w{color:var(--ink);font-weight:700}
+.prow .pc b{font-weight:inherit}
+.prow.ph .pc{color:var(--ink-2);font-weight:600;font-family:inherit;font-size:10px;
+  letter-spacing:.06em;text-transform:uppercase;padding-bottom:3px;
+  border-bottom:1px solid var(--line);margin-bottom:2px}
+.prow.ph .pc b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .sv{width:6px;height:6px;border-radius:50%;background:var(--hold);flex:none}
+/* A tiebreak reads across instead of down: a column per point, two rows, wrapped
+   so a long one stays inside the panel. It already spans the full width, so the
+   columns cost nothing the games would have wanted. */
+.hgrid{font-variant-numeric:tabular-nums}
+.hblock{display:grid;grid-template-columns:auto repeat(8,minmax(0,1fr));
+  gap:1px 3px;align-items:center}
+.hblock + .hblock{margin-top:6px}
+.hname{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-2);padding-right:7px;white-space:nowrap}
+.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:3px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;font-weight:500;
+  color:var(--muted);padding:10px 0 1px;min-width:0}
+.hc.w{color:var(--ink);font-weight:700}
+.hc b{font-weight:inherit}
+.hc .st{position:absolute;top:0;left:50%;transform:translateX(-50%);
+  font-size:7.5px;padding:0 3px;letter-spacing:.04em}
+/* A rule wherever the serve changes hands -- after the first point, then every
+   two. Tinting by server was too much colour: the panel is amber already, and
+   so are its set-point badges. */
+.hc.turn{border-left:1px solid var(--line);margin-left:-2px}
+.hc.pad{visibility:hidden}
+/* Break, set and match points, each its own colour so the three never blur. */
+.st{font-style:normal;font-size:8.5px;font-weight:800;letter-spacing:.06em;
+  padding:1px 4px;border-radius:4px;flex:none}
+.st.bp,.st.b{color:var(--bp);background:var(--bp-soft)}
+.st.sp,.st.s{color:var(--sp);background:var(--sp-soft)}
+.st.mp,.st.m{color:var(--mp);background:var(--mp-soft)}
+.st.h{color:var(--hold);background:var(--hold-soft)}
+/* The point that ended something is stated, not hinted at. */
+.st.b,.st.h,.st.s,.st.m{box-shadow:inset 0 0 0 1px currentColor}
+/* Which point view the panel is showing. */
+.vswitch{display:flex;gap:2px;margin-left:auto;padding:2px;border-radius:8px;
+  background:var(--surface-2);border:1px solid var(--line)}
+.vbtn{font:inherit;font-size:10.5px;letter-spacing:.04em;padding:3px 9px;
+  border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.vbtn.on{background:var(--surface);color:var(--ink);font-weight:600}
 .pt .sc{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--muted);
   font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 .stats{margin-top:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -333,6 +395,7 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   <div class="titlerow">
     <h1 id="title"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Play a Grand Slam</h1>
     <div class="navbar">
+      <a class="navlink" href="matchup.html">Matchup Forecaster</a>
       <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <a class="navlink" href="season.html">Simulate a Season</a>
       <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
@@ -421,6 +484,8 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
       <span class="r" id="mround"></span>
       <span class="t" id="mtitle"></span>
       <span class="s" id="mscore"></span>
+      <div class="vswitch" id="mview" role="group"
+           aria-label="How to show each point"></div>
       <div class="export">
         <button class="expbtn" id="expcsv" type="button" title="Point-by-point as CSV">CSV</button>
         <button class="expbtn" id="expjson" type="button" title="Point-by-point and summary as JSON">JSON</button>
@@ -492,6 +557,12 @@ function setCells(m, which){
 }
 function sideHtml(m, which){
   const p=m[which];
+  // A bye has no opponent on one side -- the seed advances against nothing.
+  // Reading p.won on that null threw mid-render, which froze the bracket on the
+  // last good window AND left the pager enabled, because the buttons are updated
+  // at the END of renderWindow. The first round of every 96, 56 and 48 draw was
+  // unreachable that way: the arrow moved `start` and nothing on screen changed.
+  if(!p) return '<div class="side bye"><span class="nm">bye</span></div>';
   const cls=['side', p.won?'won':'lost', p.playable?'me':''].filter(Boolean).join(' ');
   return '<div class="'+cls+'">'+seedBox(p)+'<span class="nm">'+p.name+'</span>'+setCells(m,which)+'</div>';
 }
@@ -536,7 +607,8 @@ function renderWindow(){
     const ri = start + i;                        // absolute index: the popup keys off it
     return '<div class="round"><h2>' + LABEL[r.name] + '</h2><div class="ties">' +
       r.matches.map((m, mi) =>
-        '<div class="tie" tabindex="0" data-r="' + ri + '" data-m="' + mi + '">' +
+        '<div class="tie' + (m.bye ? ' hasbye' : '') + '"' +
+        (m.bye ? '' : ' tabindex="0"') + ' data-r="' + ri + '" data-m="' + mi + '">' +
         sideHtml(m, 'top') + sideHtml(m, 'bottom') + '</div>').join('') +
       '</div></div>';
   }).join('');
@@ -612,7 +684,9 @@ function matchContext(roundName){
 }
 function open(ri, mi){
   const r = D.rounds[ri];
-  openMatch(r.matches[mi], matchContext(r.name));
+  const m = r.matches[mi];
+  if(!m || m.bye) return;            // nothing was played, so there is nothing to show
+  openMatch(m, matchContext(r.name));
 }
 const close = closeMatch;
 bracket.addEventListener('click',e=>{

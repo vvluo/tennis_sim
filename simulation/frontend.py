@@ -715,6 +715,16 @@ def match_stats(match):
     def ratio(num, den, i):
         return num[i] / den[i] if den[i] else None
 
+    def pair(num, den, i):
+        """A fraction and the rate it comes to.
+
+        "4/7" has to be read against "5/11" by doing the arithmetic; "4/7 57%"
+        does not. The JS engine formats these the same way, and
+        tests/test_engine_parity.py holds the two together.
+        """
+        frac = f'{num[i]}/{den[i]}'
+        return f'{frac} {round(100 * num[i] / den[i])}%' if den[i] else frac
+
     def count(key):
         return lambda i: stat[key][i]
 
@@ -730,7 +740,7 @@ def match_stats(match):
                                  lambda i: ratio(stat['first_won'], stat['first_serves'], i), True),
         ('Win % on 2nd serve',   lambda i: pct(stat['second_won'], stat['second_serves'], i),
                                  lambda i: ratio(stat['second_won'], stat['second_serves'], i), True),
-        ('Break points',         lambda i: f"{stat['break_points_won'][i]}/{stat['break_points'][i]}",
+        ('Break points',         lambda i: pair(stat['break_points_won'], stat['break_points'], i),
                                  count('break_points_won'), True),
         ('Unreturned serves',    lambda i: str(stat['unreturned'][i]),
                                  count('unreturned'), True),
@@ -739,7 +749,7 @@ def match_stats(match):
                                  lambda i: ratio(stat['rally_shots'], stat['rallies'], i), True),
         ('Service points won',   lambda i: str(stat['serve_points_won'][i]),
                                  count('serve_points_won'), True),
-        ('Service games won',    lambda i: f"{stat['serve_games_won'][i]}/{stat['serve_games'][i]}",
+        ('Service games won',    lambda i: pair(stat['serve_games_won'], stat['serve_games'], i),
                                  count('serve_games_won'), True),
         ('Receiving points won', lambda i: str(stat['return_points_won'][i]),
                                  count('return_points_won'), True),

@@ -16,6 +16,9 @@
   --thin:#9A6B12; --thin-soft:#F5E9CE;
   --bar-track:#E1E9EF;
   --hold:#2E7D46; --hold-soft:#DEEFE4;
+  --bp:#B03A34; --bp-soft:#F6E1DF;
+  --sp:#8A6612; --sp-soft:#F5EBCC;
+  --mp:#7A3FA8; --mp-soft:#EADDF5;
   --brk:#B03A34;  --brk-soft:#F6E1DF;
   --tbk:#8A6612;  --tbk-soft:#F5EBCC;
   --diamond:#2E8CA6; --diamond-soft:#D6EFF5;
@@ -38,6 +41,9 @@
     --thin:#D6A94A; --thin-soft:#33280F;
     --bar-track:#1E2C38;
     --hold:#74CE8E; --hold-soft:#152C1D;
+    --bp:#EA8B83; --bp-soft:#301715;
+    --sp:#DFB452; --sp-soft:#332810;
+    --mp:#C79BEC; --mp-soft:#2C1B40;
     --brk:#EA8B83;  --brk-soft:#301715;
     --tbk:#DFB452;  --tbk-soft:#332810;
     --diamond:#7FD4E8; --diamond-soft:#123642;
@@ -60,6 +66,9 @@
   --thin:#D6A94A; --thin-soft:#33280F;
   --bar-track:#1E2C38;
   --hold:#74CE8E; --hold-soft:#152C1D;
+  --bp:#EA8B83; --bp-soft:#301715;
+  --sp:#DFB452; --sp-soft:#332810;
+  --mp:#C79BEC; --mp-soft:#2C1B40;
   --brk:#EA8B83;  --brk-soft:#301715;
   --tbk:#DFB452;  --tbk-soft:#332810;
   --diamond:#7FD4E8; --diamond-soft:#123642;
@@ -239,6 +248,8 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .ties{flex:1;display:flex;flex-direction:column;justify-content:space-around}
 .round h2{position:sticky;top:0;z-index:2;margin:0 0 4px;padding:6px 8px;background:var(--surface-2);
   font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.tie.hasbye{cursor:default}
+.side.bye .nm{color:var(--muted);font-style:italic}
 .tie{background:var(--surface);border:1px solid var(--line);border-radius:7px;overflow:hidden;
   cursor:pointer;margin:3px 0}
 .tie:hover{border-color:var(--accent)}
@@ -313,6 +324,57 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .pt .who{display:flex;gap:4px;min-width:0;color:var(--ink-2)}
 .pt .pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pt .n{flex:none;color:var(--muted)}
+/* The transposed scoreboard: a row per point, a column per player. The winner
+   of each point carries the emphasis and the other is held back, which is what
+   makes the progression readable at a glance without reading any numbers. */
+.pgrid{font-variant-numeric:tabular-nums}
+.prow{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:1px 0}
+.prow .pc{display:flex;align-items:center;justify-content:flex-end;gap:5px;
+  min-width:0;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;
+  color:var(--muted);font-weight:500}
+.prow .pc.w{color:var(--ink);font-weight:700}
+.prow .pc b{font-weight:inherit}
+.prow.ph .pc{color:var(--ink-2);font-weight:600;font-family:inherit;font-size:10px;
+  letter-spacing:.06em;text-transform:uppercase;padding-bottom:3px;
+  border-bottom:1px solid var(--line);margin-bottom:2px}
+.prow.ph .pc b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .sv{width:6px;height:6px;border-radius:50%;background:var(--hold);flex:none}
+/* A tiebreak reads across instead of down: a column per point, two rows, wrapped
+   so a long one stays inside the panel. It already spans the full width, so the
+   columns cost nothing the games would have wanted. */
+.hgrid{font-variant-numeric:tabular-nums}
+.hblock{display:grid;grid-template-columns:auto repeat(8,minmax(0,1fr));
+  gap:1px 3px;align-items:center}
+.hblock + .hblock{margin-top:6px}
+.hname{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-2);padding-right:7px;white-space:nowrap}
+.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:3px;
+  font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;font-weight:500;
+  color:var(--muted);padding:10px 0 1px;min-width:0}
+.hc.w{color:var(--ink);font-weight:700}
+.hc b{font-weight:inherit}
+.hc .st{position:absolute;top:0;left:50%;transform:translateX(-50%);
+  font-size:7.5px;padding:0 3px;letter-spacing:.04em}
+/* A rule wherever the serve changes hands -- after the first point, then every
+   two. Tinting by server was too much colour: the panel is amber already, and
+   so are its set-point badges. */
+.hc.turn{border-left:1px solid var(--line);margin-left:-2px}
+.hc.pad{visibility:hidden}
+/* Break, set and match points, each its own colour so the three never blur. */
+.st{font-style:normal;font-size:8.5px;font-weight:800;letter-spacing:.06em;
+  padding:1px 4px;border-radius:4px;flex:none}
+.st.bp,.st.b{color:var(--bp);background:var(--bp-soft)}
+.st.sp,.st.s{color:var(--sp);background:var(--sp-soft)}
+.st.mp,.st.m{color:var(--mp);background:var(--mp-soft)}
+.st.h{color:var(--hold);background:var(--hold-soft)}
+/* The point that ended something is stated, not hinted at. */
+.st.b,.st.h,.st.s,.st.m{box-shadow:inset 0 0 0 1px currentColor}
+/* Which point view the panel is showing. */
+.vswitch{display:flex;gap:2px;margin-left:auto;padding:2px;border-radius:8px;
+  background:var(--surface-2);border:1px solid var(--line)}
+.vbtn{font:inherit;font-size:10.5px;letter-spacing:.04em;padding:3px 9px;
+  border:0;border-radius:6px;background:transparent;color:var(--muted);cursor:pointer}
+.vbtn.on{background:var(--surface);color:var(--ink);font-weight:600}
 .pt .sc{font-family:"IBM Plex Mono",ui-monospace,monospace;color:var(--muted);
   font-variant-numeric:tabular-nums;white-space:nowrap;flex:none}
 .stats{margin-top:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
@@ -333,6 +395,7 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   <div class="titlerow">
     <h1 id="title"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Play a Grand Slam</h1>
     <div class="navbar">
+      <a class="navlink" href="matchup.html">Matchup Forecaster</a>
       <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <a class="navlink" href="season.html">Simulate a Season</a>
       <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
@@ -483,6 +546,8 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
       <span class="r" id="mround"></span>
       <span class="t" id="mtitle"></span>
       <span class="s" id="mscore"></span>
+      <div class="vswitch" id="mview" role="group"
+           aria-label="How to show each point"></div>
       <div class="export">
         <button class="expbtn" id="expcsv" type="button" title="Point-by-point as CSV">CSV</button>
         <button class="expbtn" id="expjson" type="button" title="Point-by-point and summary as JSON">JSON</button>
@@ -689,7 +754,18 @@ function tbScore(sp, rp, names, srv, rcv, len){
 // ---- match.py ------------------------------------------------------------
 // Side indices: 0 = top of the tie, 1 = bottom. The Python compared Player
 // objects; here everything is an index, which is also what the page wants.
-function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
+// `opts` carries the non-standard scoring a matchup can ask for. Everything in
+// it defaults to the ordinary rules, so the two pages that already call this
+// keep playing exactly the tennis they played before.
+//   noAd           a deuce is a single deciding point instead of advantage
+//   tiebreak       points needed to take an ordinary set's tiebreak (7)
+//   gamesPerSet    games needed to take a set (6)
+//   superTiebreak  the deciding set is one tiebreak, to finalSetTiebreak points
+function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base, opts){
+  const O = opts || {};
+  const noAd = !!O.noAd;
+  const TB = O.tiebreak || 7;
+  const SET_TO = O.gamesPerSet || 6;
   // Full names in the record; the panel abbreviates only if it has to.
   const fTop = drawForm(rng, top), fBot = drawForm(rng, bottom);
   const mu = [matchup(top, bottom, fTop, fBot, base), matchup(bottom, top, fBot, fTop, base)];
@@ -720,6 +796,8 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
     let sp = 0, rp = 0;
     const pts = [];
     for(;;){
+      // Under no-ad the game stops at deuce: one point settles it either way.
+      const sudden = noAd && sp === 3 && rp === 3;
       const serveRng = rng.random();
       let winner, shots, first;
       if(serveRng < m.dfRate)                 { winner = rcv; shots = 0; first = false; }
@@ -727,7 +805,9 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
       else                                    { [winner, shots] = point(false); first = false; }
       if(winner === server) sp++; else rp++;
       // 4th slot is the first-serve flag: the statistics read it, the page does not.
-      pts.push([winner, shots, gameScore(sp, rp, names, server, rcv), first]);
+      pts.push([winner, shots,
+        sudden ? 'Game ' + names[winner] : gameScore(sp, rp, names, server, rcv), first]);
+      if(sudden) return { k: 'g', srv: server, win: winner, pts };
       if(sp >= 4 && sp - rp >= 2) return { k: 'g', srv: server, win: server, pts };
       if(rp >= 4 && rp - sp >= 2) return { k: 'g', srv: server, win: rcv,    pts };
     }
@@ -754,7 +834,7 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
     let g0 = 0, g1 = 0;
     const games = [];
     for(;;){
-      if(g0 === 6 && g1 === 6){
+      if(g0 === SET_TO && g1 === SET_TO){
         const startServer = server;
         const tb = simTiebreak(tbLen);
         games.push(tb);
@@ -765,10 +845,10 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
       if(g.win === 0) g0++; else g1++;
       games.push(g);
       server = 1 - server;
-      if(g0 >= 6 && g0 - g1 >= 2) return { win: 0, games };
-      if(g1 >= 6 && g1 - g0 >= 2) return { win: 1, games };
-      if(g0 === 7) return { win: 0, games };
-      if(g1 === 7) return { win: 1, games };
+      if(g0 >= SET_TO && g0 - g1 >= 2) return { win: 0, games };
+      if(g1 >= SET_TO && g1 - g0 >= 2) return { win: 1, games };
+      if(g0 === SET_TO + 1) return { win: 0, games };
+      if(g1 === SET_TO + 1) return { win: 1, games };
     }
   }
 
@@ -776,7 +856,15 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
   const sets = [];
   while(s0 < toWin && s1 < toWin){
     const decider = s0 === toWin - 1 && s1 === toWin - 1;
-    const set = simSet(decider ? finalSetTiebreak : 7);
+    let set;
+    if(decider && O.superTiebreak){
+      // The whole set is one tiebreak. It is still a set with one game in it, so
+      // every consumer -- the stats, the panel, the export -- treats it as one.
+      const tb = simTiebreak(finalSetTiebreak);
+      set = { win: tb.win, games: [tb] };
+    } else {
+      set = simSet(decider ? finalSetTiebreak : TB);
+    }
     if(set.win === 0) s0++; else s1++;
     sets.push(set);
   }
@@ -790,12 +878,26 @@ function setScoreStrings(sets, winner, names){
   const parts = [];
   sets.forEach(set => {
     let won = 0, lost = 0;
+    // A set played as a single tiebreak reads by its POINTS, in brackets:
+    // "1-6, 6-4, [8-10]". The brackets are what tell a reader those are points
+    // and not a 10-8 set of games.
+    const solo = set.games.length === 1 && set.games[0].k === 't';
     set.games.forEach(g => {
       if(g.k === 't'){
         const w = g.pts.filter(p => p[0] === g.win).length;
         const l = g.pts.length - w;
-        if(g.win === winner){ won = 7; lost = 6; g.sc = '7-6(' + l + ')'; }
-        else                { won = 6; lost = 7; g.sc = '6(' + l + ')-7'; }
+        // Count the tiebreak as the game it is instead of writing in 7-6. Both
+        // sides are level on games here -- at six each normally, but at four
+        // each in a set played to four -- and hardcoding the pair printed a set
+        // won 5-4 as 7-6.
+        if(solo){
+          won = g.win === winner ? w : l;
+          lost = g.win === winner ? l : w;
+          g.sc = '[' + won + '-' + lost + ']';
+          return;
+        }
+        if(g.win === winner){ won++;  g.sc = won + '-' + lost + '(' + l + ')'; }
+        else                { lost++; g.sc = won + '(' + l + ')-' + lost; }
         return;
       }
       if(g.win === winner) won++; else lost++;
@@ -817,19 +919,29 @@ function setScoreStrings(sets, winner, names){
 function perSideSetScores(sets){
   return sets.map(set => {
     let top = 0, bottom = 0, entry = null;
+    const solo = set.games.length === 1 && set.games[0].k === 't';
     set.games.forEach(g => {
       if(g.k === 't'){
         const w = g.pts.filter(p => p[0] === g.win).length;
         const l = g.pts.length - w;
-        if(g.win === 0){ top = 7; bottom = 6; entry = { tbSide: 'bottom', tb: l }; }
-        else           { top = 6; bottom = 7; entry = { tbSide: 'top',    tb: l }; }
+        if(solo){                       // the set IS the tiebreak: show its points
+          top = g.win === 0 ? w : l;
+          bottom = g.win === 0 ? l : w;
+          return;
+        }
+        // as above: the tiebreak is one more game, not a fixed 7-6
+        if(g.win === 0){ top++;    entry = { tbSide: 'bottom', tb: l }; }
+        else           { bottom++; entry = { tbSide: 'top',    tb: l }; }
       } else if(g.win === 0) top++; else bottom++;
     });
     return Object.assign({ top, bottom }, entry || {});
   });
 }
 
-function matchStats(sets, names){
+// The raw counters behind matchStats, split out so callers that aggregate over
+// many matches -- the matchup forecaster averages N of them -- can add up the
+// numbers themselves instead of trying to average strings like "63%" or "4/7".
+function rawStats(sets){
   const keys = ['double_faults','first_serves','first_won','second_serves','second_won',
     'serve_points','serve_points_won','serve_games','serve_games_won','return_points_won',
     'points_won','games_won','tiebreaks_won','break_points','break_points_won',
@@ -872,6 +984,18 @@ function matchStats(sets, names){
     });
   }));
 
+  return { st, bestPt, bestGm };
+}
+
+function matchStats(sets, names){
+  const { st, bestPt, bestGm } = rawStats(sets);
+  return formatStats(st, bestPt, bestGm);
+}
+
+// The display rows. Shared by a single match and by an aggregate of many, so the
+// two can never disagree about what a statistic means or which side is better.
+function formatStats(st, bestPt, bestGm, per){
+  const N = per || 1;                       // divide count rows by the sample size
   // Python's round() breaks ties to even and Math.round breaks them upward, so
   // a rate landing exactly on .5 printed one point apart between the engines.
   const pyRound = x => {
@@ -883,23 +1007,30 @@ function matchStats(sets, names){
   const oneDecimal = x => (pyRound(x * 10) / 10).toFixed(1);
   const pct = (n, d, i) => d[i] ? pyRound(100 * n[i] / d[i]) + '%' : '-';
   const ratio = (n, d, i) => d[i] ? n[i] / d[i] : null;
+  // A count over N matches is shown as a mean, to one decimal; over a single
+  // match N is 1 and this is the whole number it always was.
+  const cnt = v => N === 1 ? '' + v : oneDecimal(v / N);
+  // A fraction and the rate it comes to. "4/7" needs arithmetic to read against
+  // "5/11"; "4/7 57%" does not. Averaged over N the two means divide to the same
+  // pooled rate, so this is the right number either way.
+  const pair = (a, b) => cnt(a) + '/' + cnt(b) + (b ? ' ' + pyRound(100 * a / b) + '%' : '');
   const rows = [
-    ['Double faults',        i => '' + st.double_faults[i],                  i => st.double_faults[i], false],
+    ['Double faults',        i => cnt(st.double_faults[i]),                  i => st.double_faults[i], false],
     ['First serve %',        i => pct(st.first_serves, st.serve_points, i),  i => ratio(st.first_serves, st.serve_points, i), true],
     ['Win % on 1st serve',   i => pct(st.first_won, st.first_serves, i),     i => ratio(st.first_won, st.first_serves, i), true],
     ['Win % on 2nd serve',   i => pct(st.second_won, st.second_serves, i),   i => ratio(st.second_won, st.second_serves, i), true],
-    ['Break points',         i => st.break_points_won[i] + '/' + st.break_points[i], i => st.break_points_won[i], true],
-    ['Unreturned serves',    i => '' + st.unreturned[i],                     i => st.unreturned[i], true],
+    ['Break points',         i => pair(st.break_points_won[i], st.break_points[i]), i => st.break_points_won[i], true],
+    ['Unreturned serves',    i => cnt(st.unreturned[i]),                     i => st.unreturned[i], true],
     ['Avg rally length',     i => st.rallies[i] ? oneDecimal(st.rally_shots[i] / st.rallies[i]) : '-',
                              i => ratio(st.rally_shots, st.rallies, i), true],
-    ['Service points won',   i => '' + st.serve_points_won[i],               i => st.serve_points_won[i], true],
-    ['Service games won',    i => st.serve_games_won[i] + '/' + st.serve_games[i], i => st.serve_games_won[i], true],
-    ['Receiving points won', i => '' + st.return_points_won[i],              i => st.return_points_won[i], true],
-    ['Points won',           i => '' + st.points_won[i],                     i => st.points_won[i], true],
-    ['Games won',            i => '' + st.games_won[i],                      i => st.games_won[i], true],
-    ['Max points in a row',  i => '' + bestPt[i],                            i => bestPt[i], true],
-    ['Max games in a row',   i => '' + bestGm[i],                            i => bestGm[i], true],
-    ['Tiebreaks won',        i => '' + st.tiebreaks_won[i],                  i => st.tiebreaks_won[i], true]
+    ['Service points won',   i => cnt(st.serve_points_won[i]),               i => st.serve_points_won[i], true],
+    ['Service games won',    i => pair(st.serve_games_won[i], st.serve_games[i]), i => st.serve_games_won[i], true],
+    ['Receiving points won', i => cnt(st.return_points_won[i]),              i => st.return_points_won[i], true],
+    ['Points won',           i => cnt(st.points_won[i]),                     i => st.points_won[i], true],
+    ['Games won',            i => cnt(st.games_won[i]),                      i => st.games_won[i], true],
+    ['Max points in a row',  i => cnt(bestPt[i]),                            i => bestPt[i], true],
+    ['Max games in a row',   i => cnt(bestGm[i]),                            i => bestGm[i], true],
+    ['Tiebreaks won',        i => cnt(st.tiebreaks_won[i]),                  i => st.tiebreaks_won[i], true]
   ];
   return rows.map(([label, show, value, higherBetter]) => {
     const a = value(0), b = value(1);
@@ -1273,6 +1404,12 @@ function setCells(m, which){
 }
 function sideHtml(m, which){
   const p=m[which];
+  // A bye has no opponent on one side -- the seed advances against nothing.
+  // Reading p.won on that null threw mid-render, which froze the bracket on the
+  // last good window AND left the pager enabled, because the buttons are updated
+  // at the END of renderWindow. The first round of every 96, 56 and 48 draw was
+  // unreachable that way: the arrow moved `start` and nothing on screen changed.
+  if(!p) return '<div class="side bye"><span class="nm">bye</span></div>';
   const cls=['side', p.won?'won':'lost', p.playable?'me':''].filter(Boolean).join(' ');
   return '<div class="'+cls+'">'+seedBox(p)+'<span class="nm">'+p.name+'</span>'+setCells(m,which)+'</div>';
 }
@@ -1317,7 +1454,8 @@ function renderWindow(){
     const ri = start + i;                        // absolute index: the popup keys off it
     return '<div class="round"><h2>' + LABEL[r.name] + '</h2><div class="ties">' +
       r.matches.map((m, mi) =>
-        '<div class="tie" tabindex="0" data-r="' + ri + '" data-m="' + mi + '">' +
+        '<div class="tie' + (m.bye ? ' hasbye' : '') + '"' +
+        (m.bye ? '' : ' tabindex="0"') + ' data-r="' + ri + '" data-m="' + mi + '">' +
         sideHtml(m, 'top') + sideHtml(m, 'bottom') + '</div>').join('') +
       '</div></div>';
   }).join('');
@@ -1402,6 +1540,78 @@ function outcome(g){
   return g.win===g.srv ? {cls:'hold',tag:'Hold'} : {cls:'brk',tag:'Break'};
 }
 
+// ---- what was riding on each point ---------------------------------------
+// Break, set and match points, worked out once for the whole match so the panel
+// and the exported file cannot disagree about them. A point is a match point if
+// winning it wins the match, a set point if it wins the set, a break point if
+// the RECEIVER could win the game with it -- in that order, so a set point on
+// the return is labelled as a set point and not as a break.
+//
+// Returns a Map keyed "setIndex:gameIndex:pointIndex" -> {stake, end}, either of
+// which may be absent. `stake` is the chance the point carried -- BP, SP or MP --
+// and `end`, on the point that finished the game, what it settled: B break,
+// H hold, S set, M match. The deciding point usually has both.
+//
+// This is deliberately NOT the same thing as the export's `break_point` column.
+// There the column is the raw fact -- the receiver could have won the game with
+// this point -- which is what you want to count off a file. Here only one label
+// goes on a point, and a set point that happens to arrive on the return reads as
+// a set point. Do not "fix" either one to match the other.
+function pointStakes(m, ctx){
+  const out = new Map();
+  const bestOf = ctx && ctx.bestOf ? ctx.bestOf : 3;
+  const toWin = (bestOf + 1) / 2;
+  const deciding = ctx && ctx.decidingTiebreak ? ctx.decidingTiebreak : 7;
+  const sets = [0, 0];
+  m.sets.forEach((set, si) => {
+    // The deciding set is the only one whose tiebreak can run past seven, and
+    // it is the set both players reach one short of the match.
+    const isDecider = sets[0] === toWin - 1 && sets[1] === toWin - 1;
+    const tbLen = isDecider ? deciding : 7;
+    const games = [0, 0];
+    set.g.forEach((g, gi) => {
+      const tiebreak = g.k === 't';
+      const pts = [0, 0];                       // points this game, by side
+      // What winning the game would settle for a side, given where the set and
+      // the match stand. Used twice: for the chance before a point, and for what
+      // the point that ends the game actually settled.
+      const settles = side => {
+        const g2 = games[side] + 1, other = games[1 - side];
+        const set = tiebreak || (g2 >= 6 && g2 - other >= 2) || g2 === 7;
+        return { set, match: set && sets[side] + 1 >= toWin };
+      };
+      g.pts.forEach((p, pi) => {
+        for(const side of [0, 1]){
+          const mine = pts[side] + 1, theirs = pts[1 - side];
+          const winsGame = tiebreak
+            ? (mine >= tbLen && mine - theirs >= 2)
+            : (mine >= 4 && mine - theirs >= 2);
+          if(!winsGame) continue;
+          const w = settles(side);
+          const kind = w.match ? 'MP' : w.set ? 'SP'
+                     : (!tiebreak && side !== g.srv) ? 'BP' : null;
+          if(kind) out.set(si + ':' + gi + ':' + pi, { stake: { kind, side } });
+        }
+        pts[p[0]]++;
+      });
+      // The point that ended the game carries BOTH: what was riding on it and
+      // what it settled. Replacing the one with the other meant a converted set
+      // point showed only S -- so a match whose set and match points were all
+      // taken never displayed SP or MP anywhere, which is what "MP and SP are
+      // not being labelled" turned out to be.
+      const lastKey = si + ':' + gi + ':' + (g.pts.length - 1);
+      const w = settles(g.win);
+      const prev = out.get(lastKey) || {};
+      out.set(lastKey, Object.assign({}, prev, { end: {
+        kind: w.match ? 'M' : w.set ? 'S' : (g.win === g.srv ? 'H' : 'B'),
+        side: g.win } }));
+      games[g.win]++;
+    });
+    sets[set.win]++;
+  });
+  return out;
+}
+
 // ---- how much to abbreviate ---------------------------------------------
 // Nothing is abbreviated unless the panel is too narrow for the line. The
 // ladder only shortens what it must, in the order the eye misses least:
@@ -1457,20 +1667,136 @@ function chooseLevel(games, names, available, fonts){
   return LEVELS.length - 1;                 // nothing fits; clip as hard as we can
 }
 
-// full names in the header, clipped ones on the points beneath it
-function gameHtml(g, names, head, level){
-  const o=outcome(g);
+// ---- the score ladder ----------------------------------------------------
+// Rebuilt from the point WINNERS rather than parsed back out of the score
+// string: that string is written from the server's side in a game and from the
+// tiebreak opener's in a tiebreak, so reading it back would need the very
+// orientation this grid is trying to drop.
+// Not `PT`: engine.js already declares one at the top level, and both files are
+// inlined into the same scope on both pages -- the page died on "Identifier 'PT'
+// has already been declared".
+const LADDER_PT = ['0', '15', '30', '40'];
+function ladder(g){
+  const tb = g.k === 't';
+  const rows = [];
+  let a = 0, b = 0;
+  g.pts.forEach(p => {
+    if(p[0] === 0) a++; else b++;
+    let ca, cb;
+    if(tb)                        { ca = String(a);  cb = String(b); }
+    else if(a < 3 || b < 3)       { ca = LADDER_PT[a]; cb = LADDER_PT[b]; }
+    else if(a === b)              { ca = '40';       cb = '40'; }
+    else if(a > b)                { ca = 'AD';       cb = '40'; }
+    else                          { ca = '40';       cb = 'AD'; }
+    rows.push({ won: p[0], a: ca, b: cb, shots: p[1] });
+  });
+  // The last point is the game. The loser keeps the score they were on, which
+  // says more than a blank -- "GM / 30" reads as the game going out at 40-30.
+  const last = rows[rows.length - 1];
+  if(last){
+    const loser = tb ? String(g.win === 0 ? b : a) : LADDER_PT[Math.min(g.win === 0 ? b : a, 3)];
+    if(g.win === 0){ last.a = 'GM'; last.b = loser; }
+    else           { last.b = 'GM'; last.a = loser; }
+  }
+  return rows;
+}
+
+// The transposed scoreboard: a row per point, a column per player, the winner
+// of each point carrying the emphasis. Rally length moves to the row's tooltip
+// -- it is worth keeping, but not worth a column of its own on every point.
+// A game is a handful of points and reads down; a tiebreak is one long run and
+// reads across. So a game gets a row per point, and a tiebreak a COLUMN per
+// point -- which also costs nothing, because a tiebreak already takes the full
+// width of the panel while games sit two to a row.
+function gridHtml(g, head, stakes, key){
+  return g.k === 't' ? stripHtml(g, head, stakes, key)
+                     : columnHtml(g, head, stakes, key);
+}
+
+// Whichever badges a point carries: what was riding on it, and what it settled.
+// A tiebreak column is about thirty pixels wide and cannot hold both, so it asks
+// for one: the point that ended something says what it SETTLED, and the cell
+// already reads GM beside it. Chances that went begging still show BP/SP/MP.
+function badgesFor(stakes, key, i, side, one){
+  const st = stakes.get(key + ':' + i) || {};
+  let tags = [st.stake, st.end].filter(t => t && t.side === side);
+  if(one && tags.length > 1) tags = [st.end];
+  return tags.map(t => '<em class="st ' + t.kind.toLowerCase() + '">' + t.kind + '</em>').join('');
+}
+
+// A game: a row per point, a column per player. One player serves throughout,
+// so a single dot on their name says so.
+function columnHtml(g, head, stakes, key){
+  const cells = ladder(g).map((r, i) => {
+    const cell = side => '<span class="pc' + (r.won === side ? ' w' : '') + '">' +
+      badgesFor(stakes, key, i, side) + '<b>' + (side === 0 ? r.a : r.b) + '</b></span>';
+    return '<div class="prow" title="' + r.shots + (r.shots === 1 ? ' shot' : ' shots') +
+      '">' + cell(0) + cell(1) + '</div>';
+  }).join('');
+  const dot = side => side === g.srv ? '<i class="sv"></i>' : '';
+  return '<div class="pgrid"><div class="prow ph">' +
+    '<span class="pc">' + dot(0) + '<b>' + head[0] + '</b></span>' +
+    '<span class="pc">' + dot(1) + '<b>' + head[1] + '</b></span></div>' + cells + '</div>';
+}
+
+// A tiebreak: a column per point, two rows, wrapping so a long one stays on the
+// panel. Serve moves after the first point and every two after it -- the same
+// rotation simTiebreak plays and exportRows records -- and the dot sits on
+// whoever served THAT point. No separate row of point numbers: the dots already
+// say where each service turn begins, and the numbers only added a third line.
+const STRIP_WRAP = 8;
+function stripHtml(g, head, stakes, key){
+  const serverOf = pi => g.srv ^ (((pi + 1) >> 1) & 1);
+  const L = ladder(g);
+  // Eight to a row is the CAP, not the step: a nine-point tiebreak split 8 and 1
+  // left a row holding a single point. Spread evenly over as few rows as eight
+  // allows instead -- nine goes 5 and 4, twelve goes 6 and 6 -- and the columns
+  // still line up, because every row is laid out on the same eight-column grid.
+  const rows = Math.ceil(L.length / STRIP_WRAP);
+  const per = Math.ceil(L.length / rows);
+  let out = '';
+  for(let b = 0; b < L.length; b += per){
+    const chunk = L.slice(b, b + per);
+    const line = side => '<div class="hname">' + head[side] + '</div>' +
+      chunk.map((r, k) => {
+        const i = b + k;
+        const turn = i > 0 && serverOf(i) !== serverOf(i - 1) ? ' turn' : '';
+        return '<div class="hc' + (r.won === side ? ' w' : '') + turn + '" title="' +
+          r.shots + (r.shots === 1 ? ' shot' : ' shots') + ', ' +
+          head[serverOf(i)] + ' serving">' + badgesFor(stakes, key, i, side, true) +
+          (serverOf(i) === side ? '<i class="sv"></i>' : '') +
+          '<b>' + (side === 0 ? r.a : r.b) + '</b></div>';
+      }).join('') +
+      Array(STRIP_WRAP - chunk.length).fill('<div class="hc pad"></div>').join('');
+    out += '<div class="hblock">' + line(0) + line(1) + '</div>';
+  }
+  return '<div class="hgrid">' + out + '</div>';
+}
+
+
+// The long-standing view, left exactly as it was: who won each point, how many
+// shots it took, and the running score written out. Kept alongside the grid
+// rather than replaced -- the rally lengths and the written score are the reason
+// to open it at all. The BP/SP/MP and B/H/S/M badges deliberately do NOT appear
+// here: this layout puts the name first and a badge in front of it shunts the
+// whole column sideways on the rows that have one.
+function detailHtml(g, names, head, level){
   const n=levelNames(names, level);
-  const serve = g.k==='t' ? '' : '<span class="srv">serve <b>'+head[g.srv]+'</b></span>';
-  // The shot count is its own element so that a long score line ("Game Set
-  // Match ...") clips the NAME rather than eating the count off the end.
-  const pts=g.pts.map(p=>'<div class="pt"><span class="who">'+
+  return g.pts.map(p=>'<div class="pt"><span class="who">'+
     '<span class="pn">'+n.row[p[0]]+'</span>'+
     '<span class="n">('+p[1]+')</span></span>'+
     '<span class="sc">'+rewrite(p[2], names, n.score)+'</span></div>').join('');
+}
+
+// full names in the header, clipped ones on the points beneath it
+function gameHtml(g, names, head, level, stakes, key, mode){
+  const o=outcome(g);
+  const serve = g.k==='t' ? '' : '<span class="srv">serve <b>'+head[g.srv]+'</b></span>';
+  const body = mode==='detail' ? detailHtml(g, names, head, level)
+                               : gridHtml(g, head, stakes, key);
   return '<div class="game '+o.cls+'"><button class="ghead"><span class="gchev">&#9654;</span>'+
     '<span class="tag">'+o.tag+'</span>'+serve+'<span class="gwin">'+head[g.win]+'</span>'+
-    '<span class="gsc">'+g.sc+'</span></button><div class="pts">'+pts+'</div></div>';
+    '<span class="gsc">'+g.sc+'</span></button><div class="pts">'+body+'</div></div>';
 }
 // Two or four game panels per row, never three and never one where two fit --
 // a bracket reads in halves, and an odd column count breaks that rhythm.
@@ -1678,6 +2004,46 @@ async function offerDownload(text, filename, type){
   showCopyBox(text);
 }
 
+// Which of the two point views the panel shows. Remembered across matches and
+// across visits: whichever one you read in, you almost certainly want again.
+const VIEW_KEY = 'tennis-sim:pointview';
+// Held in memory, with storage only as the way it survives a reload. Reading it
+// back from localStorage on every render made the control dead wherever storage
+// throws -- a private window, a browser set to block site data -- because the
+// write was swallowed and the next read returned the old value. Same shape as
+// the bug that made the season's pause button unclickable.
+let viewPref = null;
+function viewMode(){
+  if(viewPref === null){
+    try { viewPref = localStorage.getItem(VIEW_KEY) === 'detail' ? 'detail' : 'grid'; }
+    catch(e){ viewPref = 'grid'; }
+  }
+  return viewPref;
+}
+function setViewMode(v){
+  viewPref = v;
+  try { localStorage.setItem(VIEW_KEY, v); } catch(e){}
+}
+function wireViewToggle(m, ctx){
+  const box = document.getElementById('mview');
+  if(!box) return;                         // a page that has not added the control
+  const mode = viewMode();
+  box.innerHTML = ['grid', 'detail'].map(k =>
+    '<button type="button" class="vbtn' + (k === mode ? ' on' : '') + '" data-v="' + k +
+    '">' + (k === 'grid' ? 'Score' : 'Detail') + '</button>').join('');
+  box.querySelectorAll('.vbtn').forEach(b => b.addEventListener('click', () => {
+    if(b.dataset.v === viewMode()) return;
+    setViewMode(b.dataset.v);
+    // Re-open rather than re-render in place: the abbreviation ladder is chosen
+    // from the width the panel actually has, and that is what openMatch does.
+    const open = [...document.querySelectorAll('#mbody .game')]
+      .map(g => g.classList.contains('open'));
+    openMatch(m, ctx);
+    document.querySelectorAll('#mbody .game')
+      .forEach((g, i) => g.classList.toggle('open', !!open[i]));
+  }));
+}
+
 function openMatch(m, ctx){
   const overlay=document.getElementById('overlay');
   document.getElementById('mround').textContent=ctx.round||'';
@@ -1708,11 +2074,14 @@ function openMatch(m, ctx){
   const regularLevel=Math.max(floor, chooseLevel(all.filter(g=>g.k!=='t'), names, regularWidth, fonts));
   const tiebreakLevel=Math.max(floor, chooseLevel(all.filter(g=>g.k==='t'), names, tiebreakWidth, fonts));
 
+  const stakes=pointStakes(m, ctx);
+  const mode=viewMode();
   const sets=m.sets.map((s,i)=>
     '<div class="setrow"><div class="setlabel"><span>Set '+(i+1)+'</span><span class="s">'+s.sc+
     '</span><span style="color:var(--muted)">'+names[s.win]+'</span></div>'+
-    '<div class="games">'+s.g.map(g=>
-      gameHtml(g,names,head,g.k==='t'?tiebreakLevel:regularLevel)).join('')+'</div></div>').join('');
+    '<div class="games">'+s.g.map((g,gi)=>
+      gameHtml(g,names,head,g.k==='t'?tiebreakLevel:regularLevel,
+               stakes,i+':'+gi,mode)).join('')+'</div></div>').join('');
   const rows=m.stats.map(r=>
     '<div class="srow"><span class="v l'+(r.better==='a'?' best':'')+'">'+r.a+'</span>'+
     '<span class="k">'+r.label+'</span>'+
@@ -1722,6 +2091,7 @@ function openMatch(m, ctx){
     '<span class="who">'+m.statNames[1]+'</span></h3>'+rows+'</div>';
   body.querySelectorAll('.ghead').forEach(h=>
     h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
+  wireViewToggle(m, ctx);
   document.getElementById('expbox').hidden = true;
   document.getElementById('expcsv').onclick = () =>
     offerDownload(exportCSV(m, ctx), slug(m, ctx) + '-points.csv', 'text/csv');
@@ -1747,7 +2117,9 @@ function matchContext(roundName){
 }
 function open(ri, mi){
   const r = D.rounds[ri];
-  openMatch(r.matches[mi], matchContext(r.name));
+  const m = r.matches[mi];
+  if(!m || m.bye) return;            // nothing was played, so there is nothing to show
+  openMatch(m, matchContext(r.name));
 }
 const close = closeMatch;
 bracket.addEventListener('click',e=>{

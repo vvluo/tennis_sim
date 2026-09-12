@@ -187,6 +187,15 @@ table.season tr.dropped td{opacity:.45}
 table.season td.tick{width:1em;color:var(--muted)}
 table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
   margin-right:7px;vertical-align:1px}
+/* The counting rule sits behind an i rather than under every card. */
+.beat.count{display:flex;align-items:center;gap:7px}
+.info{width:15px;height:15px;flex:none;padding:0;border-radius:50%;cursor:pointer;
+  font:inherit;font-size:10px;font-weight:700;font-style:italic;line-height:1;
+  color:var(--muted);background:var(--surface-2);border:1px solid var(--line)}
+.info:hover,.info.on{color:var(--accent);border-color:var(--accent);
+  background:var(--accent-soft)}
+.beat.note{margin-top:6px;padding:8px 10px;border-radius:8px;
+  background:var(--surface-2);border:1px solid var(--line)}
 .empty{padding:26px 16px;color:var(--muted);font-size:13px}
 .sumrow{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
 .stat{flex:1 1 130px;background:var(--surface);border:1px solid var(--line);
@@ -200,6 +209,7 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
   <div class="wrap headrow">
     <h1 id="title">Simulate a Season</h1>
     <div class="navbar">
+      <a class="navlink" href="matchup.html">Matchup Forecaster</a>
       <a class="navlink" href="tournament.html">Play a Grand Slam</a>
       <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <button class="navlink" id="themebtn" type="button">Theme</button>
@@ -299,6 +309,8 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
       <span class="r" id="mround"></span>
       <span class="t" id="mtitle"></span>
       <span class="s" id="mscore"></span>
+      <div class="vswitch" id="mview" role="group"
+           aria-label="How to show each point"></div>
       <div class="export">
         <button class="expbtn" id="expcsv" type="button" title="Point-by-point as CSV">CSV</button>
         <button class="expbtn" id="expjson" type="button" title="Point-by-point and summary as JSON">JSON</button>
@@ -549,6 +561,12 @@ const state = {
 // so raw dates run backwards halfway through a season -- and the commitment
 // ledger and the load decay are both differences between day numbers, so they
 // would unwind rather than advance. Season-relative numbers keep both monotone.
+// The calendar's dates come from a rolling twelve-month window of cached
+// results, so they carry the year the data was pulled in. A season being played
+// now is this year's season: the month and day are the schedule, the year is
+// not, so it is restated rather than shown as history.
+const SEASON_YEAR = String(new Date().getFullYear());
+const showDate = iso => SEASON_YEAR + iso.slice(4);
 const sdayOf = ev => ev.sday;
 const sweekOf = ev => ev.sweek;
 
@@ -1274,10 +1292,12 @@ function showNow(ev, done, total){
   applyGround(bgFor(ev));
   $('now').classList.add('on');
   $('nowname').textContent = ev.name;
-  $('nowwhere').textContent = ev.location + '  ·  ' + ev.start + ' to ' + ev.end;
+  $('nowwhere').textContent = ev.location + '  ·  ' + showDate(ev.start)
+    + ' to ' + showDate(ev.end);
   const chips = [state.tour, ev.level, ev.surface.replace('_', ' '),
                  ev.format === 'rr' ? 'round robin'
-                   : ev.draw ? ev.draw + ' draw' : ev.skip];
+                   : ev.draw ? ev.draw + ' draw'
+                   : ev.skip ? 'not simulated' : null];
   $('nowchips').innerHTML = chips.filter(Boolean)
     .map(c => '<span class="nowchip">' + esc(c) + '</span>').join('');
   $('nowbar').style.width = Math.round(100 * done / total) + '%';
@@ -1465,8 +1485,7 @@ function render(){
       esc(ev.name + ' — ' + ev.surface.replace('_', ' ') +
           (res ? '' : ': ' + ev.skip)) + '">';
     if(!res) return open + '<td class="num stripe">' + ev.start.slice(5) + '</td><td>' +
-      esc(ev.name) + ' ' + lvl + '</td><td colspan="2">not simulated — ' +
-      esc(ev.skip) + '</td></tr>';
+      esc(ev.name) + ' ' + lvl + '</td><td colspan="2">not simulated</td></tr>';
     return open + '<td class="num stripe">' + ev.start.slice(5) + '</td><td>' +
       esc(ev.name) + ' ' + lvl + '</td><td>' + esc(res.champion || '\u2014') +
       '</td><td' + (res.yourResult ? ' title="' + esc(res.yourResult) + '"' : '') +
@@ -1525,8 +1544,10 @@ function openEvent(i){
 
   let body = '';
   if(!res){
-    body = '<p class="beat">This event is on the calendar but was not simulated — '
-         + esc(ev.skip) + '.</p>';
+    body = '<p class="beat count">On the calendar, but not simulated'
+         + '<button type="button" class="info" id="skipinfo" aria-expanded="false"'
+         + ' aria-controls="skipnote" title="' + esc(ev.skip) + '">i</button></p>'
+         + '<p class="beat note" id="skipnote" hidden>' + esc(ev.skip) + '.</p>';
   } else {
     // The same badge the grand-slam page uses: a seed number, or Q for a player
     // who came through qualifying rather than in on their ranking.
@@ -1581,10 +1602,17 @@ function openEvent(i){
     '<header style="--sheetbg:' + bg + ';--sheetink:' + (light ? '#FFFFFF' : '#0E1A22') + '">'
     + '<button class="closebtn" id="sheetclose" aria-label="Close">&times;</button>'
     + '<h2>' + esc(ev.name) + '</h2><div class="where">' + esc(ev.location)
-    + ' · ' + esc(ev.start) + ' to ' + esc(ev.end) + '</div>'
+    + ' · ' + esc(showDate(ev.start)) + ' to ' + esc(showDate(ev.end)) + '</div>'
     + '<div class="chips">' + chips.map(c => '<span>' + esc(c) + '</span>').join('') + '</div>'
     + '</header><div class="sheetbody">' + body + '</div>';
   $('sheetclose').addEventListener('click', closeEvent);
+  const skipInfo = $('skipinfo');
+  if(skipInfo) skipInfo.addEventListener('click', () => {
+    const note = $('skipnote');
+    note.hidden = !note.hidden;
+    skipInfo.setAttribute('aria-expanded', String(!note.hidden));
+    skipInfo.classList.toggle('on', !note.hidden);
+  });
   // Opening one of your own matches hands it to the shared viewer, the same
   // panel and the same CSV/JSON export the grand-slam page uses.
   $('sheet').querySelectorAll('tr.ev[data-m]').forEach(tr =>
@@ -1601,7 +1629,7 @@ function matchContext(ev, round){
     tour: state.tour, drawSize: ev.draw, surface: ev.surface,
     bestOf: (state.tour === 'ATP' && ev.level === SLAM) ? 5 : 3,
     decidingTiebreak: ev.level === SLAM ? 10 : 7,
-    dataSet: BUILT, configuration: ev.name + ' ' + ev.start.slice(0, 4),
+    dataSet: BUILT, configuration: ev.name + ' ' + SEASON_YEAR,
     drawSeed: state.seed,
   };
 }
@@ -1642,14 +1670,19 @@ function openPlayer(name){
           + (inR ? '&#10003;' : '&ndash;') + '</td></tr>';
       }).join('')
     + '</tbody></table>';
+  // The counting rule is a footnote, not a headline: it is the same paragraph on
+  // every player's card and it was pushing the results themselves down the page.
+  const rule = tour === 'ATP'
+    ? 'Best 19: the four majors and eight compulsory Masters, plus the seven '
+      + 'best of everything else. The finals are added on top as a twentieth.'
+    : 'Best 18: the four majors, six compulsory 1000s and the best single other '
+      + '1000, plus the seven best of everything else. The finals are added on '
+      + 'top as a nineteenth.';
   if(!played.length) body = '<p class="beat">No tournaments played yet.</p>';
-  else body += '<p class="beat">' + (tour === 'ATP'
-      ? 'Best 19: the four majors and eight compulsory Masters, plus the seven '
-        + 'best of everything else. The finals are added on top as a twentieth.'
-      : 'Best 18: the four majors, six compulsory 1000s and the best single other '
-        + '1000, plus the seven best of everything else. The finals are added on '
-        + 'top as a nineteenth.')
-    + ' ' + played.length + ' played, ' + counted.size + ' counting.</p>';
+  else body += '<p class="beat count">' + played.length + ' played, ' + counted.size
+    + ' counting<button type="button" class="info" id="ruleinfo" aria-expanded="false"'
+    + ' aria-controls="rulenote" title="' + esc(rule) + '">i</button></p>'
+    + '<p class="beat note" id="rulenote" hidden>' + esc(rule) + '</p>';
 
   const bg = DEFAULT_BG, light = inkOn(bg) === '#FFFFFF';
   $('sheet').setAttribute('data-ink', light ? 'light' : 'dark');
@@ -1662,6 +1695,13 @@ function openPlayer(name){
     + (r.titles || 0) + ' titles</span><span>' + r.w + '\u2013' + r.l
     + '</span></div></header><div class="sheetbody">' + body + '</div>';
   $('sheetclose').addEventListener('click', closeEvent);
+  const info = $('ruleinfo');
+  if(info) info.addEventListener('click', () => {
+    const note = $('rulenote');
+    note.hidden = !note.hidden;
+    info.setAttribute('aria-expanded', String(!note.hidden));
+    info.classList.toggle('on', !note.hidden);
+  });
   $('ovl').classList.add('on');
 }
 

@@ -17,7 +17,7 @@ import pytest
 import sitenote
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = ['tournament.html', 'season.html', 'ratings_board.html']
+PAGES = ['tournament.html', 'season.html', 'ratings_board.html', 'matchup.html']
 BUILT = [ROOT / p for p in PAGES]
 
 
@@ -207,3 +207,27 @@ def test_the_built_footer_matches_the_source(page):
     assert want, 'the footer source no longer matches its own pattern'
     assert built.group(0).strip() == want.group(0).strip(), (
         f'{page.name} carries a stale copy of the shared footer')
+
+
+@pytest.mark.parametrize('page', BUILT, ids=lambda p: p.name)
+def test_every_page_links_to_every_other(page):
+    """The nav is four links now, and one page is built outside the build scripts.
+
+    ratings_board.html comes from the notebook, so a link added to the templates
+    reached three pages and left the board a dead end -- the same way the footer
+    drifted there.
+    """
+    if not page.exists():
+        pytest.skip(f'{page.name} is not built')
+    text = page.read_text()
+    # The grand-slam page is staged as index.html as well, and the pages differ
+    # about which name they link it by. Either resolves, so either passes.
+    others = {'tournament.html': ('index.html', 'tournament.html'),
+              'season.html': ('season.html',),
+              'ratings_board.html': ('ratings_board.html',),
+              'matchup.html': ('matchup.html',)}
+    for name, hrefs in others.items():
+        if name == page.name:
+            continue
+        assert any(f'href="{h}"' in text for h in hrefs), (
+            f'{page.name} does not link to {name} (tried {list(hrefs)})')

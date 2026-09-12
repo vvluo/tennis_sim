@@ -1,0 +1,353 @@
+<title>Matchup Forecaster</title>
+<style>
+/*__THEME__*/
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(18px,5vw,64px)}
+header{padding:26px 0 6px}
+.titlerow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+h1{margin:0;font-size:clamp(21px,3vw,28px);letter-spacing:-.02em;display:flex;
+  align-items:center;gap:11px;color:var(--page-ink,#fff)}
+h1 .ball{width:1em;height:1em;flex:none}
+.navbar{display:flex;align-items:center;gap:8px;margin-left:auto}
+.navlink{font-size:12px;padding:6px 12px;border-radius:99px;text-decoration:none;
+  color:var(--page-ink,#fff);background:rgba(255,255,255,.14)}
+.navlink:hover{background:rgba(255,255,255,.26)}
+.themebtn{width:30px;height:30px;border-radius:99px;cursor:pointer;border:0;
+  background:rgba(255,255,255,.14);color:var(--page-ink,#fff);font-size:13px}
+.lede{color:var(--page-muted,rgba(255,255,255,.7));font-size:13px;margin:8px 0 0;max-width:84ch}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  overflow:hidden;margin:18px 0}
+.card > h3{margin:0;padding:13px 16px;font-size:13px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px}
+.pad{padding:15px 16px}
+.row{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-end}
+.ctl{display:flex;flex-direction:column;gap:5px;min-width:0}
+.ctl.grow{flex:1 1 210px}
+.clab{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+select,input[type=number]{font:inherit;font-size:13px;padding:7px 9px;border-radius:8px;
+  color:var(--ink);background:var(--surface-2);border:1px solid var(--line);min-width:0}
+select{min-width:190px}
+input[type=number]{width:88px}
+.seg{display:flex;gap:2px;padding:2px;border-radius:9px;background:var(--surface-2);
+  border:1px solid var(--line)}
+.segbtn{font:inherit;font-size:12px;padding:6px 12px;border:0;border-radius:7px;
+  background:transparent;color:var(--muted);cursor:pointer}
+.segbtn.on{background:var(--surface);color:var(--ink);font-weight:600}
+.check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);
+  padding:7px 0;cursor:pointer;white-space:nowrap}
+.check input{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+.go{font:inherit;font-size:13px;font-weight:600;padding:9px 20px;border-radius:9px;
+  cursor:pointer;color:#fff;background:var(--accent);border:1px solid var(--accent)}
+.go:disabled{opacity:.55;cursor:default}
+.hint{font-size:11.5px;color:var(--muted);margin:10px 0 0}
+
+.verdict{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;
+  padding:16px}
+.vside{min-width:0}
+.vside.b{text-align:right}
+.vname{font-size:15px;font-weight:700;letter-spacing:-.01em;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.vwins{font-size:27px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.vpct{font-size:12px;color:var(--muted)}
+.vmid{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.bar{height:8px;border-radius:99px;background:var(--wta,#8A4FBF);overflow:hidden;
+  grid-column:1/-1;margin-top:2px}
+.bar i{display:block;height:100%;background:var(--atp,#1D6FA3)}
+.scoresbox{border-top:1px solid var(--line)}
+.scoresbox > summary{list-style:none;cursor:pointer;padding:11px 16px;font-size:11px;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  display:flex;align-items:center;gap:8px}
+.scoresbox > summary::-webkit-details-marker{display:none}
+.scoresbox > summary::before{content:"\25B6";font-size:8px;transition:transform .15s}
+.scoresbox[open] > summary::before{transform:rotate(90deg)}
+.scoresbox > summary:hover{color:var(--ink-2)}
+.hulls{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:12px;padding:0 16px 16px}
+.hull{border:1px solid var(--line);border-radius:10px;padding:10px 12px 12px}
+.hull.a{border-color:var(--atp,#1D6FA3)}
+.hull.b{border-color:var(--wta,#8A4FBF)}
+.hull h4{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:-.01em;
+  display:flex;align-items:baseline;gap:8px}
+.hull h4 span{margin-left:auto;font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted)}
+.hull .none{margin:0;font-size:12px;font-style:italic;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.sc{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;padding:3px 7px;
+  border-radius:6px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
+
+.panes{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.srow{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:baseline;
+  padding:5px 0;border-bottom:1px solid var(--line);font-size:13px}
+.srow:last-child{border-bottom:0}
+.srow .k{font-size:11px;color:var(--muted);text-align:center;white-space:nowrap}
+.srow .v{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.srow .v.l{text-align:right}
+.srow .v.best{color:var(--ink);font-weight:700}
+.srow.names{border-bottom:1px solid var(--line);padding-bottom:7px;margin-bottom:2px}
+.srow.names .v{color:var(--ink);font-weight:700;font-size:12px;letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stats h3 .who{color:var(--ink);text-transform:none;font-size:12.5px;letter-spacing:-.01em}
+.empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:12.5px;font-style:italic}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="titlerow">
+    <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Matchup Forecaster</h1>
+    <div class="navbar">
+      <a class="navlink" href="index.html">Play a Grand Slam</a>
+      <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
+      <a class="navlink" href="season.html">Simulate a Season</a>
+      <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
+    </div>
+  </div>
+  <p class="lede">Two players, N matches, played point by point under whatever
+  scoring you ask for. The averages are per match; the best win is the widest one
+  each player managed &mdash; on sets first, then games, then points.</p>
+</header>
+
+<div class="card">
+  <h3>Matchup</h3>
+  <div class="pad">
+    <div class="row">
+      <div class="ctl">
+        <label class="clab" for="tourseg">Tour</label>
+        <div class="seg" id="tourseg" role="group" aria-label="Tour">
+          <button class="segbtn on" data-tour="ATP">ATP</button>
+          <button class="segbtn" data-tour="WTA">WTA</button>
+        </div>
+      </div>
+      <div class="ctl grow"><label class="clab" for="pa">Player A</label>
+        <select id="pa"></select></div>
+      <div class="ctl grow"><label class="clab" for="pb">Player B</label>
+        <select id="pb"></select></div>
+      <div class="ctl"><label class="clab" for="n">Matches</label>
+        <input type="number" id="n" min="1" max="100" step="1" value="10"></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div class="ctl"><label class="clab" for="surface">Surface</label>
+        <select id="surface">
+          <option value="hard">Hard</option>
+          <option value="clay">Clay</option>
+          <option value="grass">Grass</option>
+        </select></div>
+      <div class="ctl"><label class="clab" for="bestof">Format</label>
+        <select id="bestof">
+          <option value="3">Best of 3</option>
+          <option value="5">Best of 5</option>
+        </select></div>
+      <div class="ctl"><label class="clab" for="deuce">Deuce</label>
+        <select id="deuce">
+          <option value="ad">Advantage</option>
+          <option value="noad">Deciding point</option>
+        </select></div>
+      <div class="ctl"><label class="clab" for="gps">Sets to</label>
+        <input type="number" id="gps" min="1" max="12" step="1" value="6"></div>
+      <div class="ctl"><label class="clab" for="tb">Tiebreak to</label>
+        <input type="number" id="tb" min="1" max="30" step="1" value="7"></div>
+      <div class="ctl"><label class="clab" for="dtb">Final set to</label>
+        <input type="number" id="dtb" min="1" max="30" step="1" value="10"></div>
+      <div class="ctl"><label class="clab">&nbsp;</label>
+        <label class="check"><input type="checkbox" id="stb">
+          <span>Super tiebreak final set</span></label></div>
+      <div class="ctl"><label class="clab">&nbsp;</label>
+        <button class="go" id="go" type="button">Simulate</button></div>
+    </div>
+    <p class="hint" id="hint"></p>
+  </div>
+</div>
+
+<div id="out"></div>
+
+<!--__SITENOTE__-->
+</div>
+
+<script>
+/*__ENGINE__*/
+/*__FORECAST__*/
+</script>
+<script>
+const DATA = /*__DATA__*/;
+const POOLS = DATA.pools, BUILT = DATA.built;
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const state = { tour: 'ATP' };
+
+function fillPlayers(){
+  const pool = POOLS[state.tour];
+  const opts = pool.map(p =>
+    '<option value="' + esc(p.name) + '">' + esc(p.name) + '  (#' + p.rank + ')</option>').join('');
+  $('pa').innerHTML = opts; $('pb').innerHTML = opts;
+  $('pa').value = pool[0].name;
+  $('pb').value = (pool[1] || pool[0]).name;
+}
+
+// How wide a win was, in the order the tie is broken: sets, then games, then
+// points. Returned as one array so comparing two wins is a plain lexicographic
+// walk -- adding a further tiebreaker later means appending to this, nothing else.
+function margin(sets, winner){
+  const s = [0, 0], g = [0, 0], p = [0, 0];
+  sets.forEach(set => {
+    s[set.win]++;
+    set.games.forEach(gm => {
+      g[gm.win]++;
+      gm.pts.forEach(pt => p[pt[0]]++);
+    });
+  });
+  const other = 1 - winner;
+  return [s[winner] - s[other], g[winner] - g[other], p[winner] - p[other]];
+}
+const wider = (a, b) => {                 // a beats b?
+  for(let i = 0; i < a.length; i++) if(a[i] !== b[i]) return a[i] > b[i];
+  return false;
+};
+
+function run(){
+  const names = [$('pa').value, $('pb').value];
+  if(names[0] === names[1]){ $('hint').textContent = 'Pick two different players.'; return; }
+  const pool = POOLS[state.tour];
+  const ent = names.map(n => pool.find(p => p.name === n));
+  const n = Math.max(1, Math.min(100, Math.round(+$('n').value) || 10));
+  $('n').value = n;
+  const cfg = {
+    surface: $('surface').value,
+    bestOf: +$('bestof').value,
+    noAd: $('deuce').value === 'noad',
+    gamesPerSet: Math.max(1, Math.round(+$('gps').value) || 6),
+    tiebreak: Math.max(1, Math.round(+$('tb').value) || 7),
+    deciding: Math.max(1, Math.round(+$('dtb').value) || 10),
+    superTiebreak: $('stb').checked,
+  };
+  const base = basesFor(state.tour, cfg.surface);
+  const shrink = SHRINK[state.tour] ?? 1.0;
+  // Both players are lifted to the same reference level the other pages use, so
+  // a matchup here reads the same way as the same pair inside a draw.
+  const mean = ent.reduce((a, e) =>
+    a + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0) / 2;
+  const shift = 5.0 - mean;
+  const players = ent.map(e => toPlayer(e, shift, shrink));
+
+  const rng = makeRandom((Math.random() * 0xFFFFFFFF) >>> 0);
+  const wins = [0, 0], lines = [];
+  const total = { st: null, bestPt: [0, 0], bestGm: [0, 0] };
+  const best = [null, null];
+  for(let i = 0; i < n; i++){
+    const played = simMatch(rng, players[0], players[1], names, cfg.bestOf,
+                            cfg.deciding, base, cfg);
+    const w = played.winner;
+    wins[w]++;
+    lines.push({ w, score: setScoreStrings(played.sets, w, names) });
+    const raw = rawStats(played.sets);
+    if(!total.st){ total.st = {}; for(const k in raw.st) total.st[k] = [0, 0]; }
+    for(const k in raw.st){ total.st[k][0] += raw.st[k][0]; total.st[k][1] += raw.st[k][1]; }
+    // A streak is a maximum, so it is summed and averaged like any other count
+    total.bestPt[0] += raw.bestPt[0]; total.bestPt[1] += raw.bestPt[1];
+    total.bestGm[0] += raw.bestGm[0]; total.bestGm[1] += raw.bestGm[1];
+    const m = margin(played.sets, w);
+    if(!best[w] || wider(m, best[w].margin))
+      best[w] = { margin: m, stats: matchStats(played.sets, names),
+                  score: setScoreStrings(played.sets, w, names) };
+  }
+
+  const avg = formatStats(total.st, total.bestPt, total.bestGm, n);
+  render(names, wins, lines, avg, best, n, cfg);
+}
+
+// Every scoreline, folded away until asked for, and split by who won it: one
+// outlined block per player rather than a hundred chips in one run.
+function scoreLines(names, wins, lines){
+  const hull = side => {
+    const mine = lines.filter(l => l.w === side);
+    return '<div class="hull ' + (side === 0 ? 'a' : 'b') + '">' +
+      '<h4>' + esc(names[side]) + '<span>' + wins[side] +
+      (wins[side] === 1 ? ' win' : ' wins') + '</span></h4>' +
+      (mine.length
+        ? '<div class="chips">' + mine.map(l =>
+            '<span class="sc">' + esc(l.score) + '</span>').join('') + '</div>'
+        : '<p class="none">No wins.</p>') + '</div>';
+  };
+  return '<details class="scoresbox"><summary>Scorelines &middot; ' + lines.length +
+    (lines.length === 1 ? ' match' : ' matches') + '</summary>' +
+    '<div class="hulls">' + hull(0) + hull(1) + '</div></details>';
+}
+
+function statBlock(title, rows, sub, names){
+  if(!rows) return '<div class="card stats"><h3>' + title + '</h3>' +
+    '<div class="empty">' + esc(sub) + '</div></div>';
+  // Which column is whose. Obvious on the average block, where the heading names
+  // both; not at all obvious on a best-win block, whose heading names only one.
+  const heads = names
+    ? '<div class="srow names"><span class="v l">' + esc(names[0]) + '</span>' +
+      '<span class="k"></span><span class="v">' + esc(names[1]) + '</span></div>'
+    : '';
+  return '<div class="card stats"><h3>' + title + '</h3><div class="pad">' +
+    (sub ? '<p class="hint" style="margin:0 0 8px">' + esc(sub) + '</p>' : '') + heads +
+    rows.map(r => '<div class="srow"><span class="v l' + (r.better === 'a' ? ' best' : '') +
+      '">' + esc(r.a) + '</span><span class="k">' + esc(r.label) + '</span>' +
+      '<span class="v' + (r.better === 'b' ? ' best' : '') + '">' + esc(r.b) +
+      '</span></div>').join('') + '</div></div>';
+}
+
+function render(names, wins, lines, avg, best, n, cfg){
+  const pct = i => Math.round(1000 * wins[i] / n) / 10;
+  const rule = [cfg.surface, 'best of ' + cfg.bestOf,
+                cfg.noAd ? 'deciding point' : 'advantage',
+                'sets to ' + cfg.gamesPerSet, 'tiebreak to ' + cfg.tiebreak,
+                cfg.superTiebreak ? 'super tiebreak to ' + cfg.deciding
+                                  : 'final set to ' + cfg.deciding].join(' · ');
+  $('out').innerHTML =
+    '<div class="card"><h3>' + n + ' matches &middot; ' + esc(rule) + '</h3>' +
+    '<div class="verdict">' +
+      '<div class="vside"><div class="vname">' + esc(names[0]) + '</div>' +
+        '<div class="vwins">' + wins[0] + '</div>' +
+        '<div class="vpct">' + pct(0) + '%</div></div>' +
+      '<div class="vmid">wins</div>' +
+      '<div class="vside b"><div class="vname">' + esc(names[1]) + '</div>' +
+        '<div class="vwins">' + wins[1] + '</div>' +
+        '<div class="vpct">' + pct(1) + '%</div></div>' +
+      '<div class="bar"><i style="width:' + pct(0) + '%"></i></div>' +
+    '</div>' +
+    scoreLines(names, wins, lines) + '</div>' +
+    statBlock('Average match', avg,
+      'Per match over ' + n + '. Rates are pooled across all of them.', names) +
+    '<div class="panes">' +
+      statBlock('Best win &mdash; ' + esc(names[0]),
+        best[0] && best[0].stats,
+        best[0] ? best[0].score : names[0] + ' did not win a match.', names) +
+      statBlock('Best win &mdash; ' + esc(names[1]),
+        best[1] && best[1].stats,
+        best[1] ? best[1].score : names[1] + ' did not win a match.', names) +
+    '</div>';
+  $('hint').textContent = 'Data set ' + BUILT + '.';
+}
+
+document.querySelectorAll('#tourseg .segbtn').forEach(b =>
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#tourseg .segbtn').forEach(x => x.classList.toggle('on', x === b));
+    state.tour = b.dataset.tour;
+    fillPlayers();
+    $('out').innerHTML = '';
+  }));
+$('go').addEventListener('click', run);
+
+// theme, shared with the other pages through the same key
+const NS = 'tennis-sim:';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  $('theme').textContent = t === 'dark' ? '☀' : '☽';
+  try { localStorage.setItem(NS + 'theme', t); } catch(e){}
+}
+let theme = 'light';
+try { theme = localStorage.getItem(NS + 'theme') || 'light'; } catch(e){}
+applyTheme(theme);
+$('theme').addEventListener('click', () => {
+  theme = theme === 'dark' ? 'light' : 'dark';
+  applyTheme(theme);
+});
+
+fillPlayers();
+$('hint').textContent = 'Data set ' + BUILT + '.';
+</script>

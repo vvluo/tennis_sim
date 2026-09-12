@@ -115,7 +115,18 @@ function tbScore(sp, rp, names, srv, rcv, len){
 // ---- match.py ------------------------------------------------------------
 // Side indices: 0 = top of the tie, 1 = bottom. The Python compared Player
 // objects; here everything is an index, which is also what the page wants.
-function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
+// `opts` carries the non-standard scoring a matchup can ask for. Everything in
+// it defaults to the ordinary rules, so the two pages that already call this
+// keep playing exactly the tennis they played before.
+//   noAd           a deuce is a single deciding point instead of advantage
+//   tiebreak       points needed to take an ordinary set's tiebreak (7)
+//   gamesPerSet    games needed to take a set (6)
+//   superTiebreak  the deciding set is one tiebreak, to finalSetTiebreak points
+function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base, opts){
+  const O = opts || {};
+  const noAd = !!O.noAd;
+  const TB = O.tiebreak || 7;
+  const SET_TO = O.gamesPerSet || 6;
   // Full names in the record; the panel abbreviates only if it has to.
   const fTop = drawForm(rng, top), fBot = drawForm(rng, bottom);
   const mu = [matchup(top, bottom, fTop, fBot, base), matchup(bottom, top, fBot, fTop, base)];
@@ -146,6 +157,8 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
     let sp = 0, rp = 0;
     const pts = [];
     for(;;){
+      // Under no-ad the game stops at deuce: one point settles it either way.
+      const sudden = noAd && sp === 3 && rp === 3;
       const serveRng = rng.random();
       let winner, shots, first;
       if(serveRng < m.dfRate)                 { winner = rcv; shots = 0; first = false; }
@@ -153,7 +166,9 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
       else                                    { [winner, shots] = point(false); first = false; }
       if(winner === server) sp++; else rp++;
       // 4th slot is the first-serve flag: the statistics read it, the page does not.
-      pts.push([winner, shots, gameScore(sp, rp, names, server, rcv), first]);
+      pts.push([winner, shots,
+        sudden ? 'Game ' + names[winner] : gameScore(sp, rp, names, server, rcv), first]);
+      if(sudden) return { k: 'g', srv: server, win: winner, pts };
       if(sp >= 4 && sp - rp >= 2) return { k: 'g', srv: server, win: server, pts };
       if(rp >= 4 && rp - sp >= 2) return { k: 'g', srv: server, win: rcv,    pts };
     }
@@ -180,7 +195,7 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
     let g0 = 0, g1 = 0;
     const games = [];
     for(;;){
-      if(g0 === 6 && g1 === 6){
+      if(g0 === SET_TO && g1 === SET_TO){
         const startServer = server;
         const tb = simTiebreak(tbLen);
         games.push(tb);
@@ -191,10 +206,10 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
       if(g.win === 0) g0++; else g1++;
       games.push(g);
       server = 1 - server;
-      if(g0 >= 6 && g0 - g1 >= 2) return { win: 0, games };
-      if(g1 >= 6 && g1 - g0 >= 2) return { win: 1, games };
-      if(g0 === 7) return { win: 0, games };
-      if(g1 === 7) return { win: 1, games };
+      if(g0 >= SET_TO && g0 - g1 >= 2) return { win: 0, games };
+      if(g1 >= SET_TO && g1 - g0 >= 2) return { win: 1, games };
+      if(g0 === SET_TO + 1) return { win: 0, games };
+      if(g1 === SET_TO + 1) return { win: 1, games };
     }
   }
 
@@ -202,7 +217,15 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base){
   const sets = [];
   while(s0 < toWin && s1 < toWin){
     const decider = s0 === toWin - 1 && s1 === toWin - 1;
-    const set = simSet(decider ? finalSetTiebreak : 7);
+    let set;
+    if(decider && O.superTiebreak){
+      // The whole set is one tiebreak. It is still a set with one game in it, so
+      // every consumer -- the stats, the panel, the export -- treats it as one.
+      const tb = simTiebreak(finalSetTiebreak);
+      set = { win: tb.win, games: [tb] };
+    } else {
+      set = simSet(decider ? finalSetTiebreak : TB);
+    }
     if(set.win === 0) s0++; else s1++;
     sets.push(set);
   }
@@ -216,12 +239,26 @@ function setScoreStrings(sets, winner, names){
   const parts = [];
   sets.forEach(set => {
     let won = 0, lost = 0;
+    // A set played as a single tiebreak reads by its POINTS, in brackets:
+    // "1-6, 6-4, [8-10]". The brackets are what tell a reader those are points
+    // and not a 10-8 set of games.
+    const solo = set.games.length === 1 && set.games[0].k === 't';
     set.games.forEach(g => {
       if(g.k === 't'){
         const w = g.pts.filter(p => p[0] === g.win).length;
         const l = g.pts.length - w;
-        if(g.win === winner){ won = 7; lost = 6; g.sc = '7-6(' + l + ')'; }
-        else                { won = 6; lost = 7; g.sc = '6(' + l + ')-7'; }
+        // Count the tiebreak as the game it is instead of writing in 7-6. Both
+        // sides are level on games here -- at six each normally, but at four
+        // each in a set played to four -- and hardcoding the pair printed a set
+        // won 5-4 as 7-6.
+        if(solo){
+          won = g.win === winner ? w : l;
+          lost = g.win === winner ? l : w;
+          g.sc = '[' + won + '-' + lost + ']';
+          return;
+        }
+        if(g.win === winner){ won++;  g.sc = won + '-' + lost + '(' + l + ')'; }
+        else                { lost++; g.sc = won + '(' + l + ')-' + lost; }
         return;
       }
       if(g.win === winner) won++; else lost++;
@@ -243,19 +280,29 @@ function setScoreStrings(sets, winner, names){
 function perSideSetScores(sets){
   return sets.map(set => {
     let top = 0, bottom = 0, entry = null;
+    const solo = set.games.length === 1 && set.games[0].k === 't';
     set.games.forEach(g => {
       if(g.k === 't'){
         const w = g.pts.filter(p => p[0] === g.win).length;
         const l = g.pts.length - w;
-        if(g.win === 0){ top = 7; bottom = 6; entry = { tbSide: 'bottom', tb: l }; }
-        else           { top = 6; bottom = 7; entry = { tbSide: 'top',    tb: l }; }
+        if(solo){                       // the set IS the tiebreak: show its points
+          top = g.win === 0 ? w : l;
+          bottom = g.win === 0 ? l : w;
+          return;
+        }
+        // as above: the tiebreak is one more game, not a fixed 7-6
+        if(g.win === 0){ top++;    entry = { tbSide: 'bottom', tb: l }; }
+        else           { bottom++; entry = { tbSide: 'top',    tb: l }; }
       } else if(g.win === 0) top++; else bottom++;
     });
     return Object.assign({ top, bottom }, entry || {});
   });
 }
 
-function matchStats(sets, names){
+// The raw counters behind matchStats, split out so callers that aggregate over
+// many matches -- the matchup forecaster averages N of them -- can add up the
+// numbers themselves instead of trying to average strings like "63%" or "4/7".
+function rawStats(sets){
   const keys = ['double_faults','first_serves','first_won','second_serves','second_won',
     'serve_points','serve_points_won','serve_games','serve_games_won','return_points_won',
     'points_won','games_won','tiebreaks_won','break_points','break_points_won',
@@ -298,6 +345,18 @@ function matchStats(sets, names){
     });
   }));
 
+  return { st, bestPt, bestGm };
+}
+
+function matchStats(sets, names){
+  const { st, bestPt, bestGm } = rawStats(sets);
+  return formatStats(st, bestPt, bestGm);
+}
+
+// The display rows. Shared by a single match and by an aggregate of many, so the
+// two can never disagree about what a statistic means or which side is better.
+function formatStats(st, bestPt, bestGm, per){
+  const N = per || 1;                       // divide count rows by the sample size
   // Python's round() breaks ties to even and Math.round breaks them upward, so
   // a rate landing exactly on .5 printed one point apart between the engines.
   const pyRound = x => {
@@ -309,23 +368,30 @@ function matchStats(sets, names){
   const oneDecimal = x => (pyRound(x * 10) / 10).toFixed(1);
   const pct = (n, d, i) => d[i] ? pyRound(100 * n[i] / d[i]) + '%' : '-';
   const ratio = (n, d, i) => d[i] ? n[i] / d[i] : null;
+  // A count over N matches is shown as a mean, to one decimal; over a single
+  // match N is 1 and this is the whole number it always was.
+  const cnt = v => N === 1 ? '' + v : oneDecimal(v / N);
+  // A fraction and the rate it comes to. "4/7" needs arithmetic to read against
+  // "5/11"; "4/7 57%" does not. Averaged over N the two means divide to the same
+  // pooled rate, so this is the right number either way.
+  const pair = (a, b) => cnt(a) + '/' + cnt(b) + (b ? ' ' + pyRound(100 * a / b) + '%' : '');
   const rows = [
-    ['Double faults',        i => '' + st.double_faults[i],                  i => st.double_faults[i], false],
+    ['Double faults',        i => cnt(st.double_faults[i]),                  i => st.double_faults[i], false],
     ['First serve %',        i => pct(st.first_serves, st.serve_points, i),  i => ratio(st.first_serves, st.serve_points, i), true],
     ['Win % on 1st serve',   i => pct(st.first_won, st.first_serves, i),     i => ratio(st.first_won, st.first_serves, i), true],
     ['Win % on 2nd serve',   i => pct(st.second_won, st.second_serves, i),   i => ratio(st.second_won, st.second_serves, i), true],
-    ['Break points',         i => st.break_points_won[i] + '/' + st.break_points[i], i => st.break_points_won[i], true],
-    ['Unreturned serves',    i => '' + st.unreturned[i],                     i => st.unreturned[i], true],
+    ['Break points',         i => pair(st.break_points_won[i], st.break_points[i]), i => st.break_points_won[i], true],
+    ['Unreturned serves',    i => cnt(st.unreturned[i]),                     i => st.unreturned[i], true],
     ['Avg rally length',     i => st.rallies[i] ? oneDecimal(st.rally_shots[i] / st.rallies[i]) : '-',
                              i => ratio(st.rally_shots, st.rallies, i), true],
-    ['Service points won',   i => '' + st.serve_points_won[i],               i => st.serve_points_won[i], true],
-    ['Service games won',    i => st.serve_games_won[i] + '/' + st.serve_games[i], i => st.serve_games_won[i], true],
-    ['Receiving points won', i => '' + st.return_points_won[i],              i => st.return_points_won[i], true],
-    ['Points won',           i => '' + st.points_won[i],                     i => st.points_won[i], true],
-    ['Games won',            i => '' + st.games_won[i],                      i => st.games_won[i], true],
-    ['Max points in a row',  i => '' + bestPt[i],                            i => bestPt[i], true],
-    ['Max games in a row',   i => '' + bestGm[i],                            i => bestGm[i], true],
-    ['Tiebreaks won',        i => '' + st.tiebreaks_won[i],                  i => st.tiebreaks_won[i], true]
+    ['Service points won',   i => cnt(st.serve_points_won[i]),               i => st.serve_points_won[i], true],
+    ['Service games won',    i => pair(st.serve_games_won[i], st.serve_games[i]), i => st.serve_games_won[i], true],
+    ['Receiving points won', i => cnt(st.return_points_won[i]),              i => st.return_points_won[i], true],
+    ['Points won',           i => cnt(st.points_won[i]),                     i => st.points_won[i], true],
+    ['Games won',            i => cnt(st.games_won[i]),                      i => st.games_won[i], true],
+    ['Max points in a row',  i => cnt(bestPt[i]),                            i => bestPt[i], true],
+    ['Max games in a row',   i => cnt(bestGm[i]),                            i => bestGm[i], true],
+    ['Tiebreaks won',        i => cnt(st.tiebreaks_won[i]),                  i => st.tiebreaks_won[i], true]
   ];
   return rows.map(([label, show, value, higherBetter]) => {
     const a = value(0), b = value(1);

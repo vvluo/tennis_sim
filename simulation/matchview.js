@@ -21,6 +21,78 @@ function outcome(g){
   return g.win===g.srv ? {cls:'hold',tag:'Hold'} : {cls:'brk',tag:'Break'};
 }
 
+// ---- what was riding on each point ---------------------------------------
+// Break, set and match points, worked out once for the whole match so the panel
+// and the exported file cannot disagree about them. A point is a match point if
+// winning it wins the match, a set point if it wins the set, a break point if
+// the RECEIVER could win the game with it -- in that order, so a set point on
+// the return is labelled as a set point and not as a break.
+//
+// Returns a Map keyed "setIndex:gameIndex:pointIndex" -> {stake, end}, either of
+// which may be absent. `stake` is the chance the point carried -- BP, SP or MP --
+// and `end`, on the point that finished the game, what it settled: B break,
+// H hold, S set, M match. The deciding point usually has both.
+//
+// This is deliberately NOT the same thing as the export's `break_point` column.
+// There the column is the raw fact -- the receiver could have won the game with
+// this point -- which is what you want to count off a file. Here only one label
+// goes on a point, and a set point that happens to arrive on the return reads as
+// a set point. Do not "fix" either one to match the other.
+function pointStakes(m, ctx){
+  const out = new Map();
+  const bestOf = ctx && ctx.bestOf ? ctx.bestOf : 3;
+  const toWin = (bestOf + 1) / 2;
+  const deciding = ctx && ctx.decidingTiebreak ? ctx.decidingTiebreak : 7;
+  const sets = [0, 0];
+  m.sets.forEach((set, si) => {
+    // The deciding set is the only one whose tiebreak can run past seven, and
+    // it is the set both players reach one short of the match.
+    const isDecider = sets[0] === toWin - 1 && sets[1] === toWin - 1;
+    const tbLen = isDecider ? deciding : 7;
+    const games = [0, 0];
+    set.g.forEach((g, gi) => {
+      const tiebreak = g.k === 't';
+      const pts = [0, 0];                       // points this game, by side
+      // What winning the game would settle for a side, given where the set and
+      // the match stand. Used twice: for the chance before a point, and for what
+      // the point that ends the game actually settled.
+      const settles = side => {
+        const g2 = games[side] + 1, other = games[1 - side];
+        const set = tiebreak || (g2 >= 6 && g2 - other >= 2) || g2 === 7;
+        return { set, match: set && sets[side] + 1 >= toWin };
+      };
+      g.pts.forEach((p, pi) => {
+        for(const side of [0, 1]){
+          const mine = pts[side] + 1, theirs = pts[1 - side];
+          const winsGame = tiebreak
+            ? (mine >= tbLen && mine - theirs >= 2)
+            : (mine >= 4 && mine - theirs >= 2);
+          if(!winsGame) continue;
+          const w = settles(side);
+          const kind = w.match ? 'MP' : w.set ? 'SP'
+                     : (!tiebreak && side !== g.srv) ? 'BP' : null;
+          if(kind) out.set(si + ':' + gi + ':' + pi, { stake: { kind, side } });
+        }
+        pts[p[0]]++;
+      });
+      // The point that ended the game carries BOTH: what was riding on it and
+      // what it settled. Replacing the one with the other meant a converted set
+      // point showed only S -- so a match whose set and match points were all
+      // taken never displayed SP or MP anywhere, which is what "MP and SP are
+      // not being labelled" turned out to be.
+      const lastKey = si + ':' + gi + ':' + (g.pts.length - 1);
+      const w = settles(g.win);
+      const prev = out.get(lastKey) || {};
+      out.set(lastKey, Object.assign({}, prev, { end: {
+        kind: w.match ? 'M' : w.set ? 'S' : (g.win === g.srv ? 'H' : 'B'),
+        side: g.win } }));
+      games[g.win]++;
+    });
+    sets[set.win]++;
+  });
+  return out;
+}
+
 // ---- how much to abbreviate ---------------------------------------------
 // Nothing is abbreviated unless the panel is too narrow for the line. The
 // ladder only shortens what it must, in the order the eye misses least:
@@ -76,20 +148,136 @@ function chooseLevel(games, names, available, fonts){
   return LEVELS.length - 1;                 // nothing fits; clip as hard as we can
 }
 
-// full names in the header, clipped ones on the points beneath it
-function gameHtml(g, names, head, level){
-  const o=outcome(g);
+// ---- the score ladder ----------------------------------------------------
+// Rebuilt from the point WINNERS rather than parsed back out of the score
+// string: that string is written from the server's side in a game and from the
+// tiebreak opener's in a tiebreak, so reading it back would need the very
+// orientation this grid is trying to drop.
+// Not `PT`: engine.js already declares one at the top level, and both files are
+// inlined into the same scope on both pages -- the page died on "Identifier 'PT'
+// has already been declared".
+const LADDER_PT = ['0', '15', '30', '40'];
+function ladder(g){
+  const tb = g.k === 't';
+  const rows = [];
+  let a = 0, b = 0;
+  g.pts.forEach(p => {
+    if(p[0] === 0) a++; else b++;
+    let ca, cb;
+    if(tb)                        { ca = String(a);  cb = String(b); }
+    else if(a < 3 || b < 3)       { ca = LADDER_PT[a]; cb = LADDER_PT[b]; }
+    else if(a === b)              { ca = '40';       cb = '40'; }
+    else if(a > b)                { ca = 'AD';       cb = '40'; }
+    else                          { ca = '40';       cb = 'AD'; }
+    rows.push({ won: p[0], a: ca, b: cb, shots: p[1] });
+  });
+  // The last point is the game. The loser keeps the score they were on, which
+  // says more than a blank -- "GM / 30" reads as the game going out at 40-30.
+  const last = rows[rows.length - 1];
+  if(last){
+    const loser = tb ? String(g.win === 0 ? b : a) : LADDER_PT[Math.min(g.win === 0 ? b : a, 3)];
+    if(g.win === 0){ last.a = 'GM'; last.b = loser; }
+    else           { last.b = 'GM'; last.a = loser; }
+  }
+  return rows;
+}
+
+// The transposed scoreboard: a row per point, a column per player, the winner
+// of each point carrying the emphasis. Rally length moves to the row's tooltip
+// -- it is worth keeping, but not worth a column of its own on every point.
+// A game is a handful of points and reads down; a tiebreak is one long run and
+// reads across. So a game gets a row per point, and a tiebreak a COLUMN per
+// point -- which also costs nothing, because a tiebreak already takes the full
+// width of the panel while games sit two to a row.
+function gridHtml(g, head, stakes, key){
+  return g.k === 't' ? stripHtml(g, head, stakes, key)
+                     : columnHtml(g, head, stakes, key);
+}
+
+// Whichever badges a point carries: what was riding on it, and what it settled.
+// A tiebreak column is about thirty pixels wide and cannot hold both, so it asks
+// for one: the point that ended something says what it SETTLED, and the cell
+// already reads GM beside it. Chances that went begging still show BP/SP/MP.
+function badgesFor(stakes, key, i, side, one){
+  const st = stakes.get(key + ':' + i) || {};
+  let tags = [st.stake, st.end].filter(t => t && t.side === side);
+  if(one && tags.length > 1) tags = [st.end];
+  return tags.map(t => '<em class="st ' + t.kind.toLowerCase() + '">' + t.kind + '</em>').join('');
+}
+
+// A game: a row per point, a column per player. One player serves throughout,
+// so a single dot on their name says so.
+function columnHtml(g, head, stakes, key){
+  const cells = ladder(g).map((r, i) => {
+    const cell = side => '<span class="pc' + (r.won === side ? ' w' : '') + '">' +
+      badgesFor(stakes, key, i, side) + '<b>' + (side === 0 ? r.a : r.b) + '</b></span>';
+    return '<div class="prow" title="' + r.shots + (r.shots === 1 ? ' shot' : ' shots') +
+      '">' + cell(0) + cell(1) + '</div>';
+  }).join('');
+  const dot = side => side === g.srv ? '<i class="sv"></i>' : '';
+  return '<div class="pgrid"><div class="prow ph">' +
+    '<span class="pc">' + dot(0) + '<b>' + head[0] + '</b></span>' +
+    '<span class="pc">' + dot(1) + '<b>' + head[1] + '</b></span></div>' + cells + '</div>';
+}
+
+// A tiebreak: a column per point, two rows, wrapping so a long one stays on the
+// panel. Serve moves after the first point and every two after it -- the same
+// rotation simTiebreak plays and exportRows records -- and the dot sits on
+// whoever served THAT point. No separate row of point numbers: the dots already
+// say where each service turn begins, and the numbers only added a third line.
+const STRIP_WRAP = 8;
+function stripHtml(g, head, stakes, key){
+  const serverOf = pi => g.srv ^ (((pi + 1) >> 1) & 1);
+  const L = ladder(g);
+  // Eight to a row is the CAP, not the step: a nine-point tiebreak split 8 and 1
+  // left a row holding a single point. Spread evenly over as few rows as eight
+  // allows instead -- nine goes 5 and 4, twelve goes 6 and 6 -- and the columns
+  // still line up, because every row is laid out on the same eight-column grid.
+  const rows = Math.ceil(L.length / STRIP_WRAP);
+  const per = Math.ceil(L.length / rows);
+  let out = '';
+  for(let b = 0; b < L.length; b += per){
+    const chunk = L.slice(b, b + per);
+    const line = side => '<div class="hname">' + head[side] + '</div>' +
+      chunk.map((r, k) => {
+        const i = b + k;
+        const turn = i > 0 && serverOf(i) !== serverOf(i - 1) ? ' turn' : '';
+        return '<div class="hc' + (r.won === side ? ' w' : '') + turn + '" title="' +
+          r.shots + (r.shots === 1 ? ' shot' : ' shots') + ', ' +
+          head[serverOf(i)] + ' serving">' + badgesFor(stakes, key, i, side, true) +
+          (serverOf(i) === side ? '<i class="sv"></i>' : '') +
+          '<b>' + (side === 0 ? r.a : r.b) + '</b></div>';
+      }).join('') +
+      Array(STRIP_WRAP - chunk.length).fill('<div class="hc pad"></div>').join('');
+    out += '<div class="hblock">' + line(0) + line(1) + '</div>';
+  }
+  return '<div class="hgrid">' + out + '</div>';
+}
+
+
+// The long-standing view, left exactly as it was: who won each point, how many
+// shots it took, and the running score written out. Kept alongside the grid
+// rather than replaced -- the rally lengths and the written score are the reason
+// to open it at all. The BP/SP/MP and B/H/S/M badges deliberately do NOT appear
+// here: this layout puts the name first and a badge in front of it shunts the
+// whole column sideways on the rows that have one.
+function detailHtml(g, names, head, level){
   const n=levelNames(names, level);
-  const serve = g.k==='t' ? '' : '<span class="srv">serve <b>'+head[g.srv]+'</b></span>';
-  // The shot count is its own element so that a long score line ("Game Set
-  // Match ...") clips the NAME rather than eating the count off the end.
-  const pts=g.pts.map(p=>'<div class="pt"><span class="who">'+
+  return g.pts.map(p=>'<div class="pt"><span class="who">'+
     '<span class="pn">'+n.row[p[0]]+'</span>'+
     '<span class="n">('+p[1]+')</span></span>'+
     '<span class="sc">'+rewrite(p[2], names, n.score)+'</span></div>').join('');
+}
+
+// full names in the header, clipped ones on the points beneath it
+function gameHtml(g, names, head, level, stakes, key, mode){
+  const o=outcome(g);
+  const serve = g.k==='t' ? '' : '<span class="srv">serve <b>'+head[g.srv]+'</b></span>';
+  const body = mode==='detail' ? detailHtml(g, names, head, level)
+                               : gridHtml(g, head, stakes, key);
   return '<div class="game '+o.cls+'"><button class="ghead"><span class="gchev">&#9654;</span>'+
     '<span class="tag">'+o.tag+'</span>'+serve+'<span class="gwin">'+head[g.win]+'</span>'+
-    '<span class="gsc">'+g.sc+'</span></button><div class="pts">'+pts+'</div></div>';
+    '<span class="gsc">'+g.sc+'</span></button><div class="pts">'+body+'</div></div>';
 }
 // Two or four game panels per row, never three and never one where two fit --
 // a bracket reads in halves, and an odd column count breaks that rhythm.
@@ -297,6 +485,46 @@ async function offerDownload(text, filename, type){
   showCopyBox(text);
 }
 
+// Which of the two point views the panel shows. Remembered across matches and
+// across visits: whichever one you read in, you almost certainly want again.
+const VIEW_KEY = 'tennis-sim:pointview';
+// Held in memory, with storage only as the way it survives a reload. Reading it
+// back from localStorage on every render made the control dead wherever storage
+// throws -- a private window, a browser set to block site data -- because the
+// write was swallowed and the next read returned the old value. Same shape as
+// the bug that made the season's pause button unclickable.
+let viewPref = null;
+function viewMode(){
+  if(viewPref === null){
+    try { viewPref = localStorage.getItem(VIEW_KEY) === 'detail' ? 'detail' : 'grid'; }
+    catch(e){ viewPref = 'grid'; }
+  }
+  return viewPref;
+}
+function setViewMode(v){
+  viewPref = v;
+  try { localStorage.setItem(VIEW_KEY, v); } catch(e){}
+}
+function wireViewToggle(m, ctx){
+  const box = document.getElementById('mview');
+  if(!box) return;                         // a page that has not added the control
+  const mode = viewMode();
+  box.innerHTML = ['grid', 'detail'].map(k =>
+    '<button type="button" class="vbtn' + (k === mode ? ' on' : '') + '" data-v="' + k +
+    '">' + (k === 'grid' ? 'Score' : 'Detail') + '</button>').join('');
+  box.querySelectorAll('.vbtn').forEach(b => b.addEventListener('click', () => {
+    if(b.dataset.v === viewMode()) return;
+    setViewMode(b.dataset.v);
+    // Re-open rather than re-render in place: the abbreviation ladder is chosen
+    // from the width the panel actually has, and that is what openMatch does.
+    const open = [...document.querySelectorAll('#mbody .game')]
+      .map(g => g.classList.contains('open'));
+    openMatch(m, ctx);
+    document.querySelectorAll('#mbody .game')
+      .forEach((g, i) => g.classList.toggle('open', !!open[i]));
+  }));
+}
+
 function openMatch(m, ctx){
   const overlay=document.getElementById('overlay');
   document.getElementById('mround').textContent=ctx.round||'';
@@ -327,11 +555,14 @@ function openMatch(m, ctx){
   const regularLevel=Math.max(floor, chooseLevel(all.filter(g=>g.k!=='t'), names, regularWidth, fonts));
   const tiebreakLevel=Math.max(floor, chooseLevel(all.filter(g=>g.k==='t'), names, tiebreakWidth, fonts));
 
+  const stakes=pointStakes(m, ctx);
+  const mode=viewMode();
   const sets=m.sets.map((s,i)=>
     '<div class="setrow"><div class="setlabel"><span>Set '+(i+1)+'</span><span class="s">'+s.sc+
     '</span><span style="color:var(--muted)">'+names[s.win]+'</span></div>'+
-    '<div class="games">'+s.g.map(g=>
-      gameHtml(g,names,head,g.k==='t'?tiebreakLevel:regularLevel)).join('')+'</div></div>').join('');
+    '<div class="games">'+s.g.map((g,gi)=>
+      gameHtml(g,names,head,g.k==='t'?tiebreakLevel:regularLevel,
+               stakes,i+':'+gi,mode)).join('')+'</div></div>').join('');
   const rows=m.stats.map(r=>
     '<div class="srow"><span class="v l'+(r.better==='a'?' best':'')+'">'+r.a+'</span>'+
     '<span class="k">'+r.label+'</span>'+
@@ -341,6 +572,7 @@ function openMatch(m, ctx){
     '<span class="who">'+m.statNames[1]+'</span></h3>'+rows+'</div>';
   body.querySelectorAll('.ghead').forEach(h=>
     h.addEventListener('click',()=>h.parentElement.classList.toggle('open')));
+  wireViewToggle(m, ctx);
   document.getElementById('expbox').hidden = true;
   document.getElementById('expcsv').onclick = () =>
     offerDownload(exportCSV(m, ctx), slug(m, ctx) + '-points.csv', 'text/csv');
