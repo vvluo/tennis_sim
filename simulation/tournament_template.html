@@ -603,6 +603,13 @@ function setCells(m, which){
 const WEAR = { injuryRate: 0.00085, baseLoad: 8, seasonEnding: 0.07,
                minWeeks: 2, maxWeeks: 9 };
 
+// This page had no escaping helper -- hospital() was lifted from the season
+// page, which does, and every render that hit an injury died on "esc is not
+// defined". Player names are the only thing interpolated here and they come
+// from the rated pool, but a title attribute is no place to find that out.
+const esc = t => String(t).replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
 // A white cross in a red circle, next to the player it happened to.
 function hospital(title){
   return '<span class="hurt" title="' + esc(title) + '" aria-label="' + esc(title) + '">'
@@ -660,7 +667,28 @@ function fitWindow(){
   return Math.max(1, Math.min(MAX_WIN, rounds, Math.floor((width + COL_GAP) / (MIN_COL + COL_GAP))));
 }
 
+// The pager state is set in a `finally`. Twice now a render has thrown part way
+// -- once on a bye's null side, once on a missing `esc` -- and because the
+// buttons were updated at the END of this function, the bracket froze on the
+// last good window while the arrows stayed enabled and did nothing. A broken
+// column is easy to see and report; silently dead arrows are not.
 function renderWindow(){
+  try { renderWindowBody(); }
+  finally { updatePager(); }
+}
+function updatePager(){
+  if(!D || !D.rounds || !D.rounds.length) return;
+  const view = D.rounds.slice(start, start + WIN);
+  if(view.length){
+    document.getElementById('prange').textContent =
+      LABEL[view[0].name] + '  \u2192  ' + LABEL[view[view.length - 1].name];
+  }
+  const whole = WIN >= D.rounds.length;
+  document.querySelector('.pager').classList.toggle('whole', whole);
+  document.getElementById('prev').disabled = whole || start === 0;
+  document.getElementById('next').disabled = whole || start === LAST;
+}
+function renderWindowBody(){
   WIN = fitWindow();
   LAST = Math.max(0, D.rounds.length - WIN);
   start = Math.max(0, Math.min(LAST, start));
@@ -682,15 +710,6 @@ function renderWindow(){
         sideHtml(m, 'top') + sideHtml(m, 'bottom') + '</div>').join('') +
       '</div></div>';
   }).join('');
-
-  const view = D.rounds.slice(start, start + WIN);
-  document.getElementById('prange').textContent =
-    LABEL[view[0].name] + '  \u2192  ' + LABEL[view[view.length - 1].name];
-  // With the whole draw on screen there is nothing to page through.
-  const whole = WIN >= D.rounds.length;
-  document.querySelector('.pager').classList.toggle('whole', whole);
-  document.getElementById('prev').disabled = whole || start === 0;
-  document.getElementById('next').disabled = whole || start === LAST;
 
   scroller.scrollLeft = scroller.scrollWidth;   // latest round of the window stays in view
   scroller.scrollTop = Math.max(0, frac * scroller.scrollHeight - scroller.clientHeight / 2);

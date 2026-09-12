@@ -3729,19 +3729,11 @@ function render(){
       esc(w.name) + '"></i>').join('') + '</span>';
   };
   $('standempty').style.display = rows.length ? 'none' : '';
-  // Anyone the season has hurt carries the marker, with every spell on the hover.
-  const hurtBy = injuryIndex();
-  const hurtMark = name => {
-    const list = hurtBy.get(name);
-    if(!list) return '';
-    return hospital(list.map(x => x.ev + ' \u2014 ' + spellOf(x)).join(', '));
-  };
   $('standings').innerHTML = rows.slice(0, 100).map((r, i) =>
     '<tr class="pl' + (r.name === state.playable ? ' you' : '') + '" data-p="'
     + esc(r.name) + '" title="Open ' + esc(r.name) + '\u2019s season">'
     + '<td class="num">' + (i + 1) +
-    '</td><td>' + esc(r.name) + hurtMark(r.name) + badges(r.name)
-    + '</td><td class="num">' + r.points +
+    '</td><td>' + esc(r.name) + badges(r.name) + '</td><td class="num">' + r.points +
     '</td><td class="num">' + (r.titles || '') +
     '</td><td class="num">' + r.w + '–' + r.l + '</td></tr>').join('');
 
@@ -4009,15 +4001,26 @@ function openPlayer(name){
   const evByName = new Map(cal().map(e => [e.name, e]));
   const played = r.results.slice().sort((a, b) => a.sday - b.sday);
   const rank = 1 + [...state.table.values()].filter(x => x.points > r.points).length;
+  // A marker on every row of the standings was noise on a list you read down.
+  // It belongs here, against the tournament that actually did it.
+  const hurtAt = new Map();
+  (injuryIndex().get(name) || []).forEach(x => {
+    if(!hurtAt.has(x.ev)) hurtAt.set(x.ev, []);
+    hurtAt.get(x.ev).push(x);
+  });
 
   let body = '<table class="season"><thead><tr><th>Tournament</th><th>Level</th>'
     + '<th>Finish</th><th class="num">Pts</th><th class="num"></th></tr></thead><tbody>'
     + played.map(g => {
         const inR = counted.has(g);
         const ev = evByName.get(g.event);
+        const hurt = (hurtAt.get(g.event) || []).map(x =>
+          hospital(name + ' \u2014 ' + spellOf(x))
+          + '<span class="spell">' + esc(x.seasonEnding ? 'season' : x.weeks + 'w')
+          + '</span>').join('');
         return '<tr' + (inR ? '' : ' class="dropped"') + '><td>'
           + '<i class="dot" style="background:' + (ev ? bgFor(ev) : 'transparent') + '"></i>'
-          + esc(g.event) + '</td><td class="lv">' + esc(g.level) + '</td><td>'
+          + esc(g.event) + hurt + '</td><td class="lv">' + esc(g.level) + '</td><td>'
           + esc(FINISH[g.round] || g.round) + '</td><td class="num">' + g.pts
           + '</td><td class="num tick" title="' + (inR ? 'counts towards the ranking — '
               + SLOT_NOTE[g.slot] : 'outside the counting slots') + '">'
