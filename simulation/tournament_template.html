@@ -748,6 +748,7 @@ function setBoardVisible(on){
 const article = t => t === 'ATP' ? 'an' : 'a';   // "an ATP", "a WTA"
 function clearBoard(message){
   D = null; currentRun = null;
+  if(typeof saveTourney === 'function') saveTourney();   // clearing clears the save
   bracket.innerHTML = '';
   document.getElementById('headline').innerHTML = '';
   document.getElementById('linkbox').hidden = true;
@@ -832,6 +833,7 @@ function simulate(){
     });
     currentRun = { seed, tour, playable, cfg: CONFIG, drawSize, surface };
     showTournament(result);
+    saveTourney();
     recordSim(seed, result);      // only deliberate runs are kept, not the one on arrival
     let left = COOLDOWN;
     runBtn.textContent = 'Simulate again (' + Math.ceil(left / 1000) + 's)';
@@ -1072,6 +1074,7 @@ function play(run){
     seed: run.seed, playable, tour, surface, drawSize,
     bestOf: bestOfFor(), finalSetTiebreak: decidingTiebreak()
   }));
+  saveTourney();
 }
 function linkNote(text){
   const el = document.getElementById('linknote');
@@ -1105,9 +1108,31 @@ function openFromLink(){
   return true;
 }
 
-// A shared draw if the link carries one; otherwise wait to be asked.
+// ---- keeping a draw across a tab change ----------------------------------
+// A draw is a pure function of its seed and its shape, which is exactly what
+// play() already replays for a shared link -- so the same seven values bring
+// back whatever was on screen when you left, and no bracket has to be stored.
+const TOURNEY_KEY = NS + 'tourney';
+function saveTourney(){
+  try {
+    if(currentRun) sessionStorage.setItem(TOURNEY_KEY, JSON.stringify(currentRun));
+    else sessionStorage.removeItem(TOURNEY_KEY);
+  } catch (e) { /* private window, or full */ }
+}
+function restoreTourney(){
+  let run = null;
+  try { run = JSON.parse(sessionStorage.getItem(TOURNEY_KEY) || 'null'); } catch (e) {}
+  // A run made against a different data set cannot be reproduced, exactly as a
+  // stale shared link cannot.
+  if(!run || run.cfg !== CONFIG) return false;
+  play(run);
+  return true;
+}
+
+// A shared draw if the link carries one, then whatever this tab had last;
+// otherwise wait to be asked.
 describeShape();
-if(!openFromLink()){
+if(!openFromLink() && !restoreTourney()){
   clearBoard('Press Simulate tournament to play ' + article(tour) + ' ' + tour + ' draw.');
 }
 

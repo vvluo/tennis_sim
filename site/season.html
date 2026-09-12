@@ -3439,6 +3439,74 @@ function stopAt(ev, first){
   return false;
 }
 
+// Play the event at state.idx and advance. Shared by the live run and by the
+// replay that restores a season, so the two cannot diverge -- which matters,
+// because the whole point of the replay is that it reproduces the run exactly.
+function playNext(){
+  const list = cal(), ev = list[state.idx];
+  if(!ev) return;
+  if(!ev.skip){
+    ensureFields(state.idx);
+    const rng = makeRandom((state.seed + state.idx * 7919) >>> 0);
+    const field = state.fields.get(state.idx) || [];
+    state.log.push({ ev, res: ev.format === 'rr'
+      ? runFinals(ev, rng, state.playable, field)
+      : runEvent(ev, rng, state.playable, field) });
+  } else {
+    state.log.push({ ev, res: null });
+  }
+  state.idx++;
+}
+
+// ---- keeping a season across a tab change --------------------------------
+// A season is a pure function of the tour, the player you picked and the seed:
+// every event draws from makeRandom(seed + index * 7919) and every week's entry
+// lists from makeRandom(seed ^ week * 2654435761). Math.random() is called in
+// exactly one place, to choose that seed. So there is no need to serialise the
+// standings, the draws or a season's worth of point-by-point -- storing four
+// values and replaying is smaller, faster and bit-identical.
+const SEASON_KEY = NS + 'season';
+function saveSeason(){
+  try {
+    sessionStorage.setItem(SEASON_KEY, JSON.stringify({
+      tour: state.tour, playable: state.playable, mode: state.mode,
+      seed: state.seed, idx: state.idx, calDesc: state.calDesc,
+      calMine: state.calMine, picked,
+    }));
+  } catch(e){ /* private window, or full */ }
+}
+// Takes the blob rather than reading it: reset() renders, render() saves, so by
+// the time this ran the save had already been overwritten with the empty season
+// reset() had just created.
+function readSeason(){
+  try { return JSON.parse(sessionStorage.getItem(SEASON_KEY) || 'null'); }
+  catch(e){ return null; }
+}
+function restoreSeason(saved){
+  if(!saved || !saved.idx) return false;
+  if(saved.tour === 'ATP' || saved.tour === 'WTA'){
+    state.tour = saved.tour;
+    document.querySelectorAll('#tourseg .segbtn[data-tour]')
+      .forEach(x => x.classList.toggle('on', x.dataset.tour === state.tour));
+  }
+  fillPlayers();
+  const known = [...$('playsel').options].some(o => o.value === saved.playable);
+  state.playable = known ? saved.playable : '';
+  $('playsel').value = state.playable;
+  if(saved.mode){ state.mode = saved.mode; $('modesel').value = saved.mode; }
+  state.calDesc = !!saved.calDesc;
+  state.calMine = !!saved.calMine;
+  state.seed = saved.seed >>> 0;
+  const target = Math.min(saved.idx, cal().length);
+  while(state.idx < target) playNext();
+  render();
+  const last = state.log.length ? state.log[state.log.length - 1].ev : null;
+  if(last) showNow(last, state.idx, cal().length);
+  if(saved.picked !== null && saved.picked !== undefined) pickEvent(saved.picked);
+  updateRunBtn();
+  return true;
+}
+
 async function run(){
   if(state.running) return;
   // Read the controls rather than trust what was last cached: a browser that
@@ -3462,18 +3530,7 @@ async function run(){
     // A pause takes effect BETWEEN tournaments -- never part-way through one,
     // which would leave a draw half played and the standings inconsistent.
     if(state.cancel) break;
-    if(!ev.skip){
-      ensureFields(state.idx);
-      const rng = makeRandom((state.seed + state.idx * 7919) >>> 0);
-      const field = state.fields.get(state.idx) || [];
-      const res = ev.format === 'rr'
-        ? runFinals(ev, rng, state.playable, field)
-        : runEvent(ev, rng, state.playable, field);
-      state.log.push({ ev, res });
-    } else {
-      state.log.push({ ev, res: null });
-    }
-    state.idx++;
+    playNext();
     render();
     if(state.mode === 'slam' && ev.level === SLAM) break;
     if(state.mode === 'step') break;
@@ -3552,6 +3609,7 @@ function render(){
 
   renderTimeline();
   showNext();
+  saveSeason();
   const you = state.table.get(state.playable);
   const done = state.log.filter(l => l.res).length;
   // With a player picked this is THEIR entry count, not the season's progress --
@@ -3829,7 +3887,7 @@ function reset(){
   $('now').classList.remove('on');
   state.running = false; state.cancel = false;
   runBtnState = null;
-  render();
+  render();                            // render() writes the save, now at idx 0
   updateRunBtn();
 }
 
@@ -3893,7 +3951,11 @@ $('foot').innerHTML = 'Ratings data set ' + esc(BUILT) +
 
 fillPlayers();
 state.mode = $('modesel').value;      // as above, at load
+// A season already run in this tab comes back, replayed from its seed. Only if
+// there is nothing to come back to do we start a fresh one.
+const pendingSeason = readSeason();   // grabbed BEFORE reset() overwrites it
 reset();
+restoreSeason(pendingSeason);
 </script>
 
 <!-- The footer every page shares: attribution, copyright, the independence

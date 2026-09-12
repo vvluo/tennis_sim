@@ -235,8 +235,8 @@ footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px
     <button data-tour="WTA" aria-pressed="false">WTA</button>
   </div>
   <div class="segs" role="group" aria-label="Rating scale">
-    <button id="scale10" aria-pressed="true">0&ndash;10</button>
-    <button id="scale100" aria-pressed="false">40&ndash;100</button>
+    <button id="scale10" aria-pressed="false">0&ndash;10</button>
+    <button id="scale100" aria-pressed="true">40&ndash;100</button>
   </div>
   <div class="count" id="count"></div>
 </div>
@@ -275,7 +275,9 @@ const rowsEl=document.getElementById('rows'), emptyEl=document.getElementById('e
 // to avoid colliding with anything else published from the same account.
 const NS = 'tennis:';
 
-let sortKey='o', sortDir=-1, tour='all', query='', game=false;
+// The 40-100 scale is the default: 0-10 reads as a mark out of ten, which
+// invites "6.2 is mediocre" when it is a z-score position within a tour.
+let sortKey='o', sortDir=-1, tour='all', query='', game=true;
 // The tour choice is the one filter that follows you between the two pages --
 // alongside light/dark. Sort, search and the rating scale are per visit.
 function readTour(){

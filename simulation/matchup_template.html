@@ -151,7 +151,7 @@ input[type=number]{width:88px}
       <div class="ctl"><label class="clab" for="tb">Tiebreak to</label>
         <input type="number" id="tb" min="1" max="30" step="1" value="7"></div>
       <div class="ctl"><label class="clab" for="dtb">Final set to</label>
-        <input type="number" id="dtb" min="1" max="30" step="1" value="10"></div>
+        <input type="number" id="dtb" min="1" max="30" step="1" value="7"></div>
       <div class="ctl"><label class="clab">&nbsp;</label>
         <label class="check"><input type="checkbox" id="stb">
           <span>Super tiebreak final set</span></label></div>
@@ -177,6 +177,14 @@ const POOLS = DATA.pools, BUILT = DATA.built;
 const $ = id => document.getElementById(id);
 const esc = t => String(t).replace(/[&<>"]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// 'tennis:', the same prefix the other three pages use -- it was 'tennis-sim:'
+// here, so this page read and wrote keys nothing else touched. Declared up here
+// rather than beside the theme code at the bottom, because the storage keys
+// below are built from it and a const cannot be read before its declaration:
+// the page threw "Cannot access 'NS' before initialization" and never even
+// filled the player lists.
+const NS = 'tennis:';
 
 const state = { tour: 'ATP' };
 
@@ -209,7 +217,43 @@ const wider = (a, b) => {                 // a beats b?
   return false;
 };
 
-function run(){
+// ---- keeping a matchup across a tab change --------------------------------
+// Same trick as the other two pages: N matches are a pure function of the two
+// players, the scoring and one seed, so the seed plus the form is all that has
+// to survive. Replaying 100 matches takes well under a second.
+const MATCHUP_KEY = NS + 'matchup';
+const FORM = ['pa', 'pb', 'n', 'surface', 'bestof', 'deuce', 'gps', 'tb', 'dtb'];
+function saveMatchup(seed){
+  try {
+    const form = {};
+    FORM.forEach(id => form[id] = $(id).value);
+    form.stb = $('stb').checked;
+    sessionStorage.setItem(MATCHUP_KEY,
+      JSON.stringify({ tour: state.tour, seed, form }));
+  } catch(e){ /* private window, or full */ }
+}
+function restoreMatchup(){
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(MATCHUP_KEY) || 'null'); } catch(e){}
+  if(!saved || saved.seed === undefined) return false;
+  if(saved.tour === 'ATP' || saved.tour === 'WTA'){
+    state.tour = saved.tour;
+    document.querySelectorAll('#tourseg .segbtn')
+      .forEach(x => x.classList.toggle('on', x.dataset.tour === state.tour));
+    fillPlayers();
+  }
+  // A pool that no longer holds one of the two players cannot be reproduced.
+  const pool = POOLS[state.tour];
+  for(const id of ['pa', 'pb']){
+    if(!pool.some(p => p.name === saved.form[id])) return false;
+  }
+  FORM.forEach(id => { if(saved.form[id] !== undefined) $(id).value = saved.form[id]; });
+  $('stb').checked = !!saved.form.stb;
+  run(saved.seed >>> 0);
+  return true;
+}
+
+function run(replaySeed){
   const names = [$('pa').value, $('pb').value];
   if(names[0] === names[1]){ $('hint').textContent = 'Pick two different players.'; return; }
   const pool = POOLS[state.tour];
@@ -222,7 +266,7 @@ function run(){
     noAd: $('deuce').value === 'noad',
     gamesPerSet: Math.max(1, Math.round(+$('gps').value) || 6),
     tiebreak: Math.max(1, Math.round(+$('tb').value) || 7),
-    deciding: Math.max(1, Math.round(+$('dtb').value) || 10),
+    deciding: Math.max(1, Math.round(+$('dtb').value) || 7),
     superTiebreak: $('stb').checked,
   };
   const base = basesFor(state.tour, cfg.surface);
@@ -234,7 +278,9 @@ function run(){
   const shift = 5.0 - mean;
   const players = ent.map(e => toPlayer(e, shift, shrink));
 
-  const rng = makeRandom((Math.random() * 0xFFFFFFFF) >>> 0);
+  const seed = replaySeed !== undefined
+    ? (replaySeed >>> 0) : ((Math.random() * 0xFFFFFFFF) >>> 0);
+  const rng = makeRandom(seed);
   const wins = [0, 0], lines = [];
   const total = { st: null, bestPt: [0, 0], bestGm: [0, 0] };
   const best = [null, null];
@@ -258,6 +304,7 @@ function run(){
 
   const avg = formatStats(total.st, total.bestPt, total.bestGm, n);
   render(names, wins, lines, avg, best, n, cfg);
+  saveMatchup(seed);
 }
 
 // Every scoreline, folded away until asked for, and split by who won it: one
@@ -334,8 +381,9 @@ document.querySelectorAll('#tourseg .segbtn').forEach(b =>
     state.tour = b.dataset.tour;
     fillPlayers();
     $('out').innerHTML = '';
+    try { sessionStorage.removeItem(MATCHUP_KEY); } catch(e){}
   }));
-$('go').addEventListener('click', run);
+$('go').addEventListener('click', () => run());   // no argument: a fresh seed
 $('howinfo').addEventListener('click', () => {
   const note = $('hownote');
   note.hidden = !note.hidden;
@@ -349,10 +397,6 @@ $('howinfo').addEventListener('click', () => {
 // nothing stored wrote 'light' into the shared key and dragged every other page
 // out of dark mode with it. With no stored choice the system decides, and
 // nothing is written until the button is actually pressed.
-// 'tennis:', the same prefix the other three pages use. It was 'tennis-sim:'
-// here, so this page read and wrote a localStorage key nothing else touched
-// and its theme never followed the rest of the site.
-const NS = 'tennis:';
 const themeBtn = $('theme');
 function systemDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
 function paintTheme(){
@@ -374,4 +418,6 @@ themeBtn.addEventListener('click', () =>
 
 fillPlayers();
 $('hint').textContent = 'Data set ' + BUILT + '.';
+// Whatever this tab last simulated, replayed from its seed.
+restoreMatchup();
 </script>
