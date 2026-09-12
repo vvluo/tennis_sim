@@ -57,12 +57,12 @@ body{
   font-size:15px; line-height:1.5;
   -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:1216px; margin:0 auto; padding:32px clamp(24px,5vw,64px) 64px}
+.wrap{max-width:1216px;margin:0 auto;padding:28px clamp(24px,5vw,64px) 60px}
 header{margin-bottom:24px}
-.titlerow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.titlerow{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap}
 .ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
 .navbar{display:flex;align-items:center;gap:9px;margin-left:auto}
-.navlink{display:flex;align-items:center;padding:7px 14px;border-radius:99px;
+.navlink{line-height:1.5;display:flex;align-items:center;padding:7px 14px;border-radius:99px;
   font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
@@ -74,7 +74,7 @@ header{margin-bottom:24px}
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28)}
 .iconbtn:hover,.iconbtn[aria-expanded="true"]{background:rgba(255,255,255,.22)}
-.themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
+.themebtn{line-height:1.5;flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
@@ -92,10 +92,13 @@ header{margin-bottom:24px}
 .disclaimer{flex-basis:100%;margin:8px 0 0;max-width:96ch;font-size:11px;line-height:1.55;
   color:var(--page-muted);opacity:.85}
 @media (max-width:560px){.foot .copy{margin-left:0}}
+/* The same h1 as the other three pages. It was clamp(26,4vw,38) with a 6px
+   bottom margin here against clamp(24,3.4vw,34) and 4px elsewhere, which moved
+   the nav beneath it down by a different amount on this page than the rest. */
 h1{
   color:var(--page-ink); display:flex; align-items:center; gap:.32em;
-  font-size:clamp(26px,4vw,38px); font-weight:700; letter-spacing:-.02em;
-  margin:0 0 6px; text-wrap:balance;
+  font-size:clamp(24px,3.4vw,34px); font-weight:700; letter-spacing:-.02em;
+  margin:0 0 4px; line-height:1.15; text-wrap:balance;
 }
 .sub{color:var(--muted); font-size:14px; max-width:64ch; margin:0}
 .sub b{color:var(--ink-2); font-weight:600}
@@ -187,20 +190,22 @@ tr[data-tour="ATP"] .bar i{background:var(--atp)}
 footer{margin-top:22px; font-size:12.5px; color:var(--muted); max-width:72ch}
 footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px; color:var(--ink-2)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
-@media (max-width:560px){.wrap{padding:20px 12px 48px} .count{width:100%; margin:2px 0 0; text-align:right}}
+/* .wrap is shared now and its clamp already narrows on small screens; a
+   second rule here made this page 12px where the others were 24. */
+@media (max-width:560px){.count{width:100%; margin:2px 0 0; text-align:right}}
 </style>
 
 <div class="wrap">
 <header>
   <div class="titlerow">
     <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Tour Ratings Board</h1>
+      <button id="about" class="iconbtn" aria-expanded="false"
+              aria-controls="aboutpanel" title="About these ratings">i</button>
     <div class="navbar">
       <a class="navlink" href="season.html">Simulate a Season</a>
       <a class="navlink" href="tournament.html">Play a Grand Slam</a>
       <a class="navlink" href="matchup.html">Matchup Forecaster</a>
       <span class="navlink on" aria-current="page"><i class="sv"></i>Tour Ratings Board</span>
-      <button id="about" class="iconbtn" aria-expanded="false"
-              aria-controls="aboutpanel" title="About these ratings">i</button>
       <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
     </div>
   </div>

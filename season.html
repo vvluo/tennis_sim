@@ -82,13 +82,26 @@
 [hidden]{display:none!important}
 body{margin:0;background:var(--page);color:var(--ink);font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
   font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
-.wrap{padding:28px clamp(24px,5vw,64px) 60px}
+/* One canonical frame for all four pages. Each used to set its own -- 1180px
+   here, 1216 there, none on a third, with side padding of 18px against
+   clamp(24,5vw,64) and top padding of 0 against 32 -- so the navbar jumped
+   both sideways and down as you moved between tabs. */
+.wrap{max-width:1216px;margin:0 auto;padding:28px clamp(24px,5vw,64px) 60px}
+/* line-height is pinned rather than inherited: the ratings board's body sets
+   1.62 and the others do not, so the same h1 measured 48px there and 45 here --
+   and the nav beneath it sat 3px lower on that one page. */
 h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin:0 0 4px;
-  color:var(--page-ink);display:flex;align-items:center;gap:.32em}
+  line-height:1.15;color:var(--page-ink);display:flex;align-items:center;gap:.32em}
 .ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
-.titlerow{display:flex;align-items:center;gap:16px}
+/* Wraps, so the nav drops to its own line instead of running off the frame.
+   Without it three of the four pages overflowed .wrap while the fourth
+   wrapped, which is why the bar appeared to jump as you changed tabs. */
+.titlerow{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap}
 .navbar{display:flex;align-items:center;gap:9px;margin-left:auto}
-.navlink{display:flex;align-items:center;padding:7px 14px;border-radius:99px;
+/* line-height pinned on both: the ratings board sets 1.62 on body and the
+   others do not, which made its nav bar a pixel taller than everyone
+   else's off the same rule. */
+.navlink{line-height:1.5;display:flex;align-items:center;padding:7px 14px;border-radius:99px;
   font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
@@ -100,7 +113,7 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
 .navlink.on{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.30);
   font-weight:600;cursor:default}
 .navlink.on .sv{width:7px;height:7px;background:#74CE8E}
-.themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
+.themebtn{line-height:1.5;flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
@@ -412,7 +425,6 @@ body{transition:background-color .45s ease}
 /* --page-fill and --page-edge are set by applyGround() to suit whichever
    surface is being played, so every use carries the resting-colour value as its
    fallback and the header stays legible before any script has run. */
-.wrap{max-width:1180px;margin:0 auto;padding:0 18px 60px}
 .controls{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end;
   background:var(--surface);border:1px solid var(--line);border-radius:14px;
   padding:16px 18px;margin:18px 0}
@@ -562,6 +574,16 @@ tbody tr:last-child td{border-bottom:0}
 .lvl.m1000{background:var(--medal-gold-bg);color:var(--medal-gold);border-color:transparent}
 .lvl.m500{background:var(--medal-silver-bg);color:var(--medal-silver);border-color:transparent}
 .lvl.m250{background:var(--medal-bronze-bg);color:var(--medal-bronze);border-color:transparent}
+/* The results of whichever Timeline block you picked, shown in place instead of
+   over the page. It reuses .sheetbody so every rule the popup's body relies on
+   applies unchanged -- one body builder, two places it can appear. */
+.nowres{margin:12px 0 2px;border:1px solid var(--line);border-radius:12px;
+  background:var(--surface-2);overflow:hidden}
+.nowres .chips{display:flex;flex-wrap:wrap;gap:6px;padding:11px 14px 0}
+.nowres .chips span{font-size:10px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;padding:3px 8px;border-radius:99px;
+  color:var(--ink-2);background:var(--surface);border:1px solid var(--line)}
+.nowres .sheetbody{padding:12px 14px 14px}
 .skip td{color:var(--muted);font-style:italic}
 /* Round-robin group tables. The two who go through are held at full strength
    and the two who do not are dimmed, so the cut reads without a legend. */
@@ -612,8 +634,9 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
 </style>
 
 <header class="page">
-  <div class="wrap headrow">
-    <h1 id="title">Simulate a Season</h1>
+  <div class="wrap">
+    <div class="titlerow">
+    <h1 id="title"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Simulate a Season</h1>
     <div class="navbar">
       <span class="navlink on" aria-current="page"><i class="sv"></i>Simulate a Season</span>
       <a class="navlink" href="tournament.html">Play a Grand Slam</a>
@@ -621,6 +644,7 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
       <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <button class="themebtn" id="themebtn" type="button"
               aria-label="Switch colour theme"></button>
+    </div>
     </div>
   </div>
 </header>
@@ -668,8 +692,9 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
   </div>
 
   <div class="timeline" id="timeline" hidden>
-    <h3>The season so far</h3>
+    <h3>Timeline</h3>
     <div class="track" id="track"></div>
+    <div class="nowres" id="nowres" hidden></div>
     <div class="tlkey">
       <span><i style="background:#1E8FD5"></i>hard</span>
       <span><i style="background:#BE5415"></i>clay</span>
@@ -2219,7 +2244,7 @@ async function offerDownload(text, filename, type){
 
 // Which of the two point views the panel shows. Remembered across matches and
 // across visits: whichever one you read in, you almost certainly want again.
-const VIEW_KEY = 'tennis-sim:pointview';
+const VIEW_KEY = 'tennis:pointview';   // one namespace across the whole site
 // Held in memory, with storage only as the way it survives a reload. Reading it
 // back from localStorage on every render made the control dead wherever storage
 // throws -- a private window, a browser set to block site data -- because the
@@ -3312,6 +3337,23 @@ function pickEvent(i){
   if(!ev) return;
   picked = i;
   showEvent(ev);
+  // ...and everything the popup used to say, rendered in place beneath it. An
+  // event the run has not reached yet has no results to show, so the panel says
+  // that rather than appearing empty.
+  const entry = state.log[i];
+  const host = $('nowres');
+  if(entry){
+    const res = entry.res;
+    host.innerHTML = '<div class="chips">'
+      + eventChips(ev, res).map(c => '<span>' + esc(c) + '</span>').join('')
+      + '</div><div class="sheetbody">' + eventBody(ev, res) + '</div>';
+    wireSkipInfo(host);
+    if(res) wireMatchRows(host, ev, res);
+  } else {
+    host.innerHTML = '<div class="sheetbody"><p class="beat">'
+      + 'Not played yet.</p></div>';
+  }
+  host.hidden = false;
   renderTimeline();
 }
 
@@ -3406,6 +3448,7 @@ async function run(){
   state.playable = $('playsel').value;
   state.running = true; state.cancel = false;
   picked = null;                       // the run takes the marquee back
+  $('nowres').hidden = true;
   updateRunBtn();                       // stays enabled: clicking it now pauses
   const list = cal();
   let first = true;
@@ -3544,25 +3587,16 @@ const shortResult = r => r ? (RESULT_SHORT[r] || r) : '';
 // ---- one tournament, opened ---------------------------------------------
 const ROUND_LABEL = { QF: 'QF', SF: 'SF', F: 'Final' };
 
-function openEvent(i){
-  const ev = cal()[i], entry = state.log[i];
-  if(!ev || !entry) return;                       // not played yet
-  const bg = bgFor(ev), light = inkOn(bg) === '#FFFFFF';
-  const res = entry.res;
-  const rr = ev.format === 'rr';
-  const chips = [state.tour, ev.level, ev.surface.replace('_', ' '),
-                 rr ? 'round robin' : ev.draw ? ev.draw + ' draw' : null,
-                 rr ? FINALS_FIELD + ' qualified'
-                    : res && res.seeds ? res.seeds + ' seeds' : null,
-                 !rr && res && res.qualifiers ? res.qualifiers + ' qualifiers'
-                    : null].filter(Boolean);
-
+// Everything an event's results panel says -- champion, the closing rounds, your
+// own matches, the injuries it caused. Built once here because two places show
+// it: the popup a calendar row opens, and the Timeline, which shows it in place.
+function eventBody(ev, res){
   let body = '';
   if(!res){
     body = '<p class="beat count">On the calendar, but not simulated'
-         + '<button type="button" class="info" id="skipinfo" aria-expanded="false"'
-         + ' aria-controls="skipnote" title="' + esc(ev.skip) + '">i</button></p>'
-         + '<p class="beat note" id="skipnote" hidden>' + esc(ev.skip) + '.</p>';
+         + '<button type="button" class="info skipinfo" aria-expanded="false"'
+         + ' title="' + esc(ev.skip) + '">i</button></p>'
+         + '<p class="beat note skipnote" hidden>' + esc(ev.skip) + '.</p>';
   } else {
     // The same badge the grand-slam page uses: a seed number, or Q for a player
     // who came through qualifying rather than in on their ranking.
@@ -3611,6 +3645,46 @@ function openEvent(i){
                                               : x.weeks + ' weeks')).join('<br>') + '</p>';
     }
   }
+  return body;
+}
+
+// The chips that head a results panel.
+function eventChips(ev, res){
+  const rr = ev.format === 'rr';
+  return [state.tour, ev.level, ev.surface.replace('_', ' '),
+          rr ? 'round robin' : ev.draw ? ev.draw + ' draw' : null,
+          rr ? FINALS_FIELD + ' qualified'
+             : res && res.seeds ? res.seeds + ' seeds' : null,
+          !rr && res && res.qualifiers ? res.qualifiers + ' qualifiers'
+             : null].filter(Boolean);
+}
+
+// Clicking a match row hands it to the shared viewer. Wired wherever the body
+// is rendered, not just in the popup -- the Timeline shows the same rows.
+function wireMatchRows(host, ev, res){
+  host.querySelectorAll('tr.ev[data-m]').forEach(tr =>
+    tr.addEventListener('click', () =>
+      openMatch(res.yourMatches[Number(tr.dataset.m)],
+                matchContext(ev, res.yourMatches[Number(tr.dataset.m)].round))));
+}
+function wireSkipInfo(host){
+  const info = host.querySelector('.skipinfo');
+  const note = host.querySelector('.skipnote');
+  if(!info || !note) return;
+  info.addEventListener('click', () => {
+    note.hidden = !note.hidden;
+    info.setAttribute('aria-expanded', String(!note.hidden));
+    info.classList.toggle('on', !note.hidden);
+  });
+}
+
+function openEvent(i){
+  const ev = cal()[i], entry = state.log[i];
+  if(!ev || !entry) return;                       // not played yet
+  const bg = bgFor(ev), light = inkOn(bg) === '#FFFFFF';
+  const res = entry.res;
+  const chips = eventChips(ev, res);
+  const body = eventBody(ev, res);
 
   $('sheet').setAttribute('data-ink', light ? 'light' : 'dark');
   $('sheet').innerHTML =
@@ -3621,19 +3695,10 @@ function openEvent(i){
     + '<div class="chips">' + chips.map(c => '<span>' + esc(c) + '</span>').join('') + '</div>'
     + '</header><div class="sheetbody">' + body + '</div>';
   $('sheetclose').addEventListener('click', closeEvent);
-  const skipInfo = $('skipinfo');
-  if(skipInfo) skipInfo.addEventListener('click', () => {
-    const note = $('skipnote');
-    note.hidden = !note.hidden;
-    skipInfo.setAttribute('aria-expanded', String(!note.hidden));
-    skipInfo.classList.toggle('on', !note.hidden);
-  });
+  wireSkipInfo($('sheet'));
   // Opening one of your own matches hands it to the shared viewer, the same
   // panel and the same CSV/JSON export the grand-slam page uses.
-  $('sheet').querySelectorAll('tr.ev[data-m]').forEach(tr =>
-    tr.addEventListener('click', () =>
-      openMatch(res.yourMatches[Number(tr.dataset.m)], matchContext(ev,
-        res.yourMatches[Number(tr.dataset.m)].round))));
+  if(res) wireMatchRows($('sheet'), ev, res);
   $('ovl').classList.add('on');
 }
 
@@ -3759,6 +3824,7 @@ function reset(){
   applyGround(DEFAULT_BG);
   state.seed = (Math.random() * 0xFFFFFFFF) >>> 0;
   picked = null;
+  $('nowres').hidden = true;
   setProgress(0, playableEvents().length || 1);
   $('now').classList.remove('on');
   state.running = false; state.cancel = false;

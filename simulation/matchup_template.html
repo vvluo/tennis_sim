@@ -1,12 +1,7 @@
 <title>Matchup Forecaster</title>
 <style>
 /*__THEME__*/
-.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(18px,5vw,64px)}
-header{padding:26px 0 6px}
-.titlerow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-h1{margin:0;font-size:clamp(21px,3vw,28px);letter-spacing:-.02em;display:flex;
-  align-items:center;gap:11px;color:var(--page-ink,#fff)}
-h1 .ball{width:1em;height:1em;flex:none}
+/* h1 and .ball come from the shared theme too. */
 /* .navbar, .navlink and .themebtn all arrive with the shared theme above.
    Restating them here is exactly how this page's toggle drifted from the rest. */
 .card > h3 .info{margin-left:auto}
@@ -354,7 +349,10 @@ $('howinfo').addEventListener('click', () => {
 // nothing stored wrote 'light' into the shared key and dragged every other page
 // out of dark mode with it. With no stored choice the system decides, and
 // nothing is written until the button is actually pressed.
-const NS = 'tennis-sim:';
+// 'tennis:', the same prefix the other three pages use. It was 'tennis-sim:'
+// here, so this page read and wrote a localStorage key nothing else touched
+// and its theme never followed the rest of the site.
+const NS = 'tennis:';
 const themeBtn = $('theme');
 function systemDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
 function paintTheme(){

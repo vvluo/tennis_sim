@@ -487,7 +487,7 @@ async function offerDownload(text, filename, type){
 
 // Which of the two point views the panel shows. Remembered across matches and
 // across visits: whichever one you read in, you almost certainly want again.
-const VIEW_KEY = 'tennis-sim:pointview';
+const VIEW_KEY = 'tennis:pointview';   // one namespace across the whole site
 // Held in memory, with storage only as the way it survives a reload. Reading it
 // back from localStorage on every render made the control dead wherever storage
 // throws -- a private window, a browser set to block site data -- because the

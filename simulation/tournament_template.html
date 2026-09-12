@@ -81,13 +81,26 @@
 [hidden]{display:none!important}
 body{margin:0;background:var(--page);color:var(--ink);font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
   font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased}
-.wrap{padding:28px clamp(24px,5vw,64px) 60px}
+/* One canonical frame for all four pages. Each used to set its own -- 1180px
+   here, 1216 there, none on a third, with side padding of 18px against
+   clamp(24,5vw,64) and top padding of 0 against 32 -- so the navbar jumped
+   both sideways and down as you moved between tabs. */
+.wrap{max-width:1216px;margin:0 auto;padding:28px clamp(24px,5vw,64px) 60px}
+/* line-height is pinned rather than inherited: the ratings board's body sets
+   1.62 and the others do not, so the same h1 measured 48px there and 45 here --
+   and the nav beneath it sat 3px lower on that one page. */
 h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin:0 0 4px;
-  color:var(--page-ink);display:flex;align-items:center;gap:.32em}
+  line-height:1.15;color:var(--page-ink);display:flex;align-items:center;gap:.32em}
 .ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
-.titlerow{display:flex;align-items:center;gap:16px}
+/* Wraps, so the nav drops to its own line instead of running off the frame.
+   Without it three of the four pages overflowed .wrap while the fourth
+   wrapped, which is why the bar appeared to jump as you changed tabs. */
+.titlerow{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap}
 .navbar{display:flex;align-items:center;gap:9px;margin-left:auto}
-.navlink{display:flex;align-items:center;padding:7px 14px;border-radius:99px;
+/* line-height pinned on both: the ratings board sets 1.62 on body and the
+   others do not, which made its nav bar a pixel taller than everyone
+   else's off the same rule. */
+.navlink{line-height:1.5;display:flex;align-items:center;padding:7px 14px;border-radius:99px;
   font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
@@ -99,7 +112,7 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
 .navlink.on{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.30);
   font-weight:600;cursor:default}
 .navlink.on .sv{width:7px;height:7px;background:#74CE8E}
-.themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
+.themebtn{line-height:1.5;flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
