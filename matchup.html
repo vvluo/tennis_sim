@@ -90,6 +90,13 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
 .navlink:hover{background:rgba(255,255,255,.20)}
+/* The page you are ON is listed too, rather than silently missing: brighter,
+   not a link, and carrying the same green dot the tiebreak uses for "this one".
+   The dot's colour is fixed rather than themed -- this bar is always the deep
+   page blue, in both themes, and --hold is too dark to read on it. */
+.navlink.on{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.30);
+  font-weight:600;cursor:default}
+.navlink.on .sv{width:7px;height:7px;background:#74CE8E}
 .themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
   color:var(--page-ink);background:rgba(255,255,255,.10);
@@ -336,19 +343,27 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   letter-spacing:.06em;text-transform:uppercase;padding-bottom:3px;
   border-bottom:1px solid var(--line);margin-bottom:2px}
 .prow.ph .pc b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.prow .sv{width:6px;height:6px;border-radius:50%;background:var(--hold);flex:none}
+/* The serve dot, NOT scoped to .prow. It was, and the tiebreak strip puts its
+   dots in .hc instead -- so every one of them rendered as an empty <i> with no
+   size and no colour, and the tiebreaks shipped with no serve marks at all. */
+.sv{display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--hold);flex:none}
 /* A tiebreak reads across instead of down: a column per point, two rows, wrapped
    so a long one stays inside the panel. It already spans the full width, so the
    columns cost nothing the games would have wanted. */
 .hgrid{font-variant-numeric:tabular-nums}
+/* The column gap has to beat the gap between the dot and its own digit, or a
+   dot sits equidistant between two numbers and reads as marking the wrong
+   point. Nine against two makes the pairing unambiguous. */
 .hblock{display:grid;grid-template-columns:auto repeat(8,minmax(0,1fr));
-  gap:1px 3px;align-items:center}
+  gap:1px 9px;align-items:center}
 .hblock + .hblock{margin-top:6px}
 .hname{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--ink-2);padding-right:7px;white-space:nowrap}
-.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:3px;
+.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:2px;
   font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;font-weight:500;
   color:var(--muted);padding:10px 0 1px;min-width:0}
+.hc .sv{width:5px;height:5px}          /* a little tighter in a narrow column */
 .hc.w{color:var(--ink);font-weight:700}
 .hc b{font-weight:inherit}
 .hc .st{position:absolute;top:0;left:50%;transform:translateX(-50%);
@@ -393,13 +408,17 @@ header{padding:26px 0 6px}
 h1{margin:0;font-size:clamp(21px,3vw,28px);letter-spacing:-.02em;display:flex;
   align-items:center;gap:11px;color:var(--page-ink,#fff)}
 h1 .ball{width:1em;height:1em;flex:none}
-.navbar{display:flex;align-items:center;gap:8px;margin-left:auto}
-.navlink{font-size:12px;padding:6px 12px;border-radius:99px;text-decoration:none;
-  color:var(--page-ink,#fff);background:rgba(255,255,255,.14)}
-.navlink:hover{background:rgba(255,255,255,.26)}
-.themebtn{width:30px;height:30px;border-radius:99px;cursor:pointer;border:0;
-  background:rgba(255,255,255,.14);color:var(--page-ink,#fff);font-size:13px}
-.lede{color:var(--page-muted,rgba(255,255,255,.7));font-size:13px;margin:8px 0 0;max-width:84ch}
+/* .navbar, .navlink and .themebtn all arrive with the shared theme above.
+   Restating them here is exactly how this page's toggle drifted from the rest. */
+.card > h3 .info{margin-left:auto}
+.info{width:15px;height:15px;flex:none;padding:0;border-radius:50%;cursor:pointer;
+  font:inherit;font-size:10px;font-weight:700;font-style:italic;line-height:1;
+  color:var(--muted);background:var(--surface-2);border:1px solid var(--line)}
+.info:hover,.info.on{color:var(--accent);border-color:var(--accent);
+  background:var(--accent-soft)}
+.beat.note{margin:0 0 13px;padding:9px 11px;border-radius:8px;font-size:12.5px;
+  line-height:1.6;color:var(--ink-2);background:var(--surface-2);
+  border:1px solid var(--line)}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
   overflow:hidden;margin:18px 0}
@@ -482,20 +501,25 @@ input[type=number]{width:88px}
   <div class="titlerow">
     <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Matchup Forecaster</h1>
     <div class="navbar">
-      <a class="navlink" href="index.html">Play a Grand Slam</a>
-      <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <a class="navlink" href="season.html">Simulate a Season</a>
+      <a class="navlink" href="tournament.html">Play a Grand Slam</a>
+      <span class="navlink on" aria-current="page"><i class="sv"></i>Matchup Forecaster</span>
+      <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
     </div>
   </div>
-  <p class="lede">Two players, N matches, played point by point under whatever
-  scoring you ask for. The averages are per match; the best win is the widest one
-  each player managed &mdash; on sets first, then games, then points.</p>
 </header>
 
+
+
 <div class="card">
-  <h3>Matchup</h3>
+  <h3>Matchup<button type="button" class="info" id="howinfo" aria-expanded="false"
+      aria-controls="hownote" title="Two players, N matches, played point by point under whatever scoring you ask for. The averages are per match; the best win is the widest one each player managed — on sets first, then games, then points.">i</button></h3>
   <div class="pad">
+    <p class="beat note" id="hownote" hidden>Two players, N matches, played point by
+    point under whatever scoring you ask for. The averages are per match; the best
+    win is the widest one each player managed &mdash; on sets first, then games,
+    then points.</p>
     <div class="row">
       <div class="ctl">
         <label class="clab" for="tourseg">Tour</label>
@@ -1709,21 +1733,38 @@ document.querySelectorAll('#tourseg .segbtn').forEach(b =>
     $('out').innerHTML = '';
   }));
 $('go').addEventListener('click', run);
-
-// theme, shared with the other pages through the same key
-const NS = 'tennis-sim:';
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t);
-  $('theme').textContent = t === 'dark' ? '☀' : '☽';
-  try { localStorage.setItem(NS + 'theme', t); } catch(e){}
-}
-let theme = 'light';
-try { theme = localStorage.getItem(NS + 'theme') || 'light'; } catch(e){}
-applyTheme(theme);
-$('theme').addEventListener('click', () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  applyTheme(theme);
+$('howinfo').addEventListener('click', () => {
+  const note = $('hownote');
+  note.hidden = !note.hidden;
+  $('howinfo').setAttribute('aria-expanded', String(!note.hidden));
+  $('howinfo').classList.toggle('on', !note.hidden);
 });
+
+// The theme is shared with the other three pages through one origin-wide key.
+// Copied from the tournament page rather than reinvented: an earlier version
+// here defaulted to light and STAMPED that on load, so opening this page with
+// nothing stored wrote 'light' into the shared key and dragged every other page
+// out of dark mode with it. With no stored choice the system decides, and
+// nothing is written until the button is actually pressed.
+const NS = 'tennis-sim:';
+const themeBtn = $('theme');
+function systemDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
+function paintTheme(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  themeBtn.textContent = dark ? '\u2600 Light' : '\u263E Dark';   // what clicking gives you
+}
+function setTheme(mode, remember){
+  document.documentElement.setAttribute('data-theme', mode);
+  if(remember){ try { localStorage.setItem(NS + 'theme', mode); } catch(e){} }
+  paintTheme();
+}
+let stored = null;
+try { stored = localStorage.getItem(NS + 'theme'); } catch(e){}
+setTheme(stored === 'dark' || stored === 'light' ? stored
+         : (systemDark() ? 'dark' : 'light'), false);
+themeBtn.addEventListener('click', () =>
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark'
+           ? 'light' : 'dark', true));
 
 fillPlayers();
 $('hint').textContent = 'Data set ' + BUILT + '.';

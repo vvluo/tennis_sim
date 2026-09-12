@@ -67,6 +67,8 @@ header{margin-bottom:24px}
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
 .navlink:hover{background:rgba(255,255,255,.20)}
+.navlink.on{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.30);font-weight:600;cursor:default}
+.navlink.on .sv{display:inline-block;width:7px;height:7px;border-radius:50%;background:#74CE8E;flex:none}
 .iconbtn{width:28px;height:28px;flex:none;border-radius:50%;cursor:pointer;
   font:inherit;font-size:12px;font-weight:700;font-style:italic;
   color:var(--page-ink);background:rgba(255,255,255,.10);
@@ -193,9 +195,10 @@ footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px
   <div class="titlerow">
     <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Tour Ratings Board</h1>
     <div class="navbar">
-      <a class="navlink" href="matchup.html">Matchup Forecaster</a>
-      <a class="navlink" href="index.html">Play a Grand Slam</a>
       <a class="navlink" href="season.html">Simulate a Season</a>
+      <a class="navlink" href="tournament.html">Play a Grand Slam</a>
+      <a class="navlink" href="matchup.html">Matchup Forecaster</a>
+      <span class="navlink on" aria-current="page"><i class="sv"></i>Tour Ratings Board</span>
       <button id="about" class="iconbtn" aria-expanded="false"
               aria-controls="aboutpanel" title="About these ratings">i</button>
       <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>

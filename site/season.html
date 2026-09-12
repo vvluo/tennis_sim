@@ -93,6 +93,13 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
 .navlink:hover{background:rgba(255,255,255,.20)}
+/* The page you are ON is listed too, rather than silently missing: brighter,
+   not a link, and carrying the same green dot the tiebreak uses for "this one".
+   The dot's colour is fixed rather than themed -- this bar is always the deep
+   page blue, in both themes, and --hold is too dark to read on it. */
+.navlink.on{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.30);
+  font-weight:600;cursor:default}
+.navlink.on .sv{width:7px;height:7px;background:#74CE8E}
 .themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
   color:var(--page-ink);background:rgba(255,255,255,.10);
@@ -339,19 +346,27 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   letter-spacing:.06em;text-transform:uppercase;padding-bottom:3px;
   border-bottom:1px solid var(--line);margin-bottom:2px}
 .prow.ph .pc b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.prow .sv{width:6px;height:6px;border-radius:50%;background:var(--hold);flex:none}
+/* The serve dot, NOT scoped to .prow. It was, and the tiebreak strip puts its
+   dots in .hc instead -- so every one of them rendered as an empty <i> with no
+   size and no colour, and the tiebreaks shipped with no serve marks at all. */
+.sv{display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--hold);flex:none}
 /* A tiebreak reads across instead of down: a column per point, two rows, wrapped
    so a long one stays inside the panel. It already spans the full width, so the
    columns cost nothing the games would have wanted. */
 .hgrid{font-variant-numeric:tabular-nums}
+/* The column gap has to beat the gap between the dot and its own digit, or a
+   dot sits equidistant between two numbers and reads as marking the wrong
+   point. Nine against two makes the pairing unambiguous. */
 .hblock{display:grid;grid-template-columns:auto repeat(8,minmax(0,1fr));
-  gap:1px 3px;align-items:center}
+  gap:1px 9px;align-items:center}
 .hblock + .hblock{margin-top:6px}
 .hname{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--ink-2);padding-right:7px;white-space:nowrap}
-.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:3px;
+.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:2px;
   font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;font-weight:500;
   color:var(--muted);padding:10px 0 1px;min-width:0}
+.hc .sv{width:5px;height:5px}          /* a little tighter in a narrow column */
 .hc.w{color:var(--ink);font-weight:700}
 .hc b{font-weight:inherit}
 .hc .st{position:absolute;top:0;left:50%;transform:translateX(-50%);
@@ -426,7 +441,11 @@ body{transition:background-color .45s ease}
 .nowchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .nowchip{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   padding:5px 11px;border-radius:99px;background:var(--page-fill,rgba(255,255,255,.17));color:var(--page-ink)}
-.bar{height:5px;border-radius:99px;background:var(--page-fill,rgba(255,255,255,.17));margin-top:14px;overflow:hidden}
+.barrow{display:flex;align-items:center;gap:11px;margin-top:14px}
+.barcount{flex:none;font-size:11px;font-variant-numeric:tabular-nums;letter-spacing:.05em;
+  color:var(--page-muted,rgba(255,255,255,.68))}
+.bar{flex:1 1 auto;height:5px;border-radius:99px;
+  background:var(--page-fill,rgba(255,255,255,.17));overflow:hidden}
 .bar > i{display:block;height:100%;background:var(--page-ink);width:0;transition:width .18s linear}
 
 /* what comes next, so a stop explains itself */
@@ -471,8 +490,9 @@ body{transition:background-color .45s ease}
   vertical-align:-1px}
 
 /* an event you can open */
-.tl{cursor:default}
-.tl.done,.tl.now{cursor:pointer}
+/* Any block can be shown, played or not -- it costs a repaint, not a panel. */
+.tl{cursor:pointer}
+.tl.picked{outline:2px solid var(--ink);outline-offset:1px;opacity:1}
 tr.ev{cursor:pointer}
 tr.ev:hover td{background:var(--surface-2)}
 td.stripe{border-left:4px solid var(--rowc,transparent);white-space:nowrap}
@@ -595,10 +615,12 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
   <div class="wrap headrow">
     <h1 id="title">Simulate a Season</h1>
     <div class="navbar">
-      <a class="navlink" href="matchup.html">Matchup Forecaster</a>
+      <span class="navlink on" aria-current="page"><i class="sv"></i>Simulate a Season</span>
       <a class="navlink" href="tournament.html">Play a Grand Slam</a>
+      <a class="navlink" href="matchup.html">Matchup Forecaster</a>
       <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
-      <button class="navlink" id="themebtn" type="button">Theme</button>
+      <button class="themebtn" id="themebtn" type="button"
+              aria-label="Switch colour theme"></button>
     </div>
   </div>
 </header>
@@ -638,7 +660,10 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
     <h2 id="nowname">&nbsp;</h2>
     <div class="where" id="nowwhere">&nbsp;</div>
     <div class="nowchips" id="nowchips"></div>
-    <div class="bar"><i id="nowbar"></i></div>
+    <div class="barrow">
+      <div class="bar"><i id="nowbar"></i></div>
+      <span class="barcount" id="nowcount"></span>
+    </div>
     <div class="next" id="next"></div>
   </div>
 
@@ -3251,7 +3276,10 @@ function ensureFields(idx){
   group.forEach((i, k) => state.fields.set(i, built[k]));
 }
 
-function showNow(ev, done, total){
+// The marquee: a tournament's name, where and when, and what it is. Used both
+// by the run, as each event comes up, and by a click on the strip -- which is
+// the same act of "show me this one", so it is the same code.
+function showEvent(ev){
   applyGround(bgFor(ev));
   $('now').classList.add('on');
   $('nowname').textContent = ev.name;
@@ -3263,7 +3291,28 @@ function showNow(ev, done, total){
                    : ev.skip ? 'not simulated' : null];
   $('nowchips').innerHTML = chips.filter(Boolean)
     .map(c => '<span class="nowchip">' + esc(c) + '</span>').join('');
+}
+function showNow(ev, done, total){
+  showEvent(ev);
+  setProgress(done, total);
+}
+// The bar alone was a white rule you had to watch closely to read as progress.
+// The count beside it says where the season is without being watched.
+function setProgress(done, total){
   $('nowbar').style.width = Math.round(100 * done / total) + '%';
+  $('nowcount').textContent = done + ' / ' + total;
+}
+
+// Clicking the strip shows that tournament up top and repaints the page in its
+// surface colour, rather than throwing a panel over everything. The results are
+// still one click away, on the calendar row.
+let picked = null;
+function pickEvent(i){
+  const ev = cal()[i];
+  if(!ev) return;
+  picked = i;
+  showEvent(ev);
+  renderTimeline();
 }
 
 // The classic transport pair: a rightward triangle to run, two bars to hold.
@@ -3326,13 +3375,15 @@ function renderTimeline(){
     if(ev.skip) cls.push('skip');
     else if(i < state.idx) cls.push('done');
     if(i === state.idx && state.running) cls.push('now');
+    if(i === picked) cls.push('picked');
     const played = i < state.idx ? state.log[i] : null;
     const won = played && played.res && played.res.champion;
     const c = bgFor(ev);
     return '<span class="' + cls.join(' ') + '" data-i="' + i +
       '" style="--tlc:' + c + ';--tlink:' + inkOn(c) + '" title="' +
       esc(ev.start.slice(5) + '  ' + ev.name + '  (' + ev.level + ')' +
-          (won ? '\nwon by ' + won : ev.skip ? '\nnot simulated' : '')) + '">' +
+          (won ? '\nwon by ' + won : ev.skip ? '\nnot simulated' : '') +
+          '\nclick to show it above') + '">' +
       tierMark(ev) + '</span>';
   }).join('');
 }
@@ -3354,6 +3405,7 @@ async function run(){
   state.mode = $('modesel').value;
   state.playable = $('playsel').value;
   state.running = true; state.cancel = false;
+  picked = null;                       // the run takes the marquee back
   updateRunBtn();                       // stays enabled: clicking it now pauses
   const list = cal();
   let first = true;
@@ -3390,7 +3442,7 @@ async function run(){
   const last = state.log.length ? state.log[state.log.length - 1].ev : null;
   if(last) showNow(last, state.idx, list.length);
   else $('now').classList.remove('on');
-  $('nowbar').style.width = Math.round(100 * state.idx / list.length) + '%';
+  setProgress(state.idx, list.length);
   renderTimeline();
   showNext();
   updateRunBtn();
@@ -3680,7 +3732,7 @@ document.addEventListener('keydown', e => {
 });
 $('track').addEventListener('click', e => {
   const el = e.target.closest('.tl');
-  if(el && el.dataset.i) openEvent(Number(el.dataset.i));
+  if(el && el.dataset.i) pickEvent(Number(el.dataset.i));
 });
 $('callist').addEventListener('click', e => {
   const tr = e.target.closest('tr');
@@ -3706,6 +3758,8 @@ function reset(){
   state.rested = 0;
   applyGround(DEFAULT_BG);
   state.seed = (Math.random() * 0xFFFFFFFF) >>> 0;
+  picked = null;
+  setProgress(0, playableEvents().length || 1);
   $('now').classList.remove('on');
   state.running = false; state.cancel = false;
   runBtnState = null;
@@ -3737,21 +3791,30 @@ $('resetbtn').addEventListener('click', () => { if(!state.running) reset(); });
 $('sortbtn').addEventListener('click', () => { state.calDesc = !state.calDesc; render(); });
 $('minebtn').addEventListener('click', () => { state.calMine = !state.calMine; render(); });
 
-// theme, shared with the other pages through the same key
-function setTheme(mode){
+// The theme control, identical on all four pages: one key, the same defaulting
+// to the system when nothing is stored, and a button that says what pressing it
+// will GIVE you. This page carried a plain "Theme" navlink instead, which made
+// it the odd one out, and it stamped a stored value without painting the button.
+function paintTheme(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  $('themebtn').textContent = dark ? '\u2600 Light' : '\u263E Dark';
+}
+function setTheme(mode, remember){
   document.documentElement.setAttribute('data-theme', mode);
-  try { localStorage.setItem(NS + 'theme', mode); } catch(e){}
+  if(remember !== false){ try { localStorage.setItem(NS + 'theme', mode); } catch(e){} }
+  paintTheme();
 }
 try {
   const saved = localStorage.getItem(NS + 'theme');
-  if(saved) document.documentElement.setAttribute('data-theme', saved);
+  setTheme(saved === 'dark' || saved === 'light' ? saved
+           : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'), false);
   const t = localStorage.getItem(NS + 'tour');
   if(t === 'ATP' || t === 'WTA'){
     state.tour = t;
     document.querySelectorAll('#tourseg .segbtn[data-tour]')
       .forEach(x => x.classList.toggle('on', x.dataset.tour === t));
   }
-} catch(e){}
+} catch(e){ paintTheme(); }
 $('themebtn').addEventListener('click', () =>
   setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
 

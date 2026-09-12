@@ -92,6 +92,13 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
   color:var(--page-ink);background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.28);transition:background .15s}
 .navlink:hover{background:rgba(255,255,255,.20)}
+/* The page you are ON is listed too, rather than silently missing: brighter,
+   not a link, and carrying the same green dot the tiebreak uses for "this one".
+   The dot's colour is fixed rather than themed -- this bar is always the deep
+   page blue, in both themes, and --hold is too dark to read on it. */
+.navlink.on{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.30);
+  font-weight:600;cursor:default}
+.navlink.on .sv{width:7px;height:7px;background:#74CE8E}
 .themebtn{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
   color:var(--page-ink);background:rgba(255,255,255,.10);
@@ -338,19 +345,27 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   letter-spacing:.06em;text-transform:uppercase;padding-bottom:3px;
   border-bottom:1px solid var(--line);margin-bottom:2px}
 .prow.ph .pc b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.prow .sv{width:6px;height:6px;border-radius:50%;background:var(--hold);flex:none}
+/* The serve dot, NOT scoped to .prow. It was, and the tiebreak strip puts its
+   dots in .hc instead -- so every one of them rendered as an empty <i> with no
+   size and no colour, and the tiebreaks shipped with no serve marks at all. */
+.sv{display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--hold);flex:none}
 /* A tiebreak reads across instead of down: a column per point, two rows, wrapped
    so a long one stays inside the panel. It already spans the full width, so the
    columns cost nothing the games would have wanted. */
 .hgrid{font-variant-numeric:tabular-nums}
+/* The column gap has to beat the gap between the dot and its own digit, or a
+   dot sits equidistant between two numbers and reads as marking the wrong
+   point. Nine against two makes the pairing unambiguous. */
 .hblock{display:grid;grid-template-columns:auto repeat(8,minmax(0,1fr));
-  gap:1px 3px;align-items:center}
+  gap:1px 9px;align-items:center}
 .hblock + .hblock{margin-top:6px}
 .hname{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
   color:var(--ink-2);padding-right:7px;white-space:nowrap}
-.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:3px;
+.hc{position:relative;display:flex;align-items:center;justify-content:center;gap:2px;
   font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;font-weight:500;
   color:var(--muted);padding:10px 0 1px;min-width:0}
+.hc .sv{width:5px;height:5px}          /* a little tighter in a narrow column */
 .hc.w{color:var(--ink);font-weight:700}
 .hc b{font-weight:inherit}
 .hc .st{position:absolute;top:0;left:50%;transform:translateX(-50%);
@@ -395,9 +410,10 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   <div class="titlerow">
     <h1 id="title"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Play a Grand Slam</h1>
     <div class="navbar">
+      <a class="navlink" href="season.html">Simulate a Season</a>
+      <span class="navlink on" aria-current="page"><i class="sv"></i>Play a Grand Slam</span>
       <a class="navlink" href="matchup.html">Matchup Forecaster</a>
       <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
-      <a class="navlink" href="season.html">Simulate a Season</a>
       <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
     </div>
   </div>

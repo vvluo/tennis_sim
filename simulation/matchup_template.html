@@ -7,13 +7,17 @@ header{padding:26px 0 6px}
 h1{margin:0;font-size:clamp(21px,3vw,28px);letter-spacing:-.02em;display:flex;
   align-items:center;gap:11px;color:var(--page-ink,#fff)}
 h1 .ball{width:1em;height:1em;flex:none}
-.navbar{display:flex;align-items:center;gap:8px;margin-left:auto}
-.navlink{font-size:12px;padding:6px 12px;border-radius:99px;text-decoration:none;
-  color:var(--page-ink,#fff);background:rgba(255,255,255,.14)}
-.navlink:hover{background:rgba(255,255,255,.26)}
-.themebtn{width:30px;height:30px;border-radius:99px;cursor:pointer;border:0;
-  background:rgba(255,255,255,.14);color:var(--page-ink,#fff);font-size:13px}
-.lede{color:var(--page-muted,rgba(255,255,255,.7));font-size:13px;margin:8px 0 0;max-width:84ch}
+/* .navbar, .navlink and .themebtn all arrive with the shared theme above.
+   Restating them here is exactly how this page's toggle drifted from the rest. */
+.card > h3 .info{margin-left:auto}
+.info{width:15px;height:15px;flex:none;padding:0;border-radius:50%;cursor:pointer;
+  font:inherit;font-size:10px;font-weight:700;font-style:italic;line-height:1;
+  color:var(--muted);background:var(--surface-2);border:1px solid var(--line)}
+.info:hover,.info.on{color:var(--accent);border-color:var(--accent);
+  background:var(--accent-soft)}
+.beat.note{margin:0 0 13px;padding:9px 11px;border-radius:8px;font-size:12.5px;
+  line-height:1.6;color:var(--ink-2);background:var(--surface-2);
+  border:1px solid var(--line)}
 
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
   overflow:hidden;margin:18px 0}
@@ -96,20 +100,25 @@ input[type=number]{width:88px}
   <div class="titlerow">
     <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Matchup Forecaster</h1>
     <div class="navbar">
-      <a class="navlink" href="index.html">Play a Grand Slam</a>
-      <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <a class="navlink" href="season.html">Simulate a Season</a>
+      <a class="navlink" href="tournament.html">Play a Grand Slam</a>
+      <span class="navlink on" aria-current="page"><i class="sv"></i>Matchup Forecaster</span>
+      <a class="navlink" href="ratings_board.html">Tour Ratings Board</a>
       <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
     </div>
   </div>
-  <p class="lede">Two players, N matches, played point by point under whatever
-  scoring you ask for. The averages are per match; the best win is the widest one
-  each player managed &mdash; on sets first, then games, then points.</p>
 </header>
 
+
+
 <div class="card">
-  <h3>Matchup</h3>
+  <h3>Matchup<button type="button" class="info" id="howinfo" aria-expanded="false"
+      aria-controls="hownote" title="Two players, N matches, played point by point under whatever scoring you ask for. The averages are per match; the best win is the widest one each player managed — on sets first, then games, then points.">i</button></h3>
   <div class="pad">
+    <p class="beat note" id="hownote" hidden>Two players, N matches, played point by
+    point under whatever scoring you ask for. The averages are per match; the best
+    win is the widest one each player managed &mdash; on sets first, then games,
+    then points.</p>
     <div class="row">
       <div class="ctl">
         <label class="clab" for="tourseg">Tour</label>
@@ -332,21 +341,38 @@ document.querySelectorAll('#tourseg .segbtn').forEach(b =>
     $('out').innerHTML = '';
   }));
 $('go').addEventListener('click', run);
-
-// theme, shared with the other pages through the same key
-const NS = 'tennis-sim:';
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t);
-  $('theme').textContent = t === 'dark' ? '☀' : '☽';
-  try { localStorage.setItem(NS + 'theme', t); } catch(e){}
-}
-let theme = 'light';
-try { theme = localStorage.getItem(NS + 'theme') || 'light'; } catch(e){}
-applyTheme(theme);
-$('theme').addEventListener('click', () => {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  applyTheme(theme);
+$('howinfo').addEventListener('click', () => {
+  const note = $('hownote');
+  note.hidden = !note.hidden;
+  $('howinfo').setAttribute('aria-expanded', String(!note.hidden));
+  $('howinfo').classList.toggle('on', !note.hidden);
 });
+
+// The theme is shared with the other three pages through one origin-wide key.
+// Copied from the tournament page rather than reinvented: an earlier version
+// here defaulted to light and STAMPED that on load, so opening this page with
+// nothing stored wrote 'light' into the shared key and dragged every other page
+// out of dark mode with it. With no stored choice the system decides, and
+// nothing is written until the button is actually pressed.
+const NS = 'tennis-sim:';
+const themeBtn = $('theme');
+function systemDark(){ return matchMedia('(prefers-color-scheme: dark)').matches; }
+function paintTheme(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  themeBtn.textContent = dark ? '\u2600 Light' : '\u263E Dark';   // what clicking gives you
+}
+function setTheme(mode, remember){
+  document.documentElement.setAttribute('data-theme', mode);
+  if(remember){ try { localStorage.setItem(NS + 'theme', mode); } catch(e){} }
+  paintTheme();
+}
+let stored = null;
+try { stored = localStorage.getItem(NS + 'theme'); } catch(e){}
+setTheme(stored === 'dark' || stored === 'light' ? stored
+         : (systemDark() ? 'dark' : 'light'), false);
+themeBtn.addEventListener('click', () =>
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark'
+           ? 'light' : 'dark', true));
 
 fillPlayers();
 $('hint').textContent = 'Data set ' + BUILT + '.';
