@@ -230,6 +230,8 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
 .stat b{display:block;font-size:24px;font-weight:700;letter-spacing:-.02em}
 .stat span{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
 .foot{margin-top:26px;font-size:12px;color:var(--muted);line-height:1.6}
+.chips .commit{background:rgba(255,255,255,.14);border:1px solid currentColor;
+  opacity:.92;font-variant-numeric:normal}
 </style>
 
 <header class="page">
@@ -375,6 +377,35 @@ for(const _t of Object.keys(CALS)){
   _list.forEach(e => {
     const _n = _majors.find(w => w >= e.sweek);
     e.toMajor = _n === undefined ? null : _n - e.sweek;
+    // Entry lists close well before the draw is made, so acceptance is judged on
+    // the ranking as it stood then and not on the week of play. A deadline in the
+    // previous season clamps to zero, where the ranking the pool arrives with --
+    // the end-of-last-season one -- is the right answer anyway.
+    e.deadWeek = Math.max(0, e.sweek - (e.level === 'Grand Slam' ? 6 : 4));
+  });
+  // The ATP's 500 commitment is a quota with a deadline, so each 500 needs to
+  // know how many are still to come and how many of those fall after the US
+  // Open. Counted here once rather than scanned at every allocation.
+  // A 1000 within a fortnight of another 1000 is harder to front up for than its
+  // place in the season alone suggests.
+  const _thousands = _list.filter(e => !e.skip && /1000$/.test(e.level));
+  _thousands.forEach(e => {
+    e.crowded = _thousands.some(x => x !== e && Math.abs(x.sweek - e.sweek) <= 2);
+  });
+  const _us = _list.find(e => e.name === 'US Open');
+  const _fives = _list.filter(e => !e.skip && /500$/.test(e.level))
+                      .sort((a, b) => a.sday - b.sday);
+  _fives.forEach((e, i) => {
+    const rest = _fives.slice(i);
+    // Counted in distinct WEEKS, not events: Vienna and Basel are the same
+    // week, so a player with two 500s left on the calendar may have only one
+    // chance left to play one. Counting events overstated the room and the
+    // commitment fired a week too late to be met.
+    const weeks = new Set(rest.map(x => x.sweek));
+    e.fiveLeft = weeks.size;
+    e.isLate = !!_us && e.sday > _us.sday;
+    e.lateLeft = _us ? new Set(rest.filter(x => x.sday > _us.sday)
+                                   .map(x => x.sweek)).size : 0;
   });
 }
 const NS = 'tennis:';
@@ -465,6 +496,64 @@ const ENTRY = {
   // barely one event, because this was what was actually holding them down.
   'ATP 250':    { pivot: 35,  width: 28 },  'WTA 250': { pivot: 35,  width: 28 },
 };
+// ---- the ATP's top-30 commitment -----------------------------------------
+// Inside the top 30 a player is committed to every major and every Masters bar
+// Monte Carlo, and to four ATP 500s of which one must fall after the US Open.
+// Injury is the only excuse, and the allocator already holds injured players out
+// through the commitment ledger before any of this is consulted.
+//
+// The WTA's commitment works differently and is modelled by the entry curve, so
+// none of this applies there.
+const COMMITTED_RANK = 30;
+const OPTIONAL_MASTERS = 'Monte Carlo';
+const FIVE_HUNDRED_QUOTA = 4;
+
+// How many 500s this player has already played, and whether one was late. Read
+// off the standings rather than tracked alongside them: every event a player
+// finishes is credited there with its level and its date, so this cannot fall
+// out of step with what actually happened -- and it needs no extra state to
+// reset, which is exactly where a parallel counter would have gone wrong.
+function fivesSoFar(name){
+  const r = state.table.get(name);
+  if(!r) return { played: 0, late: false };
+  let played = 0, late = false;
+  for(const g of r.results){
+    if(!/500$/.test(g.level)) continue;
+    played++;
+    if(g.late) late = true;
+  }
+  return { played, late };
+}
+
+// Matches played this season, win or lose. Read off the standings, which record
+// every one of them, so there is no counter to keep in step or to reset.
+function matchesThisSeason(name){
+  const r = state.table.get(name);
+  return r ? r.w + r.l : 0;
+}
+
+// `p.rank`, deliberately, and NOT the live deadline view: the ATP's commitment is
+// given to the players who finished last season in the top 30 and is owed for the
+// whole of this one, however their results go. A player who slides to 45 by May
+// still owes Madrid. Reading the live ranking here would let them out of it, and
+// would also drag players who climbed INTO the top 30 under obligations they were
+// never given.
+function committedTo(tour, p, ev){
+  if(tour !== 'ATP' || p.rank > COMMITTED_RANK) return false;
+  if(ev.level === 'Grand Slam') return true;
+  // The Masters are compulsory on paper, but a player deep into a season does
+  // skip one and take the zero -- and by the autumn a quarter of the field
+  // does. That is a gradient, not a rule, so it lives in the entry chance
+  // rather than here. Only the majors and the 500 quota are absolute.
+  if(/1000$/.test(ev.level)) return false;
+  if(!/500$/.test(ev.level)) return false;
+  const { played, late } = fivesSoFar(p.name);
+  // Short of the four with no room left to make them up...
+  if(FIVE_HUNDRED_QUOTA - played >= (ev.fiveLeft || 0)) return true;
+  // ...or this is the last 500 after the US Open and they still owe one.
+  return !!ev.isLate && !late && (ev.lateLeft || 0) <= 1;
+}
+
 const ENTRY_MAX = 0.97;
 
 // Playing at home. Below 1000 level a player from the host country is markedly
@@ -484,7 +573,48 @@ const HOME_ODDS_BOOST = 4.0;
 // that curve wide cost ranks 11-30 four events a season.
 const ENTRY_WIDTH_RATIO = 0.35;
 
-function entryChance(level, rank, load, home, taper){
+// A WTA player's willingness to turn up at a compulsory 1000 falls away as the
+// season wears on, and it is the SEASON that does it, not the recent load: the
+// carried load barely moves between Madrid in May and Beijing in October (7.3
+// against 7.7), while matches played since January more than doubles (17 to 39).
+// That is the quantity the dropout tracks. Fitted to a 15% dropout at the clay
+// 1000s and 30-35% at Beijing among rank-eligible, uninjured players.
+//
+// It is a choice, not an injury: the seventh compulsory 1000 has no ranking slot
+// anyway, so taking the zero and resting is a real option rather than a failure.
+const WTA_1000_FATIGUE = 0.0090;      // per match played this season
+const WTA_1000_FATIGUE_FREE = 8.9;    // an early-season player is fresh
+const FATIGUE_CAP = 0.45;
+
+// The ATP's Masters are compulsory on paper and skipped in practice, and how
+// often is a question of how much tennis is already behind the player. The
+// curve is a square root of matches played rather than a straight line: the
+// first weeks of a season cost almost nothing and the rate then flattens, which
+// is the only shape that fits under 10% at Indian Wells AND close to 30% at
+// Paris with one expression.
+const ATP_1000_FATIGUE = 0.0400;
+const ATP_1000_FATIGUE_FREE = 15.5;
+// ...plus a flat extra wherever a Masters sits within a fortnight of another
+// one. Back-to-back weeks are skipped more than their place in the season alone
+// explains -- Canada into Cincinnati is the clearest case, and Madrid into Rome
+// the other.
+const ATP_1000_BACK_TO_BACK = 0.015;
+
+function seasonDrop(level, played, ev){
+  const m = played || 0;
+  if(level === 'WTA 1000'){
+    return Math.min(FATIGUE_CAP,
+      WTA_1000_FATIGUE * Math.max(0, m - WTA_1000_FATIGUE_FREE));
+  }
+  if(level === 'ATP 1000'){
+    const d = ATP_1000_FATIGUE * Math.sqrt(Math.max(0, m - ATP_1000_FATIGUE_FREE))
+            + (ev && ev.crowded ? ATP_1000_BACK_TO_BACK : 0);
+    return Math.min(FATIGUE_CAP, d);
+  }
+  return 0;
+}
+
+function entryChance(level, rank, load, home, taper, played, ev){
   const e = ENTRY[level] || { flat: 0.85 };
   const compulsory = e.flat !== undefined;
   let p = compulsory ? e.flat
@@ -496,7 +626,7 @@ function entryChance(level, rank, load, home, taper){
                  : compulsory ? WEAR_AT_MANDATORY
                  : WEAR_AT_OPTIONAL * (taper || 1);
   const wear = Math.min(LOAD_SKIP_CAP, load * LOAD_SKIP * strength);
-  p = Math.max(0, p * (1 - wear));
+  p = Math.max(0, p * (1 - wear) * (1 - seasonDrop(level, played, ev)));
   // A home player at a 500 or a 250. e.flat marks the compulsory levels.
   if(home && e.flat === undefined && p > 0 && p < 1){
     const odds = (p / (1 - p)) * HOME_ODDS_BOOST;
@@ -583,6 +713,9 @@ const state = {
   table: new Map(), log: [], busy: new Map(), hurt: new Map(), calMine: false,
   absence: new Map(), calDesc: false,
   load: new Map(), loadWeek: null, fields: new Map(), rested: 0,
+  // The ranking snapshot taken in each week, keyed by week. Per-season state:
+  // carried over, a deadline in week 3 would answer with LAST season's standing.
+  rankViews: new Map(),
 };
 
 // ---- entry lists, a week at a time --------------------------------------
@@ -777,12 +910,27 @@ function allocateWeek(evs, rng, state, playable){
   const fields = evs.map(() => []);
   const taken = new Set();
 
+  // Snapshot the ranking for this week before anything is allocated, then judge
+  // each event on the snapshot in force at ITS OWN entry deadline: six weeks for
+  // a major, four for everything else. Where a major shares a week with a
+  // smaller event -- the US Open runs alongside Winston Salem -- the two are
+  // judged on different snapshots, which is what those deadlines mean.
+  snapshotRank(week);
+  const views = evs.map(ev => rankAt(ev.deadWeek ?? week));
+  const rk = (i, p) => rankIn(views[i], p);
+  // Who is considered first follows the week's earliest deadline, which is the
+  // marquee event's: `order` is sorted by tier, so order[0] is it.
+  const ordView = views[order[0]];
+
   // Why the player you picked is not in a given draw. "Not in the draw" was true
   // of an injury, a withdrawal and a ranking too low to enter, which are three
   // very different seasons.
   const why = {};
+  // POOLS is in end-of-last-season order; direct entry works down the list, so
+  // it has to be resorted into the standing that applies now.
   const free = POOLS[tour].filter(p =>
-    (state.busy.get(p.name) ?? -Infinity) <= startN);
+    (state.busy.get(p.name) ?? -Infinity) <= startN)
+    .sort((a, b) => rankIn(ordView, a) - rankIn(ordView, b));
   if(playable && !free.some(p => p.name === playable))
     why.all = (state.hurt.get(playable) ?? -Infinity) > startN
       ? 'injured' : 'playing elsewhere';
@@ -790,6 +938,9 @@ function allocateWeek(evs, rng, state, playable){
   const bestTier = Math.min(...evs.map(e => tierOf(e.level)));
   const weekTaper = taperFor(evs[0]);        // one week, so one distance to a major
   const available = free.filter(p => {
+    // A committed player does not take the week off. Injury is the only excuse,
+    // and anyone injured was already held out of `free` above.
+    if(evs.some(ev => committedTo(tour, p, ev))) return true;
     const out = rng.random() < restChance(bestTier, state.load.get(p.name) || 0, weekTaper);
     if(out){
       state.rested = (state.rested || 0) + 1;
@@ -815,7 +966,9 @@ function allocateWeek(evs, rng, state, playable){
     const mand = order.find(i => evs[i].level === SLAM || /1000$/.test(evs[i].level));
     if(mand !== undefined && available.some(p => p.name === playable)){
       const me = POOLS[tour].find(p => p.name === playable);
-      if(me && me.rank <= shape[mand].direct){ fields[mand].push(me); taken.add(playable); }
+      if(me && rk(mand, me) <= shape[mand].direct){
+        fields[mand].push(me); taken.add(playable);
+      }
     }
   }
 
@@ -832,10 +985,14 @@ function allocateWeek(evs, rng, state, playable){
     let pick = -1, bestTier = 99, bestWant = -1, bestNeed = -1;
     for(const i of order){
       const need = shape[i].direct - fields[i].length;
-      if(need <= 0 || p.rank > cut[i]) continue;
-      const tier = tierOf(evs[i].level);
-      const want = entryChance(evs[i].level, p.rank, load, atHome(p, evs[i]),
-                               taperFor(evs[i]));
+      if(need <= 0 || rk(i, p) > cut[i]) continue;
+      // A commitment outranks every tier and is not a probability: it is the
+      // reason the player is here at all.
+      const must = committedTo(tour, p, evs[i]);
+      const tier = must ? -1 : tierOf(evs[i].level);
+      const want = must ? 1
+        : entryChance(evs[i].level, rk(i, p), load, atHome(p, evs[i]), taperFor(evs[i]),
+                      matchesThisSeason(p.name), evs[i]);
       if(tier < bestTier ||
          (tier === bestTier && (want > bestWant + 1e-9 ||
           (Math.abs(want - bestWant) <= 1e-9 && need > bestNeed)))){
@@ -847,7 +1004,7 @@ function allocateWeek(evs, rng, state, playable){
       if(p.name === playable){
         // Wear or ranking? Compare the chance they were actually offered with
         // the one a fresh player of the same ranking would have had.
-        const fresh = entryChance(evs[pick].level, p.rank, 0, atHome(p, evs[pick]),
+        const fresh = entryChance(evs[pick].level, rk(pick, p), 0, atHome(p, evs[pick]),
                                   taperFor(evs[pick]));
         why.all = (fresh > 0 && 1 - bestWant / fresh > WEAR_SHARE_BLAMED)
           ? 'load management' : 'declined';
@@ -870,7 +1027,14 @@ function allocateWeek(evs, rng, state, playable){
     if(!shape[i].qualifiers) return;
     for(const p of deeper){
       if(fields[i].length >= shape[i].direct + shape[i].qualifiers) break;
-      if(p.rank > cut[i]) break;                  // off the acceptance list
+      // `continue`, not `break`. This list is ordered by the week's EARLIEST
+      // deadline -- the marquee event's -- while eligibility is judged on this
+      // event's own, and the two views need not agree on any given player. A
+      // break therefore stops at the first player who is out of order under
+      // this event's view rather than at the end of its acceptance list, which
+      // starved Winston Salem's qualifying draw in every season: it runs in US
+      // Open week, so it is judged four weeks out against a list ordered six.
+      if(rk(i, p) > cut[i]) continue;              // off the acceptance list
       if(taken.has(p.name)) continue;
       if(rng.random() < QUALIFYING_DROPOUT) continue;
       fields[i].push(p); taken.add(p.name);
@@ -887,7 +1051,7 @@ function allocateWeek(evs, rng, state, playable){
     const want = shape[i].direct + shape[i].qualifiers;
     for(const p of spare){
       if(fields[i].length >= want) break;
-      if(taken.has(p.name) || p.rank > cut[i]) continue;
+      if(taken.has(p.name) || rk(i, p) > cut[i]) continue;
       fields[i].push(p); taken.add(p.name);
       ev.thin = true;
     }
@@ -904,7 +1068,7 @@ function allocateWeek(evs, rng, state, playable){
       // An event whose acceptance list stops above this player is never a
       // withdrawal, whatever happened elsewhere in the week.
       state.absence.set(ev.name,
-        me && me.rank > cut[i] ? 'not qualified'
+        me && rk(i, me) > cut[i] ? 'not qualified'
           : elsewhere ? 'playing elsewhere'
           : why.all === 'below the cut' && shape[i].qualifiers ? 'lost in qualifying'
           : why.all === 'below the cut' ? 'not qualified'
@@ -914,10 +1078,15 @@ function allocateWeek(evs, rng, state, playable){
 
   return evs.map((ev, i) => {
     const direct = shape[i].direct;
+    // `rank` stays the ranking the player arrived with -- it is what the panels
+    // show and what the ATP's top-30 commitment is granted on. `lrank` is the
+    // standing at this event's entry deadline, which is what seeding follows and
+    // what decides automatic eligibility.
     const field = fields[i].map((e, k) => ({
-      name: e.name, rank: e.rank, ratings: e.ratings, country: e.country,
+      name: e.name, rank: e.rank, lrank: rk(i, e), auto: rk(i, e) <= direct,
+      ratings: e.ratings, country: e.country,
       qualifier: k >= direct, playable: e.name === playable, seed: null }));
-    field.slice().sort((a, b) => a.rank - b.rank).slice(0, seedsFor(ev.draw))
+    field.slice().sort((a, b) => a.lrank - b.lrank).slice(0, seedsFor(ev.draw))
          .forEach((e, k) => e.seed = k + 1);
     const freeFrom = ev.sday_end - TAIL_DAYS;
     field.forEach(e => state.busy.set(e.name,
@@ -1013,7 +1182,8 @@ function runEvent(ev, rng, playable, field){
             score: 'w/o',
           });
         }
-        credit(gone.name, table[name] || 0, false, ev, name, !!gone.qualifier);
+        credit(gone.name, table[name] || 0, false, ev, name, !!gone.qualifier,
+               !!gone.auto);
         if(name === 'F'){ out.champion = through.name; out.runnerUp = gone.name; }
         winners.push(through);
         continue;
@@ -1052,7 +1222,8 @@ function runEvent(ev, rng, playable, field){
         loser: loser.name, wseed: winner.seed, lseed: loser.seed,
         wq: !!winner.qualifier, lq: !!loser.qualifier });
       if(record) out.yourMatches.push(record);
-      credit(loser.name, table[name] || 0, false, ev, name, !!loser.qualifier);
+      credit(loser.name, table[name] || 0, false, ev, name, !!loser.qualifier,
+             !!loser.auto);
       noteWin(winner.name); noteLoss(loser.name);
       addLoad(winner.name); addLoad(loser.name);
       // ...and the match itself may have broken either of them. Rolled after the
@@ -1068,7 +1239,8 @@ function runEvent(ev, rng, playable, field){
   });
 
   const champ = alive[0];
-  if(champ) credit(champ.name, table.W || 0, true, ev, 'W', !!champ.qualifier);
+  if(champ) credit(champ.name, table.W || 0, true, ev, 'W', !!champ.qualifier,
+                   !!champ.auto);
   out.seeds = seedsFor(drawSize);
   out.qualifiers = entrants.filter(e => e.qualifier).length;
   out.championSeed = champ ? champ.seed : null;
@@ -1245,7 +1417,7 @@ function runFinals(ev, rng, playable, field){
   // Credited once each, now that the week is finished.
   entrants.forEach(e => {
     const t = tally.get(e.name);
-    credit(e.name, t.pts, t.reach === 'W', ev, t.reach, false);
+    credit(e.name, t.pts, t.reach === 'W', ev, t.reach, false, true);
   });
 
   if(playable){
@@ -1282,22 +1454,53 @@ function row(name){
 //
 // The tour finals sit outside that count in both cases, added as a 20th (ATP)
 // or 19th (WTA) tournament.
-const OTHER_SLOTS = 7;
-const WTA_FLOATING_1000 = 1;      // one non-combined 1000 also counts in full
+// The slots, by tour.
+//
+//   ATP, 19:  4 majors + 8 compulsory Masters + 7 best of everything else
+//   WTA, 16:  4 majors + 6 combined 1000s + the best of the three WTA-only
+//             1000s + 5 best of everything else
+//
+// A slot-bearing compulsory event is NOT a best-of: it owns its slot outright,
+// and skipping it leaves a zero sitting in that slot. There is no dropping the
+// worst one -- miss Miami and you are carrying a zero through the whole year,
+// with five real results where someone else has six.
+const SLOTS = {
+  ATP: { majors: Infinity, mand: Infinity, float: 0, other: 7 },
+  WTA: { majors: Infinity, mand: Infinity, float: 1, other: 5 },
+};
 const ATP_OPTIONAL_1000 = new Set(['Monte Carlo']);
-const WTA_COMPULSORY_1000 = new Set(
+// The six combined events, one ranking slot each.
+const WTA_SLOTTED_1000 = new Set(
   ['Indian Wells', 'Miami', 'Madrid', 'Rome', 'Toronto', 'Beijing']);
+// The three one-week WTA-only 1000s. One slot between them, best result taking
+// it; the other two drop into the best-of pool like any other event.
+const WTA_ONLY_1000 = new Set(['Doha', 'Dubai', 'Wuhan']);
+// Turning up is required at seven -- the six above plus Cincinnati -- even
+// though Cincinnati's result competes for a best-of slot like anything else.
+// Attendance and the ranking slots are different questions, and Cincinnati is
+// where they come apart.
+const WTA_MUST_PLAY_1000 = new Set([...WTA_SLOTTED_1000, 'Cincinnati']);
 
 // A compulsory slot follows DIRECT acceptance. A player who came through
 // qualifying was never on that entry list, so the event is an optional one for
 // them and has to compete for a best-of slot like any other.
-function slotOf(tour, ev, qualifier){
+function slotOf(tour, ev, qualifier, auto){
   if(ev.format === 'rr') return 'finals';
   if(qualifier) return 'other';
-  if(ev.level === SLAM) return 'mand';
+  // The majors are their own bucket: on the WTA the compulsory 1000s take the
+  // best six of seven, and the four majors must not be pooled with them.
+  if(ev.level === SLAM) return 'majors';
   if(!/1000$/.test(ev.level)) return 'other';
+  // The ATP's obligation is granted on last season's finish and does not depend
+  // on where the player stands now, so every Masters bar Monte Carlo owns a slot.
   if(tour === 'ATP') return ATP_OPTIONAL_1000.has(ev.name) ? 'other' : 'mand';
-  return WTA_COMPULSORY_1000.has(ev.name) ? 'mand' : 'float';
+  // The WTA's is different: the compulsory class is whoever is AUTOMATICALLY
+  // eligible by ranking. A player who is not does not owe the event, so it does
+  // not reserve a slot for them -- it competes in the best-of pool like any
+  // other result. Without this a player who slid out of automatic entry still
+  // carried a compulsory slot they had no way to fill.
+  if(WTA_SLOTTED_1000.has(ev.name)) return auto ? 'mand' : 'other';
+  return WTA_ONLY_1000.has(ev.name) ? 'float' : 'other';
 }
 
 // Skipping a compulsory event needs no special case: it simply leaves that slot
@@ -1307,32 +1510,222 @@ function slotOf(tour, ev, qualifier){
 // Returns the total AND which results made it in, so the number in the
 // standings and the rows ticked in a player's card cannot disagree.
 function rankingBreakdown(r, tour){
-  const mand = [], floating = [], other = [], finals = [];
-  for(const g of r.results)
-    (g.slot === 'mand' ? mand : g.slot === 'finals' ? finals
-      : g.slot === 'float' ? floating : other).push(g);
-  const counted = new Set([...mand, ...finals]);
-  const pool = other.slice();
-  if(tour !== 'ATP'){
-    floating.sort((a, b) => b.pts - a.pts);
-    floating.forEach((g, i) => {
-      if(i < WTA_FLOATING_1000) counted.add(g);
-      else pool.push(g);                 // the rest fall back to the best-of pool
+  const S = SLOTS[tour] || SLOTS.ATP;
+  const bucket = { majors: [], mand: [], float: [], other: [], finals: [] };
+  for(const g of r.results) (bucket[g.slot] || bucket.other).push(g);
+
+  const counted = new Set(bucket.finals);
+  const pool = bucket.other.slice();
+  // A bucket with a cap keeps its best N; whatever is left over either falls
+  // into the best-of pool or, for the compulsory 1000s, drops out entirely --
+  // the seventh has had its chance at a slot and does not get a second one
+  // competing against a 250.
+  const take = (list, n, spill) => {
+    list.sort((a, b) => b.pts - a.pts);
+    list.forEach((g, i) => {
+      if(i < n) counted.add(g);
+      else if(spill) pool.push(g);       // only the WTA-only 1000s spill
     });
-  } else pool.push(...floating);
+  };
+  take(bucket.majors, S.majors, false);
+  take(bucket.mand, S.mand, false);
+  take(bucket.float, S.float, true);
+
   pool.sort((a, b) => b.pts - a.pts);
-  pool.slice(0, OTHER_SLOTS).forEach(g => counted.add(g));
+  pool.slice(0, S.other).forEach(g => counted.add(g));
   let total = 0;
   counted.forEach(g => { total += g.pts; });
   return { counted, total };
 }
 function rankingPoints(r, tour){ return rankingBreakdown(r, tour).total; }
 
+// ---- the live ranking ------------------------------------------------------
+// A simulated season starts everyone on zero, so ranking by simulated points
+// alone would put the world number one below whoever reached a January
+// quarter-final. The real total therefore cycles OUT as the season awards its
+// own points, and the two are summed.
+//
+// The decay is measured in POINTS AWARDED, not weeks elapsed. The calendar is
+// nothing like uniform -- the Australian Open alone is 6.7% of the ATP year
+// while a three-250 week is 2% -- so a week-proportional decay cycles real
+// points out far too fast in January and far too slowly in March.
+//
+// Every event's payout is fixed by its draw shape: it does not depend on who
+// enters or how the results fall. So this curve is a property of the CALENDAR,
+// computed once per tour. tests/season_sim.js holds it against what a played
+// season actually credits, which is the check that caught the version of
+// eventPayout that paid the champion F instead of W.
+function eventPayout(tour, ev){
+  if(ev.format === 'rr')
+    return 12 * FINALS_POINTS.rr + 2 * FINALS_POINTS.sf + FINALS_POINTS.f;
+  const tbl = pointsFor(tour, ev.level, ev.draw);
+  const bracket = bracketFor(ev.draw), byes = bracket - ev.draw;
+  const key = n => n >= 128 ? 'R128' : n >= 64 ? 'R64' : n >= 32 ? 'R32'
+                 : n >= 16 ? 'R16' : n >= 8 ? 'QF' : n >= 4 ? 'SF' : 'F';
+  let total = 0, alive = ev.draw, size = bracket, first = true;
+  while(size >= 2){
+    // Byes are not a special case: the opening round simply has fewer matches,
+    // and every later round is half of what is still alive.
+    const matches = first ? (ev.draw - byes) / 2 : alive / 2;
+    total += matches * (tbl[key(size)] || 0);          // this round's losers
+    alive -= matches; size /= 2; first = false;
+  }
+  // The last round's single loser was paid F above. The champion is nobody's
+  // loser, so W is added outright. Subtracting F here, as though the loop had
+  // already paid the champion, undercounts every event by its finalist value --
+  // 13.5% of the season across the calendar.
+  return total + (tbl.W || 0);
+}
+
+const CURVES = {};
+function seasonCurve(tour){
+  if(CURVES[tour]) return CURVES[tour];
+  const evs = (CALS[tour] || [])
+    .filter(e => !e.skip && e.level !== 'Next Gen Finals')
+    .slice().sort((a, b) => a.sday - b.sday);
+  let total = 0;
+  for(const e of evs) total += eventPayout(tour, e);
+  const byWeek = new Map();
+  let cum = 0;
+  for(const e of evs){ cum += eventPayout(tour, e); byWeek.set(e.sweek, cum / total); }
+  const weeks = [...byWeek.keys()].sort((a, b) => a - b);
+  return (CURVES[tour] = { total, byWeek, weeks });
+}
+
+// Share of the season's points already awarded BEFORE `week` begins.
+function seasonElapsed(tour, week){
+  const c = seasonCurve(tour);
+  let p = 0;
+  for(const w of c.weeks){ if(w >= week) break; p = c.byWeek.get(w); }
+  return p;
+}
+
+// What is left of a player's real points once the season has run to `week`,
+// in three tiers, best first. simulation/realpoints.py builds the schedule.
+//
+//   1  a result won at a tournament the simulation ALSO plays leaves when the
+//      simulation reaches that tournament. This is what makes defending mean
+//      something: the Shanghai champion arrives at the simulated Shanghai still
+//      holding those points and either backs them up or loses them.
+//   2  a dated result with no counterpart here -- a Challenger, a WTA 125 --
+//      leaves when its week elapses. Nothing pays it back, which is right,
+//      because the simulation does not play those tiers.
+//   3  whatever has neither: qualifying, ITF, events the cache does not carry.
+//      It has no date to leave on, so it decays smoothly across the season.
+//
+// Tier 3 alone -- the flat proxy this used to be for everybody -- is
+// order-preserving: scaling every player's total by the same factor can never
+// reorder anyone, so nobody ever defends anything. Tiers 1 and 2 are what make
+// the ranking move for a reason. They cover 90% of ATP points and 68% of WTA.
+//
+// Precomputed per player per week and cached: the schedule does not depend on
+// anything the season does, so it is built once per tour and reused.
+const RESIDUALS = {};
+function residualTable(tour){
+  if(RESIDUALS[tour]) return RESIDUALS[tour];
+  const when = new Map();                  // event name -> the week we play it
+  for(const e of (CALS[tour] || [])) when.set(e.name, e.sweek);
+  const drops = (DATA.drops || {})[tour] || {};
+  const weeks = 54;
+  const table = new Map();
+  for(const p of (POOLS[tour] || [])){
+    const d = drops[p.name];
+    const arr = new Float64Array(weeks);
+    for(let w = 0; w < weeks; w++){
+      const wkNow = w, fade = 1 - seasonElapsed(tour, w);
+      if(!d){ arr[w] = (p.points || 0) * fade; continue; }
+      let left = d.rest * fade;
+      // An event we have not reached yet is still being held.
+      for(const [name, pts] of d.ev){
+        const ew = when.get(name);
+        if(ew === undefined || ew >= w) left += pts;
+      }
+      // A dated result at a tour event we simply do not carry -- a 250 missing
+      // from our calendar -- expires and is not replaced. We DO run that tier,
+      // so the player has chances here to win those points back.
+      for(const [wk, pts] of d.wk) if(wk >= wkNow) left += pts;
+      // Below the tour -- Challengers, WTA 125s -- expires and is REPLACED at par.
+      //
+      // Only modelling the expiry would be half the story: a world 300 whose
+      // points are mostly Challenger results is, in reality, playing Challengers
+      // all season and replacing them. This simulation runs no Challenger tier,
+      // so it can pay nothing back -- and dropping them anyway bled the bottom of
+      // the ranking to nothing. Ranks 201-350 ended the season on 24 points of a
+      // real 207, with 95% of the band under a hundred, not because of results
+      // but because their points had expired with nothing to defend them with.
+      //
+      // Replacing at par assumes a steady state: same circuit, same standard. It
+      // is the least-wrong assumption while the tier is unsimulated, and it is
+      // deliberately the ONE place where points are handed over rather than won.
+      // The expiry week is carried and unused so that simulating a Challenger
+      // tier later is a change to this one line.
+      for(const [, pts] of (d.sub || [])) left += pts;
+      arr[w] = left;
+    }
+    table.set(p.name, arr);
+  }
+  return (RESIDUALS[tour] = table);
+}
+function residualAt(tour, p, week){
+  const arr = residualTable(tour).get(p.name);
+  if(!arr) return (p.points || 0) * (1 - seasonElapsed(tour, week));
+  return arr[Math.max(0, Math.min(arr.length - 1, week))];
+}
+
+// The ranking as it stood in `week`, snapshotted when that week was played.
+// It has to be taken AT the time: reconstructing a past week later would fold
+// in results that had not happened yet.
+//
+// credit() already keeps r.points current, so this is a read and a sort.
+// Recomputing rankingBreakdown per player per snapshot instead measured 7.8ms
+// against 0.13ms -- sixty times the cost for the same answer.
+function snapshotRank(week){
+  if(!state.rankViews) state.rankViews = new Map();
+  if(state.rankViews.has(week)) return state.rankViews.get(week);
+  const tour = state.tour;
+  const rows = (POOLS[tour] || []).map(p => {
+    const r = state.table.get(p.name);
+    return { name: p.name, seed: p.rank,
+             tot: (r ? r.points : 0) + residualAt(tour, p, week) };
+  });
+  // Ties break on the ranking they arrived with, so a week in which nobody has
+  // played yet reproduces it exactly rather than shuffling on Map order.
+  rows.sort((a, b) => b.tot - a.tot || a.seed - b.seed);
+  // Rank onto the pool's OWN ranking numbers, not onto 1..N. The pool is the
+  // ranked field minus anyone without a rating -- 454 of the WTA's 500 -- so
+  // dense positions would hand the 454 players the numbers 1..454 and quietly
+  // promote everyone past a gap. Every acceptance cut and direct-entry size is
+  // calibrated against real ranking numbers, so that loosened all of them: 149
+  // WTA players came out "moved" in week 0, before a ball had been struck.
+  // Reusing the pool's own numbers makes an unplayed week reproduce the
+  // ranking the pool arrived with, exactly.
+  const slots = rows.map(x => x.seed).sort((a, b) => a - b);
+  const view = new Map();
+  rows.forEach((x, i) => view.set(x.name, slots[i]));
+  state.rankViews.set(week, view);
+  return view;
+}
+
+// The snapshot in force at `week`: the latest one taken at or before it, or
+// null when none has been taken yet -- which is every deadline that falls in
+// the previous season, and where the pool's own ranking is what should apply.
+function rankAt(week){
+  if(!state.rankViews) return null;
+  let best = null, bestW = -Infinity;
+  for(const [w, v] of state.rankViews)
+    if(w <= week && w > bestW){ bestW = w; best = v; }
+  return best;
+}
+const rankIn = (view, p) => (view && view.get(p.name)) || p.rank;
+
 // One result per player per event. `round` is the round they went out in, or W.
-function credit(name, pts, title, ev, round, qualifier){
+function credit(name, pts, title, ev, round, qualifier, auto){
   const r = row(name);
   r.results.push({ event: ev.name, level: ev.level, sday: ev.sday, pts,
-                   round, slot: slotOf(state.tour, ev, qualifier) });
+                   // `late` is only meaningful for a 500 -- it is what the ATP's
+                   // after-the-US-Open half of the commitment is counted from.
+                   late: !!ev.isLate, qualifier: !!qualifier,
+                   round, slot: slotOf(state.tour, ev, qualifier, auto) });
   if(title) r.titles++;
   r.points = rankingPoints(r, state.tour);
 }
@@ -1589,7 +1982,7 @@ function replayAs(){
   state.idx = 0; state.table = new Map(); state.log = [];
   state.busy = new Map(); state.hurt = new Map(); state.absence = new Map();
   state.load = new Map(); state.loadWeek = null; state.fields = new Map();
-  state.rested = 0;
+  state.rested = 0; state.rankViews = new Map();
   while(state.idx < upto) playNext();
   const last = state.log.length ? state.log[state.log.length - 1].ev : null;
   if(last) showNow(last, state.idx, cal().length);
@@ -1920,6 +2313,31 @@ const SLOT_NOTE = {
   finals: 'the finals',
 };
 
+// The ATP's top-30 commitment is owed on where the player FINISHED LAST SEASON,
+// so it belongs against the ranking they arrived with and not the one they hold
+// now. A player who has slid to 45 still owes every Masters bar Monte Carlo, and
+// the chip has to keep saying so or it looks like a bug in the standings.
+//
+// There is no WTA equivalent to show: that tour's compulsory class is whoever is
+// automatically eligible for each event by current ranking, so it is a property
+// of the event and the week, not a badge the player carries all year.
+function commitChip(name, tour){
+  if(tour !== 'ATP') return '';
+  const p = (POOLS[tour] || []).find(x => x.name === name);
+  if(!p || p.rank > COMMITTED_RANK) return '';
+  const { played, late } = fivesSoFar(name);
+  const need = Math.max(0, FIVE_HUNDRED_QUOTA - played);
+  const title = 'Finished last season at number ' + p.rank + ', so inside the top '
+    + COMMITTED_RANK + ': committed to all four majors and every Masters except '
+    + OPTIONAL_MASTERS + ', plus ' + FIVE_HUNDRED_QUOTA + ' ATP 500s of which one '
+    + 'must fall after the US Open. Owed for the whole season whatever happens to '
+    + 'the ranking; injury is the only excuse.';
+  const five = need ? need + ' more 500' + (need === 1 ? '' : 's')
+             : (late ? '500s met' : '500s met, none late yet');
+  return '<span class="commit" title="' + esc(title) + '">top-'
+       + COMMITTED_RANK + ' commitment \u00b7 ' + esc(five) + '</span>';
+}
+
 function openPlayer(name){
   const r = state.table.get(name);
   if(!r) return;
@@ -1959,9 +2377,10 @@ function openPlayer(name){
   const rule = tour === 'ATP'
     ? 'Best 19: the four majors and eight compulsory Masters, plus the seven '
       + 'best of everything else. The finals are added on top as a twentieth.'
-    : 'Best 18: the four majors, six compulsory 1000s and the best single other '
-      + '1000, plus the seven best of everything else. The finals are added on '
-      + 'top as a nineteenth.';
+    : 'Best 16: the four majors, the six combined 1000s, the best of the three '
+      + 'WTA-only 1000s, and the five best of everything else. A compulsory '
+      + 'event owns its slot \u2014 skip one and a zero sits there all year. '
+      + 'The finals are added on top as a seventeenth.';
   if(!played.length) body = '<p class="beat">No tournaments played yet.</p>';
   else body += '<p class="beat count">' + played.length + ' played, ' + counted.size
     + ' counting<button type="button" class="info" id="ruleinfo" aria-expanded="false"'
@@ -1977,7 +2396,8 @@ function openPlayer(name){
     + ' &middot; number ' + rank + ' on the season standings</div>'
     + '<div class="chips"><span>' + total + ' points</span><span>'
     + (r.titles || 0) + ' titles</span><span>' + r.w + '\u2013' + r.l
-    + '</span></div></header><div class="sheetbody">' + body + '</div>';
+    + '</span>' + commitChip(name, tour) + '</div></header>'
+    + '<div class="sheetbody">' + body + '</div>';
   $('sheetclose').addEventListener('click', closeEvent);
   const info = $('ruleinfo');
   if(info) info.addEventListener('click', () => {
@@ -2024,7 +2444,7 @@ function reset(){
   state.idx = 0; state.table = new Map(); state.log = []; state.busy = new Map();
   state.hurt = new Map(); state.absence = new Map();
   state.load = new Map(); state.loadWeek = null; state.fields = new Map();
-  state.rested = 0;
+  state.rested = 0; state.rankViews = new Map();
   applyGround(DEFAULT_BG);
   state.seed = (Math.random() * 0xFFFFFFFF) >>> 0;
   picked = null;

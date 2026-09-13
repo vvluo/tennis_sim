@@ -27,15 +27,23 @@ RATINGS = ROOT / 'ratings.json'
 MIN_POOL = 200          # a 128 draw with 10% dropout needs well over 128
 
 
-def candidates(tour: str, ranks_by_tour, nations_by_tour=None):
+def candidates(tour: str, ranks_by_tour, nations_by_tour=None,
+               points_by_tour=None):
     """Ranked pool for one tour: everyone with both a rating and a ranking.
 
     `country` is the three-letter code the ranking feed carries, or None for a
     player under the neutral designation. No tournament is held in the countries
     those players come from, so a missing code costs them nothing.
+
+    `points` is the player's real ranking points at the snapshot, carried only
+    when `points_by_tour` is supplied. The season page needs it: a simulated
+    season starts everyone on zero, so until the real total has been cycled out
+    there is nothing to rank anybody by. The tournament page has no season to
+    cycle and leaves it out.
     """
     ranks = ranks_by_tour[tour]
     nations = (nations_by_tour or {}).get(tour, {})
+    points = (points_by_tour or {}).get(tour, {})
     pool = []
     for row in json.loads(RATINGS.read_text()):
         if row['t'] != tour or row['p'] not in ranks:
@@ -46,8 +54,34 @@ def candidates(tour: str, ranks_by_tour, nations_by_tour=None):
         code = nations.get(row['p'])
         if code:
             entry['country'] = code
+        if row['p'] in points:
+            entry['points'] = points[row['p']]
         pool.append(entry)
     return sorted(pool, key=lambda p: p['rank'])
+
+
+def entry_points():
+    """Real ranking points per player, from the same cached rankings call.
+
+    This is the total the feed reports, not a per-tournament breakdown -- the
+    rankings endpoint carries no breakdown at all. The season page decays this
+    total as the simulated season awards its own points.
+    """
+    from sportradar_data import Client
+    client = Client(budget=0)                       # cache only, never spends
+
+    def flip(name):
+        last, _, first = name.partition(',')
+        return f'{first.strip()} {last.strip()}' if first else name.strip()
+
+    out = {}
+    for ranking in client.rankings():
+        if ranking['name'] not in ('ATP', 'WTA'):
+            continue
+        out[ranking['name']] = {flip(e['competitor']['name']): e['points']
+                                for e in ranking['competitor_rankings']
+                                if e.get('points') is not None}
+    return out
 
 
 def nationalities():

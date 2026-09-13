@@ -24,7 +24,8 @@ from pathlib import Path
 
 import sitenote
 
-from run_tournament import candidates, rankings, nationalities, MIN_POOL
+from run_tournament import (candidates, rankings, nationalities,
+                            entry_points, MIN_POOL)
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE = ROOT / 'simulation' / 'season_template.html'
@@ -133,9 +134,10 @@ def main() -> int:
 
     ranks = rankings()
     nations = nationalities()
+    points = entry_points()
     pools, cals = {}, {}
     for tour in ('ATP', 'WTA'):
-        pool = candidates(tour, ranks, nations)
+        pool = candidates(tour, ranks, nations, points)
         if len(pool) < MIN_POOL:
             raise SystemExit(f'only {len(pool)} rated+ranked {tour} players')
         pools[tour] = pool
@@ -145,6 +147,24 @@ def main() -> int:
         if len(pool) < biggest:
             raise SystemExit(f'{tour} pool holds {len(pool)}, but the calendar '
                              f'has a {biggest} draw')
+        # Every WTA 1000 has to fall in one of the two named groups, or its
+        # ranking slot silently becomes "best of the rest". A calendar change
+        # that renames or adds one would be invisible at runtime.
+        if tour == 'WTA':
+            compulsory = {'Indian Wells', 'Miami', 'Madrid', 'Rome', 'Toronto',
+                          'Beijing', 'Cincinnati'}
+            wta_only = {'Doha', 'Dubai', 'Wuhan'}
+            thousands = {e['name'] for e in cals[tour]
+                         if e['level'].endswith('1000') and not e['skip']}
+            stray = thousands - compulsory - wta_only
+            missing = (compulsory | wta_only) - thousands
+            if stray:
+                raise SystemExit(f'WTA 1000s not classified for the ranking '
+                                 f'slots: {sorted(stray)}')
+            if missing:
+                raise SystemExit(f'WTA 1000s named in the ranking slots but not '
+                                 f'on the calendar: {sorted(missing)}')
+
         # A missing host country is invisible at runtime -- the home boost simply
         # never fires for that event -- so it fails the build instead.
         homeless = [e['name'] for e in cals[tour] if not e['country']]
@@ -154,8 +174,28 @@ def main() -> int:
         print(f'{tour}: {len(pool)} players, {len(cals[tour])} events '
               f'({len(playable)} simulated, {len(cals[tour]) - len(playable)} skipped)')
 
+    # When each player's real points should leave the ranking, so the simulated
+    # season can cycle them out rather than starting everyone on zero.
+    sys.path.insert(0, str(ROOT / 'simulation'))
+    import realpoints
+    drops = realpoints.schedules({t: {e['name'] for e in cals[t]} for t in cals})
+    for tour in cals:
+        have = sum(1 for p in pools[tour] if p['name'] in drops.get(tour, {}))
+        placed = sum(sum(v for _, v in d['ev'] + d['wk'] + d['sub'])
+                     for d in drops.get(tour, {}).values())
+        rest = sum(d['rest'] for d in drops.get(tour, {}).values())
+        share = 100 * placed / (placed + rest) if placed + rest else 0
+        print(f'{tour}: drop schedule for {have}/{len(pools[tour])} players, '
+              f'{share:.0f}% of their points dated, the rest decays')
+
+    # `scale` is a diagnostic -- how much the schedule had to be stretched to
+    # meet the reported total -- and the page has no use for it.
+    lean = {t: {n: {k: v for k, v in d.items() if k != 'scale'}
+                for n, d in rows.items()}
+            for t, rows in drops.items()}
+
     built = datetime.fromtimestamp(RATINGS.stat().st_mtime).date().isoformat()
-    payload = {'pools': pools, 'calendars': cals, 'built': built}
+    payload = {'pools': pools, 'calendars': cals, 'built': built, 'drops': lean}
     print(f'data set dated {built}')
 
     page = (TEMPLATE.read_text()

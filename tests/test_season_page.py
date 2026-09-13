@@ -972,36 +972,45 @@ def test_an_injured_qualifier_is_replaced_by_the_next_player_down(season):
 # ---- what counts towards a ranking ---------------------------------------
 
 ATP_OPTIONAL_1000 = {'Monte Carlo'}
-WTA_COMPULSORY_1000 = {'Indian Wells', 'Miami', 'Madrid', 'Rome', 'Toronto', 'Beijing'}
+# The six combined events own a ranking slot each. Cincinnati does NOT -- turning
+# up there is required but its result competes for a best-of slot like any other.
+WTA_SLOTTED_1000 = {'Indian Wells', 'Miami', 'Madrid', 'Rome', 'Toronto', 'Beijing'}
+WTA_ONLY_1000 = {'Doha', 'Dubai', 'Wuhan'}
 # Written out here rather than read off the page. Taking them from the page made
 # every one of these tests agree with whatever the page happened to do: widening
 # the optional slots to ten, or letting every non-combined 1000 count in full,
 # both moved the page and the test together and nothing failed.
-OTHER_SLOTS = 7          # ATP best 19 = 12 compulsory + 7; WTA best 18 = 11 + 7
-WTA_FLOATING_SLOTS = 1   # one non-combined 1000 counts in full
+# ATP best 19 = 4 majors + 8 Masters + 7 others.
+# WTA best 16 = 4 majors + 6 combined 1000s + 1 WTA-only 1000 + 5 others.
+SLOTS = {'ATP': {'majors': None, 'mand': None, 'float': 0, 'other': 7},
+         'WTA': {'majors': None, 'mand': None, 'float': 1, 'other': 5}}
 
 
-def _recompute(tour, player, other_slots=OTHER_SLOTS, floating_slots=WTA_FLOATING_SLOTS):
-    """The ranking from the raw results, worked out independently of the page."""
-    mand = [g['pts'] for g in player['results'] if g['slot'] in ('mand', 'finals')]
-    floats = sorted((g['pts'] for g in player['results'] if g['slot'] == 'float'),
-                    reverse=True)
-    other = [g['pts'] for g in player['results'] if g['slot'] == 'other']
-    total = sum(mand)
-    if tour == 'ATP':
-        other += floats
-    else:
-        total += sum(floats[:floating_slots])
-        other += floats[floating_slots:]
-    return total + sum(sorted(other, reverse=True)[:other_slots])
+def _recompute(tour, player):
+    """The ranking from the raw results, worked out independently of the page.
+
+    A compulsory slot is not a best-of: it counts in full, and an event the
+    player skipped is simply absent, which is the zero.
+    """
+    cfg = SLOTS[tour]
+    by = lambda s: [g['pts'] for g in player['results'] if g['slot'] == s]
+    total = sum(by('majors')) + sum(by('mand')) + sum(by('finals'))
+    floats = sorted(by('float'), reverse=True)
+    other = by('other') + floats[cfg['float']:]      # the unused ones spill
+    total += sum(floats[:cfg['float']])
+    return total + sum(sorted(other, reverse=True)[:cfg['other']])
 
 
 def test_ranking_points_are_the_counting_slots_not_the_season_total(season):
     """Best 19 (ATP) / best 18 (WTA), plus the finals -- not a running sum."""
     for tour, v in season.items():
-        assert v['slots'] == {'other': OTHER_SLOTS, 'wtaFloating': WTA_FLOATING_SLOTS}, (
-            f'{tour}: the page counts {v["slots"]}, not the documented '
-            f'{OTHER_SLOTS} optional slots and {WTA_FLOATING_SLOTS} floating 1000')
+        want_slots = SLOTS[tour]
+        assert v['slots']['other'] == want_slots['other'], (
+            f'{tour}: the page allows {v["slots"]["other"]} best-of slots, not '
+            f'{want_slots["other"]}')
+        assert v['slots']['float'] == want_slots['float'], (
+            f'{tour}: the page allows {v["slots"]["float"]} WTA-only 1000 slots, '
+            f'not {want_slots["float"]}')
         for p in v['ranking']:
             want = _recompute(tour, p)
             assert p['points'] == want, (
@@ -1024,11 +1033,11 @@ def test_the_best_of_cap_actually_drops_results(season):
             # The optional pool is not just the 'other' results: on the WTA every
             # non-combined 1000 past the first floating slot spills into it too.
             floats = len([g for g in p['results'] if g['slot'] == 'float'])
-            spill = floats if tour == 'ATP' else max(0, floats - WTA_FLOATING_SLOTS)
+            spill = floats if tour == 'ATP' else max(0, floats - SLOTS['WTA']['float'])
             optional = len([g for g in p['results'] if g['slot'] == 'other']) + spill
-            assert optional > OTHER_SLOTS, (
+            assert optional > SLOTS[tour]['other'], (
                 f'{tour}: {p["name"]} lost points with only {optional} optional '
-                f'results, which all fit in {OTHER_SLOTS} slots')
+                f'results, which all fit in {SLOTS[tour]["other"]} slots')
 
 
 def test_a_skipped_compulsory_event_cannot_be_replaced(season):
@@ -1044,20 +1053,18 @@ def test_a_skipped_compulsory_event_cannot_be_replaced(season):
                     if len([g for g in p['results'] if g['slot'] == 'mand']) < cap]
         assert skippers, f'{tour}: nobody skipped a compulsory event'
         for p in skippers:
-            optional = sorted((g['pts'] for g in p['results'] if g['slot'] == 'other'),
-                              reverse=True)
-            counted = sum(optional[:OTHER_SLOTS])
-            # the compulsory part is a plain sum of what they actually played
-            mand = sum(g['pts'] for g in p['results'] if g['slot'] in ('mand', 'finals'))
+            cfg = SLOTS[tour]
+            optional = [g['pts'] for g in p['results'] if g['slot'] == 'other']
             floats = sorted((g['pts'] for g in p['results'] if g['slot'] == 'float'),
                             reverse=True)
-            if tour == 'ATP':
-                counted = sum(sorted(optional + floats, reverse=True)[:OTHER_SLOTS])
-            else:
-                mand += sum(floats[:WTA_FLOATING_SLOTS])
-                counted = sum(sorted(optional + floats[WTA_FLOATING_SLOTS:],
-                                     reverse=True)[:OTHER_SLOTS])
-            assert p['points'] == mand + counted, (
+            # the compulsory part is a plain sum of what they actually played:
+            # majors, slot-bearing 1000s, the finals, and the one WTA-only 1000
+            compulsory = sum(g['pts'] for g in p['results']
+                             if g['slot'] in ('majors', 'mand', 'finals'))
+            compulsory += sum(floats[:cfg['float']])
+            best = sum(sorted(optional + floats[cfg['float']:],
+                              reverse=True)[:cfg['other']])
+            assert p['points'] == compulsory + best, (
                 f'{tour}: {p["name"]} does not split cleanly into a compulsory '
                 f'sum and a best-of')
 
@@ -1092,18 +1099,26 @@ def test_the_right_events_are_compulsory(season):
             for g in p['results']:
                 if g['level'] == 'Grand Slam':
                     slams += 1
-                    assert g['slot'] in ('mand', 'other'), (
-                        f'{tour}: {g["event"]} counted as {g["slot"]!r} for {p["name"]}')
-                    # 'other' is only legitimate for someone who qualified in
-                    assert g['slot'] == 'mand' or g['round'] in ('R128', 'R64', 'R32'), (
-                        f'{tour}: {p["name"]} treated {g["event"]} as optional after '
-                        f'reaching {g["round"]}')
+                    # A major is compulsory for everyone on the acceptance list.
+                    # The one legitimate exception is a player who came through
+                    # qualifying, and the record now says so outright -- an
+                    # earlier version guessed it from the round reached, on the
+                    # theory that a qualifier would not get far. A world 133 then
+                    # qualified and won the Australian Open.
+                    want = 'other' if g['qualifier'] else 'majors'
+                    assert g['slot'] == want, (
+                        f'{tour}: {g["event"]} counted as {g["slot"]!r} for '
+                        f'{p["name"]} (qualifier={g["qualifier"]}), expected {want!r}')
                 if not g['level'].endswith('1000'):
                     continue
                 if tour == 'ATP':
                     want = 'other' if g['event'] in ATP_OPTIONAL_1000 else 'mand'
+                elif g['event'] in WTA_SLOTTED_1000:
+                    want = 'mand'
+                elif g['event'] in WTA_ONLY_1000:
+                    want = 'float'
                 else:
-                    want = 'mand' if g['event'] in WTA_COMPULSORY_1000 else 'float'
+                    want = 'other'      # Cincinnati: must play, but no slot
                 # a qualifier was never on the direct entry list, so it is optional
                 assert g['slot'] in (want, 'other'), (
                     f'{tour}: {g["event"]} counted as {g["slot"]!r} for '
@@ -1129,7 +1144,7 @@ def test_only_one_floating_thousand_counts_for_the_wta(season):
         # result that got in.
         pool = sorted([g['pts'] for g in p['results'] if g['slot'] == 'other']
                       + sorted((g['pts'] for g in floats), reverse=True)[1:],
-                      reverse=True)[:OTHER_SLOTS]
+                      reverse=True)[:SLOTS['WTA']['other']]
         extra = sorted((g['pts'] for g in counted), reverse=True)[1:]
         for pts in extra:
             assert pool and pts >= min(pool), (
@@ -1222,10 +1237,19 @@ def test_a_deeply_ranked_player_reaches_no_major_and_no_thousand(season):
             f'{tour}: #{deep["rank"]} was in a 1000 draw')
         assert 'load management' not in deep['reasons'], (
             f'{tour}: #{deep["rank"]} is "managing a workload" they do not have')
-        share = deep['reasons'].get('not qualified', 0) / sum(deep['reasons'].values())
+        # Every reason given must come from their RANKING. "not qualified" is
+        # the acceptance list stopping above them; "lost in qualifying" is them
+        # being low enough to need a qualifying draw and not coming through it.
+        # Both are the ranking talking, and which one it is now depends on where
+        # the live ranking has them that week -- a world 400 having a good run
+        # does reach a 250's qualifying, which is what actually happens. What
+        # must never appear is load management: they carry no load.
+        by_rank = sum(deep['reasons'].get(k, 0) for k in
+                      ('not qualified', 'lost in qualifying', 'did not qualify'))
+        share = by_rank / sum(deep['reasons'].values())
         assert share > 0.9, (
             f'{tour}: only {share:.0%} of #{deep["rank"]}\'s absences are put down '
-            f'to their ranking')
+            f'to their ranking; the rest say {deep["reasons"]}')
 
 
 def test_a_top_player_rests_up_rather_than_failing_to_qualify(season):
@@ -1308,3 +1332,379 @@ def test_a_walkover_is_the_absence_of_a_match(season):
         # is the row count LESS the walkovers, and that is what matches W-L
         assert v['you']['matches'] - wo == sum(v['you']['record']), (
             f'{tour}: a walkover is being counted as a played match')
+
+
+# ---- the ATP's top-30 commitment -----------------------------------------
+
+def test_the_atp_top_thirty_play_every_major(season):
+    """The majors are absolute: injury is the only excuse.
+
+    The Masters are not, and deliberately so -- they are compulsory on paper but
+    skipped often enough that modelling them as certain was wrong, so their
+    attendance is a wear gradient instead (see the skip-rate tests below). What
+    stays absolute here is the four majors and the 500 quota.
+    """
+    c = season['ATP']['commitment']
+    assert c['people'] > 50, f'only {c["people"]} fit top-30 player-seasons measured'
+    assert c['slamShare'] == 1.0, (
+        f'ATP top 30 played {c["slamShare"]:.1%} of the majors, not all of them')
+    # the Masters stay high without being certain
+    assert 0.65 <= c['mastersShare'] <= 0.92, (
+        f'ATP top 30 played {c["mastersShare"]:.1%} of the compulsory Masters; '
+        f'1.0 means they are being forced again, and much below this means the '
+        f'commitment has stopped meaning anything')
+
+
+def test_monte_carlo_is_not_compulsory(season):
+    """The one Masters nobody has to play. If it reads 100% it has been swept
+    in with the rest, and the exception has stopped existing."""
+    c = season['ATP']['commitment']
+    assert c['monteShare'] < 0.98, (
+        f'Monte Carlo drew {c["monteShare"]:.0%} of the top 30 -- it is being '
+        f'treated as compulsory')
+    assert c['monteShare'] > 0.3, (
+        f'Monte Carlo drew only {c["monteShare"]:.0%}; optional is not the same '
+        f'as unattractive')
+
+
+def test_the_five_hundred_quota_is_met_with_one_after_the_us_open(season):
+    """Four ATP 500s, one of them later in the year than the US Open.
+
+    The commitment has to fire early enough to be satisfiable: counting the
+    remaining 500s as EVENTS rather than distinct weeks left players one short,
+    because Vienna and Basel are the same week and only one can be played.
+    """
+    c = season['ATP']['commitment']
+    assert c['ruleShare'] == 1.0, (
+        f'only {c["ruleShare"]:.1%} of the fit top 30 met the 500 commitment')
+    assert c['fives'] >= 4, f'the top 30 average {c["fives"]:.1f} ATP 500s'
+
+
+def test_the_commitment_is_atp_only(season):
+    """The WTA's is a different rule and is modelled by the entry curve.
+
+    Without this the ATP tests above would pass on a change that made every tour
+    compulsory, which would quietly wreck the WTA's participation shape.
+    """
+    w = season['WTA']['commitment']
+    assert w['slamShare'] < 1.0 or w['mastersShare'] < 1.0, (
+        'the WTA top 30 played every major and every 1000, so the ATP-only '
+        'commitment is being applied to both tours')
+
+
+def test_wta_mandatory_dropout_rises_through_the_season(season):
+    """A compulsory 1000 is not a certainty: players take the zero and rest.
+
+    How often depends on how much tennis they have already played, not on the
+    carried load -- that barely moves between Madrid in May and Beijing in
+    October (7.3 against 7.4) while matches played since January more than
+    doubles (17 to 38). Fitted to roughly 15% at the clay 1000s and 30-35% at
+    Beijing among players whose ranking gets them direct entry and who are fit.
+    """
+    d = season['WTA']['thousandDropout']
+    assert d, 'no WTA dropout measured'
+    for ev in ('Madrid', 'Rome'):
+        assert 0.10 <= d[ev] <= 0.21, (
+            f'{ev}: {d[ev]:.1%} of eligible players skipped it, not about 15%')
+    assert 0.26 <= d['Beijing'] <= 0.42, (
+        f'Beijing: {d["Beijing"]:.1%} skipped it, not the 30-35% expected of the '
+        f'last compulsory 1000 of a long season')
+    # ...and it has to RISE, or it is not tracking the season at all
+    assert d['Beijing'] > d['Madrid'] + 0.08, (
+        f'Beijing {d["Beijing"]:.1%} against Madrid {d["Madrid"]:.1%} -- the '
+        f'dropout is not growing through the year')
+    assert d['Indian Wells'] < d['Madrid'], (
+        f'Indian Wells {d["Indian Wells"]:.1%} is no fresher than Madrid '
+        f'{d["Madrid"]:.1%}')
+
+
+def test_atp_masters_skip_rates_follow_the_season(season):
+    """Compulsory on paper, skipped in practice, and more so as the year wears on.
+
+    Fitted to: under 10% at Indian Wells and Miami, about 15% at the clay
+    Masters, 20-25% for the Canada/Cincinnati swing and 25-30% at Shanghai and
+    Paris -- among players whose ranking gets them direct entry and who are fit.
+
+    The curve is a square root of matches played. A straight line cannot be under
+    10% in March and near 30% in November at the same time; the root is flat
+    early and flattens again late, which is the shape the targets describe.
+    """
+    d = season['ATP']['thousandDropout']
+    assert d, 'no ATP dropout measured'
+    bands = {'Indian Wells': (0.00, 0.12), 'Miami': (0.00, 0.13),
+             'Madrid': (0.11, 0.19), 'Rome': (0.11, 0.19),
+             'Montreal': (0.19, 0.29), 'Cincinnati': (0.20, 0.31),
+             'Shanghai': (0.21, 0.32), 'Paris': (0.23, 0.34)}
+    for ev, (lo, hi) in bands.items():
+        assert lo <= d[ev] <= hi, (
+            f'{ev}: {d[ev]:.1%} of eligible players skipped it, outside {lo:.0%}-{hi:.0%}')
+    # and the whole thing has to slope upwards, or it is not tracking the season
+    assert d['Paris'] > d['Indian Wells'] + 0.10, (
+        f'Paris {d["Paris"]:.1%} against Indian Wells {d["Indian Wells"]:.1%} -- '
+        f'the skip rate is not growing through the year')
+
+
+def test_the_canada_cincinnati_swing_is_skipped_more_than_its_date_explains(season):
+    """Back-to-back Masters take an extra penalty beyond season position.
+
+    Cincinnati sits two weeks after Canada and barely two matches further into
+    the season, so a curve keyed on matches alone would put them level. It does
+    not: both carry the crowded-calendar term.
+    """
+    # Measured on the curve itself. Through a season the term is worth about a
+    # point and a half, which a sampled run cannot separate from noise -- an
+    # earlier version of this test asserted Cincinnati > Rome and passed happily
+    # with the crowding term deleted, because the season gap alone carries that.
+    c = season['ATP']['crowding']
+    for label, pair in c.items():
+        assert pair['crowded'] > pair['alone'], (
+            f'at {label} matches a back-to-back Masters is skipped '
+            f'{pair["crowded"]:.4f} against {pair["alone"]:.4f} for one standing '
+            f'alone -- the crowded-calendar term is doing nothing')
+    # Deliberately NOT asserted through a played season. The term is worth about
+    # a point and a half of skip rate, and the same measurement over ten seasons
+    # against thirty-five moved Cincinnati from 22.7% to 26.0% -- several times
+    # the effect. A behavioural assertion here would be measuring noise.
+
+
+def test_the_thousands_are_better_attended_than_anything_below_them(season):
+    """Compulsory-ness has to show up as participation, on both tours.
+
+    Gated on the same eligibility bar at every level, so a 250 is not penalised
+    here for being easy to get into -- the comparison is the same thirty players
+    deciding whether to turn up.
+    """
+    for tour, v in season.items():
+        lv = v['byLevel']
+        thousand = lv[f'{tour} 1000']
+        assert lv['Grand Slam'] > thousand, (
+            f'{tour}: the majors draw {lv["Grand Slam"]:.1%} against the 1000s\' '
+            f'{thousand:.1%}')
+        assert thousand > lv[f'{tour} 500'] + 0.15, (
+            f'{tour}: the 1000s draw {thousand:.1%} against the 500s\' '
+            f'{lv[f"{tour} 500"]:.1%} -- being compulsory is barely worth anything')
+        assert lv[f'{tour} 500'] > lv[f'{tour} 250'], (
+            f'{tour}: the 500s draw {lv[f"{tour} 500"]:.1%} against the 250s\' '
+            f'{lv[f"{tour} 250"]:.1%}')
+
+
+# ---- the live ranking -----------------------------------------------------
+# Real points cycle out as the simulated season awards its own, and acceptance is
+# judged on the ranking frozen at each event's entry deadline.
+
+def test_the_payout_curve_matches_what_a_played_season_credits(season):
+    """The decay is measured against this curve, so an error in it rescales
+    every player's residual without anything else looking wrong.
+
+    An event's payout is fixed by its draw shape: the number of players going out
+    in each round does not depend on who enters or how the results fall. So the
+    analytic figure and the credited one must agree EXACTLY, not approximately.
+
+    This is the test that caught eventPayout paying the champion the finalist's
+    points. It was 13.5% low across the calendar -- every event short by exactly
+    its F value -- and no other test in this file noticed, because every rate
+    they measure is a ratio that the rescaling left untouched.
+    """
+    for tour in ('ATP', 'WTA'):
+        live = season[tour]['live']
+        assert live['analytic'] == live['paid'], (
+            f'{tour}: the calendar says it pays {live["analytic"]} points, a '
+            f'played season credited {live["paid"]}')
+        assert live['worst'] == 0, (
+            f'{tour}: {live["worstEv"]} is out by {live["worst"]} points')
+        assert live['seasonPayout'] == live['analytic']
+
+
+def test_the_season_runs_from_no_points_awarded_to_all_of_them(season):
+    for tour in ('ATP', 'WTA'):
+        live = season[tour]['live']
+        assert live['elapsedAtStart'] == 0, (
+            f'{tour}: points were already awarded before the first week')
+        assert live['elapsedAtEnd'] == 1, (
+            f'{tour}: the season ends with {live["elapsedAtEnd"]:.3f} of its '
+            f'points awarded, so the real total never fully cycles out')
+
+
+def test_an_unplayed_week_reproduces_the_ranking_the_pool_arrived_with(season):
+    """Before a ball is struck the live ranking must BE the entry ranking.
+
+    Not a nicety: every acceptance cut and direct-entry size is calibrated
+    against real ranking numbers. Ranking onto dense positions 1..N instead
+    handed the WTA's 454-player pool the numbers 1..454 and promoted everyone
+    sitting past a gap, which quietly loosened every cut on that tour. It showed
+    up as 149 players having "moved" in week 0.
+    """
+    for tour in ('ATP', 'WTA'):
+        live = season[tour]['live']
+        assert live['week0Identical'] == live['poolSize'], (
+            f'{tour}: {live["poolSize"] - live["week0Identical"]} of '
+            f'{live["poolSize"]} players are ranked differently in week 0, '
+            f'before anyone has played')
+
+
+def test_entry_deadlines_are_six_weeks_for_majors_and_four_otherwise(season):
+    for tour in ('ATP', 'WTA'):
+        live = season[tour]['live']
+        assert live['slamLead'] == 6, f'{tour}: major deadline {live["slamLead"]}w'
+        assert live['otherLead'] == 4, f'{tour}: other deadline {live["otherLead"]}w'
+
+
+def test_the_live_ranking_actually_diverges_from_the_entry_ranking(season):
+    """Otherwise the whole mechanism is inert and every other test here passes
+    for the wrong reason. Freezing the view at week 0 forever would satisfy the
+    identity test above and nothing else would complain.
+
+    Measured over the TOP 100, not the whole pool. Below about 150 a player's
+    entry ranking is not a prediction of their simulated season at all: they earn
+    almost nothing here, because most of their real points come from Challengers
+    and ITF events this simulation does not play. Those players end up near-tied
+    on a handful of points, where a single qualifying win is worth fifty places,
+    and the tail's noise swamps the signal -- ranks 201-500 drift a mean 49
+    places against the top 30's 13.
+    """
+    for tour in ('ATP', 'WTA'):
+        drift = season[tour]['live']['meanDriftTop100']
+        assert drift > 2.0, (
+            f'{tour}: the live top 100 ends the season a mean {drift:.1f} places '
+            f'from the entry ranking -- it is barely moving')
+        assert drift < 45.0, (
+            f'{tour}: mean drift {drift:.1f} places across the top 100 is not a '
+            f'season of results, it is the ranking coming apart')
+
+
+def test_the_atp_commitment_is_granted_on_last_seasons_finish(season):
+    """It is owed for the whole year however the ranking moves, so committedTo
+    must read the ranking the player arrived with and not the live view.
+
+    Asserted on the function against a snapshot that says the opposite of the
+    entry ranking. Driving it through a played season cannot tell "released from
+    the commitment" apart from "skipped it for wear", which is the whole reason
+    the Masters gradient exists.
+    """
+    c = season['ATP']['commitIgnoresLiveRank']
+    assert c['insideStillOwes'], (
+        'a player who finished last season inside the top 30 stopped owing the '
+        'majors once the live ranking put them at 400 -- the commitment is '
+        'reading the live view instead of the entry ranking')
+    assert c['outsideStillFree'], (
+        'a player who finished outside the top 30 was given the commitment '
+        'because the live ranking put them at 1')
+
+
+def test_a_wta_compulsory_1000_owns_a_slot_only_when_automatically_eligible(season):
+    """The two tours differ and the difference has to survive in the slots.
+
+    The ATP's obligation comes from last season's finish, so a compulsory Masters
+    owns a slot whatever the player's current standing. The WTA's compulsory class
+    is whoever is automatically eligible by ranking, so a player who is not does
+    not owe the event and it competes in the best-of pool like any other result.
+    """
+    assert season['ATP']['live']['slotSplit'] == {'auto': 'mand', 'notAuto': 'mand'}, (
+        "an ATP compulsory Masters stopped owning a slot for a player outside "
+        "automatic entry -- that is the WTA's rule, not the ATP's")
+    assert season['WTA']['live']['slotSplit'] == {'auto': 'mand', 'notAuto': 'other'}, (
+        'a WTA compulsory 1000 is reserving a slot for a player who was never '
+        'automatically eligible for it')
+
+
+def test_a_real_title_is_defended_in_the_week_we_play_that_tournament(season):
+    """Tier 1, and the reason the whole cascade exists.
+
+    A player who won Shanghai in the real season arrives at the simulated
+    Shanghai still holding those points, and loses them that week whatever else
+    happens -- either they back the title up or they do not. The flat proxy this
+    replaced could not produce that: scaling every player's total by the same
+    factor each week is order-preserving, so nobody ever defends anything and the
+    residual never changes anyone's position relative to anyone else.
+    """
+    for tour in ('ATP', 'WTA'):
+        t = season[tour]['live']['tiers']
+        assert t['who'], f'{tour}: no tier-1 holding found at all'
+        assert abs(t['week0'] - t['real']) < 1, (
+            f"{tour}: {t['who']} starts the season holding {t['week0']:.0f} of "
+            f"their {t['real']} real points")
+        assert abs(t['dropped'] - t['best']) < 1, (
+            f"{tour}: {t['who']} holds {t['best']} points from {t['event']}, but "
+            f"crossing week {t['week']} took {t['dropped']:.0f} of them")
+        assert t['after'] < t['before'], (
+            f"{tour}: {t['who']}'s residual did not move across {t['event']}")
+
+
+def test_most_real_points_are_dated_rather_than_decayed(season):
+    """The proxy is the fallback, not the mechanism.
+
+    ATP lands about 90% of its points on a date (63% on a tournament we play,
+    27% on a week we do not); the WTA about 68%, the shortfall being the ITF
+    circuit the feed barely carries. If tier 3 ever grows to dominate, the
+    reconstruction has silently stopped working and every ranking is back to a
+    uniform decay that cannot reorder anybody.
+    """
+    for tour, floor in (('ATP', 0.80), ('WTA', 0.55)):
+        t = season[tour]['live']['tiers']
+        total = t['ev'] + t['wk'] + t['sub'] + t['rest']
+        dated = (t['ev'] + t['wk'] + t['sub']) / total
+        assert dated > floor, (
+            f'{tour}: only {dated:.0%} of real points carry a date; the rest '
+            f'falls back to the proxy')
+        assert t['ev'] / total > 0.40, (
+            f"{tour}: only {t['ev']/total:.0%} of real points are matched to a "
+            f'tournament we actually play, so little is ever defended')
+
+
+
+def test_the_python_and_javascript_points_tables_agree(season):
+    """realpoints.py duplicates the page's POINTS table -- the page cannot import
+    Python -- so the two are checked against each other here rather than left to
+    drift. A mismatch moves WHEN a player's points leave relative to when the
+    simulation pays them back.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        'realpoints', ROOT / 'simulation' / 'realpoints.py')
+    rp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rp)
+
+    # the page names levels as they are displayed; the feed names them as it
+    # stores them, and these are the same rows
+    LEVEL = {('ATP', 'grand_slam'): ('ATP', 'Grand Slam'),
+             ('ATP', 'atp_1000'): ('ATP', 'ATP 1000'),
+             ('ATP', 'atp_500'): ('ATP', 'ATP 500'),
+             ('ATP', 'atp_250'): ('ATP', 'ATP 250'),
+             ('WTA', 'grand_slam'): ('WTA', 'Grand Slam'),
+             ('WTA', 'wta_1000'): ('WTA', 'WTA 1000'),
+             ('WTA', 'wta_500'): ('WTA', 'WTA 500'),
+             ('WTA', 'wta_250'): ('WTA', 'WTA 250')}
+    page = (season['ATP']['live']['pointsTable']
+            | season['WTA']['live']['pointsTable'])
+    for key, (tour, level) in LEVEL.items():
+        mine = {tuple(sorted(draws)): pts for draws, pts in rp.POINTS[key]}
+        theirs = {tuple(sorted(r['draws'])): r['pts'] for r in page[f'{tour}|{level}']}
+        assert mine == theirs, (
+            f'{tour} {level}: realpoints.py says {mine}, the page says {theirs}')
+
+
+def test_no_junior_or_exhibition_draw_earns_ranking_points():
+    """The junior draws are the trap in this feed.
+
+    A junior event carries the LEVEL of the senior competition it hangs off, so
+    "Juniors US Open" comes back as a grand slam and its champion is credited
+    2000 points. Unfiltered that was 24% of the WTA's off-calendar total, and
+    because it lands below tour level it was then held at par for the whole
+    season -- points that never expire, for a draw that awards none.
+
+    Asserted against the match filter itself and not through the built page: the
+    schedule records tier-2 chunks by week rather than by name, so by the time
+    they reach the page there is nothing left to recognise a junior draw by.
+    """
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        'realpoints', ROOT / 'simulation' / 'realpoints.py')
+    rp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rp)
+
+    names = {m['competition'] for m in rp._singles_matches()}
+    assert names, 'no matches survived the filter at all'
+    for bad in ('junior', 'wheelchair', 'exhibition', 'utr', 'legends'):
+        offenders = sorted(n for n in names if bad in n.lower())
+        assert not offenders, (
+            f'{bad} draws are being counted as ranking events: {offenders[:3]}')
