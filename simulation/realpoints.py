@@ -94,8 +94,11 @@ WTA_ONLY_1000 = {'Doha', 'Dubai', 'Wuhan'}
 SLOTS = {'ATP': dict(majors=10 ** 9, mand=10 ** 9, float=0, other=7),
          'WTA': dict(majors=10 ** 9, mand=10 ** 9, float=1, other=5)}
 
-# The competition names the feed uses against the names the calendars use.
-ALIAS = {'French Open': 'Roland Garros'}
+# The competition names the feed uses against the names the calendars use. Both
+# renames are mirrored from build_calendar.RENAME; a result whose event does not
+# match a calendar name is not wrong, it just drops a tier to being dated rather
+# than defended, so a missed rename here is silent.
+ALIAS = {'French Open': 'Roland Garros', 'London': "Queen's Club"}
 
 
 def sim_name(competition: str) -> str:
@@ -299,6 +302,25 @@ def _shapes():
     return out
 
 
+def snapshot_date():
+    """The day the cached standings were computed.
+
+    This has to come from the DATA, never from the clock. Falling back to
+    today's date made the drop schedule a function of when the build was run:
+    the rolling window moved a day each morning, quietly dropping a day of
+    results off the far end, and the same command produced a different page on
+    a different day. It showed up as the WTA's dated share sliding from 67.8%
+    to 66.5% overnight with nothing but the date changed.
+    """
+    path = CACHE / 'rankings.json.gz'
+    with gzip.open(path) as fh:
+        raw = json.load(fh).get('generated_at')
+    if not raw:
+        raise SystemExit(f'{path.name} carries no generated_at; the drop '
+                         f'schedule has no snapshot date to work from')
+    return date(*(int(x) for x in raw[:10].split('-')))
+
+
 def schedules(cal_names, snapshot=None, window_weeks=53):
     """Per player, when their real points should leave the ranking.
 
@@ -331,8 +353,7 @@ def schedules(cal_names, snapshot=None, window_weeks=53):
             ranked[e['competitor']['id']] = (ranking['name'],
                                              flip(e['competitor']['name']), e['points'])
     if snapshot is None:
-        raw = getattr(client, 'rankings_generated_at', None)
-        snapshot = date(*(int(x) for x in raw[:10].split('-'))) if raw else date.today()
+        snapshot = snapshot_date()
 
     matches = [m for m in _singles_matches() if m['date']]
     cut = snapshot.toordinal()

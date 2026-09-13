@@ -1752,7 +1752,14 @@ function pointStakes(m, ctx){
           const w = settles(side);
           const kind = w.match ? 'MP' : w.set ? 'SP'
                      : (!tiebreak && side !== g.srv) ? 'BP' : null;
-          if(kind) out.set(si + ':' + gi + ':' + pi, { stake: { kind, side } });
+          // On the point BEFORE, not on the point itself. Every row of the grid
+          // shows the score AFTER its own point -- ladder() advances the score
+          // and then renders it -- so hanging the stake on the point where it
+          // exists put "BP" against a row reading 40-40, the score that had just
+          // saved it. It belongs on the row that brings the stake up, which is
+          // the row reading 30-40. The B / S / M markers are unaffected: those
+          // say what a point SETTLED, and they stay on the point that settled it.
+          if(kind && pi > 0) out.set(si + ':' + gi + ':' + (pi - 1), { stake: { kind, side } });
         }
         pts[p[0]]++;
       });
@@ -2376,10 +2383,14 @@ document.querySelectorAll('.segbtn[data-tour]').forEach(btn => btn.addEventListe
   // A name only means something within one tour's pool.
   if(playable && !POOLS[tour].some(p => p.name === playable)) choose('');
   whoMenu.classList.remove('open');
-  // The draw on screen belongs to the other tour, so it goes.
+  // The draw on screen belongs to the other tour, so it goes -- but whatever
+  // this tour had last comes back, exactly as it does when you leave the page
+  // and return to it.
   describeShape();
-  clearBoard('Simulate ' + article(tour) + ' ' + tour + ' draw to see the bracket.');
-  linkNote('');
+  if(!restoreTourney(tour)){
+    clearBoard('Simulate ' + article(tour) + ' ' + tour + ' draw to see the bracket.');
+    linkNote('');
+  }
 }));
 
 // One tournament every 5 seconds. Simulating costs ~40ms, so this is a courtesy
@@ -2678,16 +2689,22 @@ function openFromLink(){
 // A draw is a pure function of its seed and its shape, which is exactly what
 // play() already replays for a shared link -- so the same seven values bring
 // back whatever was on screen when you left, and no bracket has to be stored.
+// Kept PER TOUR. One key meant switching to the WTA threw the ATP draw away and
+// switching back showed an empty board, which is not what a tab change does
+// anywhere else on the page. The two tours are independent boards.
 const TOURNEY_KEY = NS + 'tourney';
+const tourneyKey = t => TOURNEY_KEY + ':' + t;
 function saveTourney(){
   try {
-    if(currentRun) sessionStorage.setItem(TOURNEY_KEY, JSON.stringify(currentRun));
-    else sessionStorage.removeItem(TOURNEY_KEY);
+    // Filed under the run's OWN tour, not the button's: clearing the board
+    // while the other tour's draw is being restored must not wipe that draw.
+    if(currentRun) sessionStorage.setItem(tourneyKey(currentRun.tour), JSON.stringify(currentRun));
+    else sessionStorage.removeItem(tourneyKey(tour));
   } catch (e) { /* private window, or full */ }
 }
-function restoreTourney(){
+function restoreTourney(t){
   let run = null;
-  try { run = JSON.parse(sessionStorage.getItem(TOURNEY_KEY) || 'null'); } catch (e) {}
+  try { run = JSON.parse(sessionStorage.getItem(tourneyKey(t || tour)) || 'null'); } catch (e) {}
   // A run made against a different data set cannot be reproduced, exactly as a
   // stale shared link cannot.
   if(!run || run.cfg !== CONFIG) return false;

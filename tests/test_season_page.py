@@ -610,7 +610,7 @@ QUALIFIERS_BY_DRAW = {
 # The WTA 500s, confirmed in both directions: these seven take six, the other
 # nine take four.
 WTA_500_SIX = {'Brisbane', 'Adelaide 1', 'Charleston', 'Strasbourg',
-               'London', 'Berlin', 'Merida'}
+               "Queen's Club", 'Berlin', 'Merida'}
 
 
 def test_qualifier_counts_match_the_published_breakdowns(season):
@@ -1623,9 +1623,10 @@ def test_a_real_title_is_defended_in_the_week_we_play_that_tournament(season):
         assert abs(t['week0'] - t['real']) < 1, (
             f"{tour}: {t['who']} starts the season holding {t['week0']:.0f} of "
             f"their {t['real']} real points")
-        assert abs(t['dropped'] - t['best']) < 1, (
-            f"{tour}: {t['who']} holds {t['best']} points from {t['event']}, but "
-            f"crossing week {t['week']} took {t['dropped']:.0f} of them")
+        assert abs(t['dropped'] - t['expected']) < 1, (
+            f"{tour}: {t['who']} holds {t['best']} points from {t['event']}; "
+            f"crossing week {t['week']} should take {t['expected']:.1f} of them "
+            f"(the title plus that week's decay) but took {t['dropped']:.1f}")
         assert t['after'] < t['before'], (
             f"{tour}: {t['who']}'s residual did not move across {t['event']}")
 
@@ -1708,3 +1709,43 @@ def test_no_junior_or_exhibition_draw_earns_ranking_points():
         offenders = sorted(n for n in names if bad in n.lower())
         assert not offenders, (
             f'{bad} draws are being counted as ranking events: {offenders[:3]}')
+
+
+def test_the_drop_schedule_is_pinned_to_the_data_not_the_clock():
+    """Building the page twice on different days must give the same page.
+
+    The snapshot the rolling window ends at has to come from the standings being
+    decomposed, not from date.today(). With the clock as the fallback the window
+    slid forward a day every morning, dropping a day of results off the far end,
+    and the same command produced a different page each time it was run -- the
+    WTA's dated share moved 67.8% to 66.5% overnight with nothing else changed.
+    """
+    import gzip
+    import importlib.util
+    import json
+    from datetime import date
+
+    spec = importlib.util.spec_from_file_location(
+        'realpoints', ROOT / 'simulation' / 'realpoints.py')
+    rp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rp)
+
+    with gzip.open(ROOT / 'sportradar_cache' / 'rankings.json.gz') as fh:
+        stamp = json.load(fh)['generated_at'][:10]
+    assert rp.snapshot_date().isoformat() == stamp, (
+        'the snapshot is not the date the cached standings were generated')
+    assert rp.snapshot_date() != date.today(), (
+        'the cached standings happen to be dated today, so this test cannot '
+        'tell a pinned snapshot from a clock reading -- rewrite it with a fixed '
+        'fixture rather than deleting it')
+
+    import csv
+    names = {t.upper(): {r['name'] for r in csv.DictReader((ROOT / f'{t}_calendar.csv').open())}
+             for t in ('atp', 'wta')}
+    default = rp.schedules(names)
+    pinned = rp.schedules(names, snapshot=rp.snapshot_date())
+    assert default == pinned, 'schedules() ignores its own snapshot date'
+    today = rp.schedules(names, snapshot=date.today())
+    assert default != today, (
+        'the schedule is the same whether it ends at the standings or at today, '
+        'so nothing here is actually bounded by the snapshot')

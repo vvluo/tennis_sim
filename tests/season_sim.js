@@ -812,7 +812,13 @@ for(const tour of ['ATP', 'WTA']){
       const pl = who && (P.POOLS[tour] || []).find(x => x.name === who);
       const before = pl ? P.residualAt(tour, pl, at.sweek) : 0;
       const after = pl ? P.residualAt(tour, pl, at.sweek + 1) : 0;
-      return { ev, wk, sub, rest, who, best, event: at && at.name, week: at && at.sweek,
+      // Crossing a week also advances the smooth tier-3 decay, so the fall is
+      // the tier-1 chunk PLUS that week's share of whatever is decaying. Without
+      // this the check was out by the proxy's step -- 1.3 points for Sinner.
+      const d3 = drops[who] ? drops[who].rest : 0;
+      const fade = P.seasonElapsed(tour, at.sweek + 1) - P.seasonElapsed(tour, at.sweek);
+      const expected = best + d3 * fade;
+      return { ev, wk, sub, rest, who, best, expected, event: at && at.name, week: at && at.sweek,
                before, after, dropped: before - after,
                week0: pl ? P.residualAt(tour, pl, 0) : 0,
                real: pl ? pl.points : 0 };

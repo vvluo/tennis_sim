@@ -71,7 +71,14 @@ function pointStakes(m, ctx){
           const w = settles(side);
           const kind = w.match ? 'MP' : w.set ? 'SP'
                      : (!tiebreak && side !== g.srv) ? 'BP' : null;
-          if(kind) out.set(si + ':' + gi + ':' + pi, { stake: { kind, side } });
+          // On the point BEFORE, not on the point itself. Every row of the grid
+          // shows the score AFTER its own point -- ladder() advances the score
+          // and then renders it -- so hanging the stake on the point where it
+          // exists put "BP" against a row reading 40-40, the score that had just
+          // saved it. It belongs on the row that brings the stake up, which is
+          // the row reading 30-40. The B / S / M markers are unaffected: those
+          // say what a point SETTLED, and they stay on the point that settled it.
+          if(kind && pi > 0) out.set(si + ':' + gi + ':' + (pi - 1), { stake: { kind, side } });
         }
         pts[p[0]]++;
       });

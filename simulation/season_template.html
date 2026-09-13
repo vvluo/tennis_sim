@@ -294,7 +294,8 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
 
   <div class="timeline" id="timeline" hidden>
     <h3>Timeline</h3>
-    <div class="track" id="track"></div>
+    <div class="track" id="track" tabindex="0" role="group"
+         aria-label="Season timeline. Use the left and right arrow keys to step through the events."></div>
     <div class="nowres" id="nowres" hidden></div>
     <div class="tlkey">
       <span><i style="background:#1E8FD5"></i>hard</span>
@@ -550,8 +551,13 @@ function committedTo(tour, p, ev){
   const { played, late } = fivesSoFar(p.name);
   // Short of the four with no room left to make them up...
   if(FIVE_HUNDRED_QUOTA - played >= (ev.fiveLeft || 0)) return true;
-  // ...or this is the last 500 after the US Open and they still owe one.
-  return !!ev.isLate && !late && (ev.lateLeft || 0) <= 1;
+  // ...or the US Open is behind us, they still owe a late one, and the chances
+  // to play it are running out. TWO weeks of slack, not one: the calendar holds
+  // only two late-500 weeks (Tokyo and Beijing share one, Basel and Vienna the
+  // other), so firing on the last of them gave a single chance, and a player
+  // busy elsewhere that week missed a commitment they had every intention of
+  // meeting. It cost about one player-season in 175.
+  return !!ev.isLate && !late && (ev.lateLeft || 0) <= 2;
 }
 
 const ENTRY_MAX = 0.97;
@@ -846,7 +852,7 @@ function decayLoads(state, week){
 // events, so the remaining twenty-two fall through to four on an assumption.
 const BIG_QUALIFYING = new Set([
   // WTA 500
-  'Brisbane', 'Adelaide 1', 'Charleston', 'Strasbourg', 'London', 'Berlin', 'Merida',
+  'Brisbane', 'Adelaide 1', 'Charleston', 'Strasbourg', "Queen's Club", 'Berlin', 'Merida',
   // WTA 250
   'Auckland', 'Hobart',
 ]);
@@ -1814,6 +1820,11 @@ function pickEvent(i){
   }
   host.hidden = false;
   renderTimeline();
+  // The strip scrolls, so a block reached with the arrow keys has to be brought
+  // into view. Done HERE and not in renderTimeline, which runs on every render
+  // and would yank the strip back while it is being scrolled by hand.
+  const block = $('track').querySelector('.tl[data-i="' + i + '"]');
+  if(block && block.scrollIntoView) block.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 // The classic transport pair: a rightward triangle to run, two bars to hold.
@@ -1924,10 +1935,14 @@ function playNext(){
 // exactly one place, to choose that seed. So there is no need to serialise the
 // standings, the draws or a season's worth of point-by-point -- storing four
 // values and replaying is smaller, faster and bit-identical.
+// Kept PER TOUR. One slot meant switching to the WTA discarded the ATP season
+// and switching back offered an empty calendar -- a season is forty minutes of
+// simulated tennis to rebuild, and the two tours are independent.
 const SEASON_KEY = NS + 'season';
+const seasonKey = t => SEASON_KEY + ':' + t;
 function saveSeason(){
   try {
-    sessionStorage.setItem(SEASON_KEY, JSON.stringify({
+    sessionStorage.setItem(seasonKey(state.tour), JSON.stringify({
       tour: state.tour, playable: state.playable, mode: state.mode,
       seed: state.seed, idx: state.idx, calDesc: state.calDesc,
       calMine: state.calMine, picked,
@@ -1937,8 +1952,8 @@ function saveSeason(){
 // Takes the blob rather than reading it: reset() renders, render() saves, so by
 // the time this ran the save had already been overwritten with the empty season
 // reset() had just created.
-function readSeason(){
-  try { return JSON.parse(sessionStorage.getItem(SEASON_KEY) || 'null'); }
+function readSeason(t){
+  try { return JSON.parse(sessionStorage.getItem(seasonKey(t || state.tour)) || 'null'); }
   catch(e){ return null; }
 }
 function restoreSeason(saved){
@@ -2423,6 +2438,32 @@ $('track').addEventListener('click', e => {
   const el = e.target.closest('.tl');
   if(el && el.dataset.i) pickEvent(Number(el.dataset.i));
 });
+// Left and right walk the timeline. Handled on the document rather than on the
+// strip so it works without hunting for something to focus first, which is the
+// whole point of having it -- but it must not steal the arrows from anywhere
+// they already mean something:
+//   * a text field or a select, where they move the caret or the selection
+//   * a modifier held down, which is a browser or OS shortcut
+//   * either overlay open, where the arrows belong to what is on top
+document.addEventListener('keydown', e => {
+  if(e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  if(e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if($('timeline').hidden) return;
+  if($('overlay').classList.contains('open') || $('ovl').classList.contains('on')) return;
+  const t = e.target;
+  if(t && (t.isContentEditable ||
+           /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(t.tagName || ''))) return;
+  const list = cal();
+  if(!list.length) return;
+  // Nothing picked yet: land on the event the run has just finished rather than
+  // at one end of the year, so the first press selects where you already are.
+  const from = picked === null ? Math.min(Math.max(state.idx - 1, 0), list.length - 1)
+             : picked + (e.key === 'ArrowRight' ? 1 : -1);
+  const next = Math.min(Math.max(from, 0), list.length - 1);
+  if(next === picked) return;                 // already at the end of the strip
+  e.preventDefault();                         // do not scroll the page as well
+  pickEvent(next);
+});
 $('callist').addEventListener('click', e => {
   const tr = e.target.closest('tr');
   if(tr && tr.dataset.i) openEvent(Number(tr.dataset.i));
@@ -2462,10 +2503,15 @@ document.querySelectorAll('#tourseg .segbtn[data-tour]').forEach(b =>
     if(state.running) return;
     document.querySelectorAll('#tourseg .segbtn[data-tour]')
       .forEach(x => x.classList.toggle('on', x === b));
+    // Read the incoming tour's season BEFORE switching to it: reset() renders,
+    // render() saves, and the save would land in the slot we are about to read.
+    // That ordering is what made restoring across a page change fail once.
+    const incoming = readSeason(b.dataset.tour);
     state.tour = b.dataset.tour;
     try { localStorage.setItem(NS + 'tour', state.tour); } catch(e){}
     state.playable = '';
-    fillPlayers(); reset();
+    fillPlayers();
+    if(!restoreSeason(incoming)) reset();
   }));
 $('playsel').addEventListener('change', e => {
   state.playable = e.target.value;

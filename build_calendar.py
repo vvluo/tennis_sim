@@ -41,13 +41,17 @@ ROUND_ROBIN = {'ATP Finals', 'Next Gen Finals', 'WTA Finals'}
 # Most feed names already read "City, Country"; the events that do not are the
 # ones whose name is the event rather than the place.
 # The feed calls the clay major the French Open; it is shown by the name the
-# tournament itself uses.
-RENAME = {'French Open': 'Roland Garros'}
+# tournament itself uses. Same for the grass 500 the feed files under its city:
+# both tours play it at Queen's Club, and "London" is ambiguous in a calendar
+# that also holds Wimbledon.
+RENAME = {'French Open': 'Roland Garros',
+          'London, Great Britain': "Queen's Club"}
 
 VENUE = {
     'Australian Open': 'Melbourne, Australia',
     'Roland Garros': 'Paris, France',
     'Wimbledon': 'London, Great Britain',
+    "Queen's Club": 'London, Great Britain',
     'US Open': 'New York, USA',
     'World Tour Finals': 'Turin, Italy',
     'Next Gen ATP Finals': 'Jeddah, Saudi Arabia',

@@ -222,20 +222,24 @@ const wider = (a, b) => {                 // a beats b?
 // Same trick as the other two pages: N matches are a pure function of the two
 // players, the scoring and one seed, so the seed plus the form is all that has
 // to survive. Replaying 100 matches takes well under a second.
+// Kept PER TOUR, like the draw on the tournament page and the season on the
+// season page: switching tours used to delete the run outright.
 const MATCHUP_KEY = NS + 'matchup';
+const matchupKey = t => MATCHUP_KEY + ':' + t;
 const FORM = ['pa', 'pb', 'n', 'surface', 'bestof', 'deuce', 'gps', 'tb', 'dtb'];
 function saveMatchup(seed){
   try {
     const form = {};
     FORM.forEach(id => form[id] = $(id).value);
     form.stb = $('stb').checked;
-    sessionStorage.setItem(MATCHUP_KEY,
+    sessionStorage.setItem(matchupKey(state.tour),
       JSON.stringify({ tour: state.tour, seed, form }));
   } catch(e){ /* private window, or full */ }
 }
-function restoreMatchup(){
+function restoreMatchup(t){
   let saved = null;
-  try { saved = JSON.parse(sessionStorage.getItem(MATCHUP_KEY) || 'null'); } catch(e){}
+  try { saved = JSON.parse(sessionStorage.getItem(matchupKey(t || state.tour)) || 'null'); }
+  catch(e){}
   if(!saved || saved.seed === undefined) return false;
   if(saved.tour === 'ATP' || saved.tour === 'WTA'){
     state.tour = saved.tour;
@@ -380,9 +384,10 @@ document.querySelectorAll('#tourseg .segbtn').forEach(b =>
   b.addEventListener('click', () => {
     document.querySelectorAll('#tourseg .segbtn').forEach(x => x.classList.toggle('on', x === b));
     state.tour = b.dataset.tour;
+    try { localStorage.setItem(NS + 'tour', state.tour); } catch(e){}
     fillPlayers();
-    $('out').innerHTML = '';
-    try { sessionStorage.removeItem(MATCHUP_KEY); } catch(e){}
+    // Whatever this tour had last, or a clean panel if it has nothing.
+    if(!restoreMatchup(state.tour)) $('out').innerHTML = '';
   }));
 $('go').addEventListener('click', () => run());   // no argument: a fresh seed
 $('howinfo').addEventListener('click', () => {
@@ -417,8 +422,20 @@ themeBtn.addEventListener('click', () =>
   setTheme(document.documentElement.getAttribute('data-theme') === 'dark'
            ? 'light' : 'dark', true));
 
+// The chosen tour is shared with the other three pages through one origin-wide
+// key, and has to be settled BEFORE the run is restored: now that a run is filed
+// under its own tour, reading the default would restore the ATP matchup to
+// someone who left the page on the WTA.
+let startTour = null;
+try { startTour = localStorage.getItem(NS + 'tour'); } catch(e){}
+if(startTour === 'ATP' || startTour === 'WTA'){
+  state.tour = startTour;
+  document.querySelectorAll('#tourseg .segbtn')
+    .forEach(x => x.classList.toggle('on', x.dataset.tour === state.tour));
+}
+
 fillPlayers();
 $('hint').textContent = 'Data set ' + BUILT + '.';
-// Whatever this tab last simulated, replayed from its seed.
+// Whatever this tab last simulated on this tour, replayed from its seed.
 restoreMatchup();
 </script>
