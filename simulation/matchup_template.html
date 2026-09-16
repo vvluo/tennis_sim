@@ -2,6 +2,12 @@
 <title>Matchup Forecaster</title>
 <style>
 /*__THEME__*/
+/* This page's ground: the Australian Open hard-court blue its panel wears on the
+   home page. On body, not :root, so the theme's [data-theme] blocks cannot win.
+   White reads 3.5:1 on this blue, so the type and pills go near-black. */
+body{--page:#1E8FD5;--page-ink:#0E1A22;--page-muted:rgba(14,26,34,.72);
+  --pill-fill:rgba(14,26,34,.08);--pill-hover:rgba(14,26,34,.16);--pill-on:rgba(14,26,34,.24);
+  --pill-edge:rgba(14,26,34,.24);--pill-dot:#0E1A22;--page-glow:rgba(14,26,34,.45)}
 /* h1 and .ball come from the shared theme too. */
 /* .navbar, .navlink and .themebtn all arrive with the shared theme above.
    Restating them here is exactly how this page's toggle drifted from the rest. */
@@ -94,7 +100,7 @@ input[type=number]{width:88px}
 <div class="wrap">
 <header>
   <div class="titlerow">
-    <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Matchup Forecaster</h1>
+    <h1><a class="homelink" href="index.html" title="Home"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Matchup Forecaster</a></h1>
     <div class="navbar">
       <a class="navlink" href="season.html">Simulate a Season</a>
       <a class="navlink" href="tournament.html">Play a Grand Slam</a>

@@ -1,0 +1,156 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tennis Sim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<script>
+// A draw shared before this page existed points at the site ROOT, which used to
+// be the tournament page itself -- runUrl builds links from location.pathname.
+// Those links must keep opening their draw, so they are sent on before anything
+// paints.
+(function(){
+  if(new URLSearchParams(location.search).has('r'))
+    location.replace('tournament.html' + location.search + location.hash);
+})();
+</script>
+<style>
+/*__THEME__*/
+/* h1, .ball, .homelink, .navbar and .themebtn arrive with the shared theme. */
+
+.lede{margin:10px 0 0;max-width:60ch;font-size:16px;line-height:1.55;
+  color:var(--page-muted)}
+
+/* The four features as one composition on a cream ground, each panel casting a
+   hard, unblurred shadow down and to the right: black, except under the black
+   panel, where black would vanish and the shadow is US Open yellow instead.
+   In the dark theme the ground goes dark grey and the shadows white; see the
+   dark rules at the end. */
+.board{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:minmax(250px,auto) minmax(210px,auto);gap:30px;
+  margin-top:28px;padding:26px 36px 36px 26px;background:#F3EDD9;border-radius:16px}
+
+/* An imprint: pressing slides the panel INTO its shadow by exactly as much as the
+   shadow shrinks, so the shadow's far edge never moves and the panel reads as
+   sinking into the board rather than floating off it. Rest 10px, hover 7+3,
+   pressed 10+0 -- the sums are what tests/test_home.py holds. */
+.panel{display:flex;flex-direction:column;gap:10px;padding:24px 26px;
+  border-radius:12px;text-decoration:none;
+  box-shadow:10px 10px 0 var(--psh, #141414);
+  transition:transform .12s ease-out,box-shadow .12s ease-out}
+.panel:hover,.panel:focus-visible{transform:translate(7px,7px);
+  box-shadow:3px 3px 0 var(--psh, #141414)}
+.panel:active{transform:translate(10px,10px);box-shadow:0 0 0 var(--psh, #141414)}
+.panel:focus-visible{outline:3px solid #141414;outline-offset:5px}
+
+/* The three surface colours the season simulator paints its timeline in --
+   clay, grass and the Australian Open's hard-court blue -- plus black. Ink
+   follows that page's rule too: whichever of white or near-black actually clears
+   the ground, which is near-black on grass (white manages 2.5:1 there) and on the
+   blue (3.5:1). tests/test_home.py holds both against the season page. */
+.p-clay{background:#BE5415;color:#FFFFFF}
+.p-grass{background:#84B118;color:#0E1A22}
+.p-hard{background:#1E8FD5;color:#0E1A22}
+.p-black{background:#141414;color:#FDF8E6;--psh:#E2B84A}
+
+/* No opacity on any panel text. It blends the ink toward the ground, and at .86
+   the description on clay fell to 3.9:1. Hierarchy comes from size and weight. */
+.kicker{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11.5px;
+  font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+.pname{margin:0;font-size:clamp(22px,2.6vw,32px);font-weight:700;
+  letter-spacing:-.02em;line-height:1.1}
+.pdesc{margin:0;max-width:44ch;font-size:14.5px;line-height:1.55}
+.go{margin-top:auto;padding-top:6px;font-size:26px;line-height:1;font-weight:600}
+
+@media (max-width:720px){
+  .board{grid-template-columns:minmax(0,1fr);grid-template-rows:none;gap:24px;
+    padding:18px 28px 28px 18px}
+  .panel{min-height:170px}
+}
+@media (prefers-reduced-motion:reduce){.panel{transition:none}}
+
+/* Dark: the board goes dark grey and every shadow turns white, since black would
+   vanish into it. The ratings panel cannot stay black on that ground either, so
+   it swaps to cream and casts the WTA lavender -- the board's own --wta in its
+   dark theme, the colour its WTA bars are painted there. Written for both routes
+   into dark, the stamped attribute and the system preference, as the theme
+   blocks are; tests/test_home.py holds the two to the same values. */
+:root[data-theme="dark"] .board{background:#2B2D31}
+:root[data-theme="dark"] .panel{--psh:#FFFFFF}
+:root[data-theme="dark"] .panel:focus-visible{outline-color:#FFFFFF}
+:root[data-theme="dark"] .p-black{background:#FDF8E6;color:#141414;--psh:#C79BEC}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .board{background:#2B2D31}
+  :root:not([data-theme="light"]) .panel{--psh:#FFFFFF}
+  :root:not([data-theme="light"]) .panel:focus-visible{outline-color:#FFFFFF}
+  :root:not([data-theme="light"]) .p-black{background:#FDF8E6;color:#141414;--psh:#C79BEC}
+}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="titlerow">
+    <h1 id="title"><a class="homelink" href="index.html" title="Home"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Tennis Sim</a></h1>
+    <div class="navbar">
+      <button id="theme" class="themebtn" aria-label="Switch colour theme"></button>
+    </div>
+  </div>
+  <p class="lede">Player ratings built from a rolling year of ATP and WTA match
+  statistics &mdash; and four ways to put them on court.</p>
+</header>
+
+<main class="board">
+  <a class="panel p-clay" href="season.html">
+    <span class="kicker">Season</span>
+    <h2 class="pname">Simulate a Season</h2>
+    <p class="pdesc">Run the whole ATP or WTA calendar week by week &mdash; entry
+    lists, injuries, ranking points, and the tour finals at the end.</p>
+    <span class="go" aria-hidden="true">&rarr;</span>
+  </a>
+  <a class="panel p-grass" href="tournament.html">
+    <span class="kicker">Tournament</span>
+    <h2 class="pname">Play a Grand Slam</h2>
+    <p class="pdesc">Draw and play a single event point by point, at any draw size
+    and on any surface, and share the bracket with a link.</p>
+    <span class="go" aria-hidden="true">&rarr;</span>
+  </a>
+  <a class="panel p-hard" href="matchup.html">
+    <span class="kicker">Head to head</span>
+    <h2 class="pname">Matchup Forecaster</h2>
+    <p class="pdesc">Put any two players on court up to a hundred times, under
+    whatever scoring you choose, and see who comes out ahead.</p>
+    <span class="go" aria-hidden="true">&rarr;</span>
+  </a>
+  <a class="panel p-black" href="ratings_board.html">
+    <span class="kicker">Ratings</span>
+    <h2 class="pname">Tour Ratings Board</h2>
+    <p class="pdesc">Serve, return, shotmaking and consistency ratings for every
+    ranked player, rebuilt each week from a rolling year of matches.</p>
+    <span class="go" aria-hidden="true">&rarr;</span>
+  </a>
+</main>
+</div>
+
+<!--__SITENOTE__-->
+
+<script>
+const NS = 'tennis:';
+// The theme is shared with the other four pages through one origin-wide key.
+const themeBtn = document.getElementById('theme');
+function paintTheme(){
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  themeBtn.textContent = dark ? '☀ Light' : '☾ Dark';   // what clicking gives you
+}
+function setTheme(mode, remember){
+  document.documentElement.setAttribute('data-theme', mode);
+  if(remember){ try { localStorage.setItem(NS + 'theme', mode); } catch(e){} }
+  paintTheme();
+}
+let stored = null;
+try { stored = localStorage.getItem(NS + 'theme'); } catch(e){}
+setTheme(stored === 'dark' || stored === 'light' ? stored
+         : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'), false);
+themeBtn.addEventListener('click', () =>
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark'
+           ? 'light' : 'dark', true));
+</script>

@@ -17,7 +17,7 @@ import pytest
 import sitenote
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGES = ['tournament.html', 'season.html', 'ratings_board.html', 'matchup.html']
+PAGES = ['home.html', 'tournament.html', 'season.html', 'ratings_board.html', 'matchup.html']
 BUILT = [ROOT / p for p in PAGES]
 
 
@@ -93,7 +93,8 @@ def test_every_page_has_the_shared_footer(page):
         pytest.skip(f'{page.name} is not built')
     text = page.read_text()
     assert 'class="sitefoot"' in text, f'{page.name} has no shared footer'
-    assert '&copy; 2026 | Aaron Guo' in text, f'{page.name} has no copyright line'
+    assert '&copy; 2026 | vvluo' in text, f'{page.name} has no copyright line'
+    assert 'Aaron Guo' not in text, f'{page.name} still carries the old name in its footer'
     assert 'independent, fan-made simulation' in text, f'{page.name} has no disclaimer'
     assert 'sportradar.com' in text, f'{page.name} does not credit the data source'
 
@@ -220,9 +221,12 @@ def test_every_page_links_to_every_other(page):
     if not page.exists():
         pytest.skip(f'{page.name} is not built')
     text = page.read_text()
-    # The grand-slam page is staged as index.html as well, and the pages differ
-    # about which name they link it by. Either resolves, so either passes.
-    others = {'tournament.html': ('index.html', 'tournament.html'),
+    # The home page is built as home.html and published as index.html, which is
+    # the name every other page links it by -- through the ball and the title.
+    # The tournament is no longer the landing page, so index.html does NOT
+    # count as a link to it any more.
+    others = {'home.html': ('index.html',),
+              'tournament.html': ('tournament.html',),
               'season.html': ('season.html',),
               'ratings_board.html': ('ratings_board.html',),
               'matchup.html': ('matchup.html',)}

@@ -62,6 +62,14 @@ body{
 header{margin-bottom:24px}
 .titlerow{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap}
 .ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
+/* The ball and the title take you home. inline-flex keeps the ball on the
+   text's centre line exactly as the h1's own flex did before it was wrapped. */
+.homelink{display:inline-flex;align-items:center;gap:.32em;color:inherit;
+  text-decoration:none;border-radius:6px}
+.homelink .ball{transition:transform .2s ease-out}
+.homelink:hover .ball{transform:rotate(-58deg)}
+.homelink:focus-visible{outline:2px solid var(--page-ink);outline-offset:4px}
+@media (prefers-reduced-motion:reduce){.homelink .ball{transition:none}}
 .navbar{display:flex;align-items:center;gap:9px;margin-left:auto}
 .navlink{line-height:1.5;display:flex;align-items:center;padding:7px 14px;border-radius:99px;
   font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;
@@ -194,12 +202,15 @@ footer code{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11.5px
 /* .wrap is shared now and its clamp already narrows on small screens; a
    second rule here made this page 12px where the others were 24. */
 @media (max-width:560px){.count{width:100%; margin:2px 0 0; text-align:right}}
+/* This page's ground: the black its panel wears on the home page. On body, not
+   :root, so the theme's [data-theme] blocks cannot win. White type stays. */
+body{--page:#141414}
 </style>
 
 <div class="wrap">
 <header>
   <div class="titlerow">
-    <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Tour Ratings Board</h1>
+    <h1><a class="homelink" href="index.html" title="Home"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Tour Ratings Board</a></h1>
       <button id="about" class="iconbtn" aria-expanded="false"
               aria-controls="aboutpanel" title="About these ratings">i</button>
     <div class="navbar">
@@ -487,7 +498,7 @@ aboutBtn.addEventListener('click', () => {
   <div class="row">
     <span>Match data from <a href="https://www.sportradar.com" target="_blank"
       rel="noopener noreferrer">Sportradar</a>. Ratings and simulation are our own.</span>
-    <span class="copy">&copy; 2026 | Aaron Guo</span>
+    <span class="copy">&copy; 2026 | vvluo</span>
     <span class="sitelinks">
       <a href="https://github.com/vvluo" target="_blank" rel="noopener noreferrer"
          title="GitHub" aria-label="GitHub">

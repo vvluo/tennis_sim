@@ -237,7 +237,7 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
 <header class="page">
   <div class="wrap">
     <div class="titlerow">
-    <h1 id="title"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Simulate a Season</h1>
+    <h1 id="title"><a class="homelink" href="index.html" title="Home"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Simulate a Season</a></h1>
     <div class="navbar">
       <span class="navlink on" aria-current="page"><i class="sv"></i>Simulate a Season</span>
       <a class="navlink" href="tournament.html">Play a Grand Slam</a>
@@ -669,12 +669,14 @@ function tierMark(ev){
 // rule -- it only ever falls in the late half.
 const SURFACE_BG = {
   hardEarly: '#1E8FD5',   // Australian Open
-  hardLate:  '#13297F',   // US Open, and the page's resting colour
+  hardLate:  '#13297F',   // US Open
   clay:      '#BE5415',   // Roland Garros terre battue, held 5% darker than
                           // #C95917 so white type clears 4.5:1 on it
   grass:     '#84B118',   // Radioactive Green, the more saturated of the two
 };
-const DEFAULT_BG = SURFACE_BG.hardLate;
+// The resting ground is clay: the colour this page's panel wears on the home
+// page, so arriving here from it does not change colour under you.
+const DEFAULT_BG = SURFACE_BG.clay;
 
 // Where the clay major sits: everything before it is the early hard swing.
 function claySlamDay(){
@@ -711,6 +713,15 @@ function applyGround(hex){
   root.setProperty('--page-muted', light ? 'rgba(255,255,255,.74)' : 'rgba(14,26,34,.72)');
   root.setProperty('--page-fill', light ? 'rgba(255,255,255,.17)' : 'rgba(14,26,34,.13)');
   root.setProperty('--page-edge', light ? 'rgba(255,255,255,.30)' : 'rgba(14,26,34,.22)');
+  // The shared navbar, theme button and pulse read these. Without them the nav
+  // pills stayed translucent WHITE on grass and the Australian Open blue, where
+  // the type beside them had already gone near-black.
+  root.setProperty('--pill-fill', light ? 'rgba(255,255,255,.10)' : 'rgba(14,26,34,.08)');
+  root.setProperty('--pill-hover', light ? 'rgba(255,255,255,.20)' : 'rgba(14,26,34,.16)');
+  root.setProperty('--pill-on', light ? 'rgba(255,255,255,.30)' : 'rgba(14,26,34,.24)');
+  root.setProperty('--pill-edge', light ? 'rgba(255,255,255,.28)' : 'rgba(14,26,34,.24)');
+  root.setProperty('--pill-dot', light ? '#74CE8E' : '#0E1A22');
+  root.setProperty('--page-glow', light ? 'rgba(255,255,255,.55)' : 'rgba(14,26,34,.45)');
 }
 
 const state = {

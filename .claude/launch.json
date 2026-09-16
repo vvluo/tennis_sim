@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site",
+      "runtimeExecutable": "/Users/aaronguo/.pyenv/versions/3.10.0/bin/python",
+      "runtimeArgs": ["/Users/aaronguo/Desktop/DevProject/tennis_sim/serve_site.py", "8777"],
+      "port": 8777
+    }
+  ]
+}

@@ -5,6 +5,7 @@
 :root{
   --ground:#EDF1F5; --surface:#FFFFFF; --surface-2:#F5F8FA;
   --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
+  --pill-fill:rgba(255,255,255,.10); --pill-hover:rgba(255,255,255,.20); --pill-on:rgba(255,255,255,.30); --pill-edge:rgba(255,255,255,.28); --pill-dot:#74CE8E; --page-glow:rgba(255,255,255,.55);
   --ink:#101F2B; --ink-2:#3A5062; --muted:#697F92; --line:#D3DDE5;
   --accent:#1D6FA3; --accent-soft:#D6E7F2;
   --medal-gold:#8A6510; --medal-gold-bg:#F6E4B0;
@@ -30,6 +31,7 @@
   :root:not([data-theme="light"]){
     --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
     --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
+  --pill-fill:rgba(255,255,255,.10); --pill-hover:rgba(255,255,255,.20); --pill-on:rgba(255,255,255,.30); --pill-edge:rgba(255,255,255,.28); --pill-dot:#74CE8E; --page-glow:rgba(255,255,255,.55);
     --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
     --accent:#57A6D9; --accent-soft:#1B3446;
     --medal-gold:#F0CE7A; --medal-gold-bg:#443513;
@@ -55,6 +57,7 @@
 :root[data-theme="dark"]{
   --ground:#0C141C; --surface:#141F2A; --surface-2:#18242F;
   --page:#13297F; --page-ink:#FFFFFF; --page-muted:rgba(255,255,255,.68);
+  --pill-fill:rgba(255,255,255,.10); --pill-hover:rgba(255,255,255,.20); --pill-on:rgba(255,255,255,.30); --pill-edge:rgba(255,255,255,.28); --pill-dot:#74CE8E; --page-glow:rgba(255,255,255,.55);
   --ink:#E5ECF2; --ink-2:#B3C4D1; --muted:#7D93A5; --line:#25333F;
   --accent:#57A6D9; --accent-soft:#1B3446;
   --medal-gold:#F0CE7A; --medal-gold-bg:#443513;
@@ -91,6 +94,14 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Archivo,"Helve
 h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin:0 0 4px;
   line-height:1.15;color:var(--page-ink);display:flex;align-items:center;gap:.32em}
 .ball{width:.78em;height:.78em;flex:none;transform:rotate(-22deg)}
+/* The ball and the title take you home. inline-flex keeps the ball on the
+   text's centre line exactly as the h1's own flex did before it was wrapped. */
+.homelink{display:inline-flex;align-items:center;gap:.32em;color:inherit;
+  text-decoration:none;border-radius:6px}
+.homelink .ball{transition:transform .2s ease-out}
+.homelink:hover .ball{transform:rotate(-58deg)}
+.homelink:focus-visible{outline:2px solid var(--page-ink);outline-offset:4px}
+@media (prefers-reduced-motion:reduce){.homelink .ball{transition:none}}
 /* Wraps, so the nav drops to its own line instead of running off the frame.
    Without it three of the four pages overflowed .wrap while the fourth
    wrapped, which is why the bar appeared to jump as you changed tabs. */
@@ -101,21 +112,22 @@ h1{font-size:clamp(24px,3.4vw,34px);font-weight:700;letter-spacing:-.02em;margin
    else's off the same rule. */
 .navlink{line-height:1.5;display:flex;align-items:center;padding:7px 14px;border-radius:99px;
   font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;
-  color:var(--page-ink);background:rgba(255,255,255,.10);
-  border:1px solid rgba(255,255,255,.28);transition:background .15s}
-.navlink:hover{background:rgba(255,255,255,.20)}
+  color:var(--page-ink);background:var(--pill-fill);
+  border:1px solid var(--pill-edge);transition:background .15s}
+.navlink:hover{background:var(--pill-hover)}
 /* The page you are ON is listed too, rather than silently missing: brighter,
    not a link, and carrying the same green dot the tiebreak uses for "this one".
-   The dot's colour is fixed rather than themed -- this bar is always the deep
-   page blue, in both themes, and --hold is too dark to read on it. */
-.navlink.on{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.30);
+   Each page now sits on its own ground -- grass and the hard-court blue take
+   near-black type -- so the pill colours and the dot are tokens that page sets,
+   not white assumed to be on navy. */
+.navlink.on{display:flex;align-items:center;gap:7px;background:var(--pill-on);
   font-weight:600;cursor:default}
-.navlink.on .sv{width:7px;height:7px;background:#74CE8E}
+.navlink.on .sv{width:7px;height:7px;background:var(--pill-dot)}
 .themebtn{line-height:1.5;flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;
   font:inherit;font-size:12px;font-weight:600;cursor:pointer;border-radius:99px;
-  color:var(--page-ink);background:rgba(255,255,255,.10);
-  border:1px solid rgba(255,255,255,.28);transition:background .15s}
-.themebtn:hover{background:rgba(255,255,255,.20)}
+  color:var(--page-ink);background:var(--pill-fill);
+  border:1px solid var(--pill-edge);transition:background .15s}
+.themebtn:hover{background:var(--pill-hover)}
 .headline{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 6px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:10px 14px;box-shadow:var(--shadow)}
 .card .k{font-size:10.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
@@ -140,20 +152,20 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   color:var(--muted);margin-bottom:8px}
 .simhead #cfgnote{margin-right:auto}
 .linknote{margin:10px 2px 0;padding:9px 12px;border-radius:8px;font-size:12px;
-  color:var(--page-ink);background:rgba(255,255,255,.12);
-  border:1px solid rgba(255,255,255,.26)}
+  color:var(--page-ink);background:var(--pill-fill);
+  border:1px solid var(--pill-edge)}
 .prompt{margin:0;padding:38px 20px;text-align:center;font-size:14px;
   color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);
   border-radius:10px}
 /* The button is the only thing to do on arrival, so it says so. */
 .run.waiting{animation:invite 2.6s ease-out infinite}
 @keyframes invite{
-  0%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}
-  70%{box-shadow:0 0 0 13px rgba(255,255,255,0)}
-  100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}
+  0%{box-shadow:0 0 0 0 var(--page-glow)}
+  70%{box-shadow:0 0 0 13px transparent}
+  100%{box-shadow:0 0 0 0 transparent}
 }
 @media (prefers-reduced-motion:reduce){
-  .run.waiting{animation:none;box-shadow:0 0 0 3px rgba(255,255,255,.5)}
+  .run.waiting{animation:none;box-shadow:0 0 0 3px var(--page-glow)}
 }
 .copybtn:disabled{opacity:.45;cursor:default}
 .copybtn:disabled:hover{color:var(--ink-2);border-color:var(--line)}
@@ -203,9 +215,9 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .simempty{padding:6px 10px;font-size:12px;color:var(--muted)}
 .legend{display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--page-muted);margin:14px 2px 0}
 .foot{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;margin:10px 2px 0;
-  padding-top:10px;border-top:1px solid rgba(255,255,255,.14);
+  padding-top:10px;border-top:1px solid var(--pill-edge);
   font-size:11.5px;color:var(--page-muted)}
-.foot a{color:var(--page-ink);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.32)}
+.foot a{color:var(--page-ink);text-decoration:none;border-bottom:1px solid var(--pill-edge)}
 .foot a:hover{border-bottom-color:var(--page-ink)}
 .foot .copy{margin-left:auto;white-space:nowrap}
 .disclaimer{flex-basis:100%;margin:8px 0 0;max-width:96ch;font-size:11px;line-height:1.55;
@@ -425,6 +437,12 @@ button.card:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .srow .k{color:var(--muted);text-align:center;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 
+/* This page's ground: the Australian Open hard-court blue its panel wears on the
+   home page. On body, not :root, so the theme's [data-theme] blocks cannot win.
+   White reads 3.5:1 on this blue, so the type and pills go near-black. */
+body{--page:#1E8FD5;--page-ink:#0E1A22;--page-muted:rgba(14,26,34,.72);
+  --pill-fill:rgba(14,26,34,.08);--pill-hover:rgba(14,26,34,.16);--pill-on:rgba(14,26,34,.24);
+  --pill-edge:rgba(14,26,34,.24);--pill-dot:#0E1A22;--page-glow:rgba(14,26,34,.45)}
 /* h1 and .ball come from the shared theme too. */
 /* .navbar, .navlink and .themebtn all arrive with the shared theme above.
    Restating them here is exactly how this page's toggle drifted from the rest. */
@@ -517,7 +535,7 @@ input[type=number]{width:88px}
 <div class="wrap">
 <header>
   <div class="titlerow">
-    <h1><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Matchup Forecaster</h1>
+    <h1><a class="homelink" href="index.html" title="Home"><svg class="ball" viewBox="0 0 24 24" aria-hidden="true"><defs><clipPath id="ballClip"><circle cx="12" cy="12" r="11"/></clipPath></defs><circle cx="12" cy="12" r="11" fill="#D9F02C"/><g clip-path="url(#ballClip)" fill="none" stroke="#FFF" stroke-width="1.7"><path d="M4.22 4.22C9.6 8 9.6 16 4.22 19.78"/><path d="M19.78 4.22C14.4 8 14.4 16 19.78 19.78"/></g></svg>Matchup Forecaster</a></h1>
     <div class="navbar">
       <a class="navlink" href="season.html">Simulate a Season</a>
       <a class="navlink" href="tournament.html">Play a Grand Slam</a>
@@ -1956,7 +1974,7 @@ restoreMatchup();
   <div class="row">
     <span>Match data from <a href="https://www.sportradar.com" target="_blank"
       rel="noopener noreferrer">Sportradar</a>. Ratings and simulation are our own.</span>
-    <span class="copy">&copy; 2026 | Aaron Guo</span>
+    <span class="copy">&copy; 2026 | vvluo</span>
     <span class="sitelinks">
       <a href="https://github.com/vvluo" target="_blank" rel="noopener noreferrer"
          title="GitHub" aria-label="GitHub">

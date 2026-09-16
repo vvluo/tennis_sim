@@ -105,7 +105,11 @@ def build_tournament() -> None:
 
 
 def stage_site() -> None:
-    """Collect the pages to publish. The tournament is the landing page.
+    """Collect the pages to publish. The home page is the landing page.
+
+    It used to be the tournament, staged a second time as index.html -- so every
+    draw shared from the site root carries a ?r= link to "/". The home page
+    forwards those on to tournament.html before it paints.
 
     The shared chrome is refreshed on the way out. The ratings board is written
     by the notebook and never passes through run_tournament, so a change to the
@@ -120,9 +124,8 @@ def stage_site() -> None:
             if name != 'match_output.html':
                 sitenote.inline_file(source)
             shutil.copy(source, SITE / name)
-    landing = ROOT / 'tournament.html'
-    shutil.copy(landing if landing.exists() else ROOT / 'ratings_board.html',
-                SITE / 'index.html')
+    import run_home
+    shutil.copy(run_home.build(ROOT / 'home.html'), SITE / 'index.html')
 
 
 def main() -> int:
