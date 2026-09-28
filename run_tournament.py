@@ -28,7 +28,7 @@ MIN_POOL = 200          # a 128 draw with 10% dropout needs well over 128
 
 
 def candidates(tour: str, ranks_by_tour, nations_by_tour=None,
-               points_by_tour=None):
+               points_by_tour=None, ages_by_tour=None):
     """Ranked pool for one tour: everyone with both a rating and a ranking.
 
     `country` is the three-letter code the ranking feed carries, or None for a
@@ -44,6 +44,7 @@ def candidates(tour: str, ranks_by_tour, nations_by_tour=None,
     ranks = ranks_by_tour[tour]
     nations = (nations_by_tour or {}).get(tour, {})
     points = (points_by_tour or {}).get(tour, {})
+    ages = (ages_by_tour or {}).get(tour, {})
     pool = []
     for row in json.loads(RATINGS.read_text()):
         if row['t'] != tour or row['p'] not in ranks:
@@ -56,6 +57,12 @@ def candidates(tour: str, ranks_by_tour, nations_by_tour=None,
             entry['country'] = code
         if row['p'] in points:
             entry['points'] = points[row['p']]
+        # `age` drives the wear model and `born` the Next Gen cut-off, which is
+        # whole years at 31 December -- so the birth YEAR is what it needs, not
+        # the age at some snapshot part-way through.
+        if row['p'] in ages:
+            entry['age'] = ages[row['p']]['age']
+            entry['born'] = int(str(ages[row['p']]['dob'])[:4])
         pool.append(entry)
     return sorted(pool, key=lambda p: p['rank'])
 

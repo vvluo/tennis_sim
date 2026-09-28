@@ -57,9 +57,12 @@ def test_every_match_has_a_winner_and_a_loser(season):
 
 
 def test_every_event_produces_exactly_one_champion(season):
+    """Counted against the events that can award a title: Next Gen crowns a
+    champion but credits nothing, so it adds a winner and not a title."""
     for tour, v in season.items():
-        assert v['titles'] == v['champions'], (
-            f'{tour}: {v["titles"]} titles awarded across {v["champions"]} events')
+        assert v['titles'] == v['titleEvents'], (
+            f'{tour}: {v["titles"]} titles awarded across {v["titleEvents"]} '
+            f'title-paying events ({v["champions"]} events produced a champion)')
 
 
 def test_forecaster_carries_the_season(season):
@@ -933,17 +936,19 @@ def test_finals_points_are_paid_per_win(season):
         assert seen_max <= 1500, f'{tour}: {seen_max} exceeds the 1,500 maximum'
 
 
-def test_finals_are_simulated_and_next_gen_is_not(season):
-    """Next Gen is left out for want of ages, and says so rather than "round robin"."""
+def test_the_round_robins_are_simulated(season):
+    """The tour finals on both tours, and Next Gen on the ATP -- which used to be
+    skipped for want of birth dates and now has them."""
     for tour, v in season.items():
         rr = [e for e in v['calendar'] if e['format'] == 'rr']
-        assert len(rr) == 1, f'{tour}: {len(rr)} round-robin events'
-        assert rr[0]['skip'] is None, f'{tour}: the finals are still skipped'
-        assert rr[0]['level'].endswith('Finals')
-        for e in v['calendar']:
-            if e['level'] == 'Next Gen Finals':
-                assert e['skip'] and 'age' in e['skip'] and 'dates of birth' in e['skip'], (
-                    f'Next Gen is skipped as {e["skip"]!r}, which no longer says why')
+        assert rr, f'{tour}: no round-robin event at all'
+        for e in rr:
+            assert e['skip'] is None, f'{tour}: {e["name"]} is skipped as {e["skip"]!r}'
+        assert any(e['level'].endswith('Finals') for e in rr)
+    atp = [e for e in season['ATP']['calendar'] if e['level'] == 'Next Gen Finals']
+    assert len(atp) == 1 and atp[0]['skip'] is None, 'Next Gen is not being played'
+    assert not [e for e in season['WTA']['calendar']
+                if e['level'] == 'Next Gen Finals'], 'Next Gen is an ATP event'
 
 
 def test_an_injured_qualifier_is_replaced_by_the_next_player_down(season):
@@ -986,11 +991,30 @@ SLOTS = {'ATP': {'majors': None, 'mand': None, 'float': 0, 'other': 7},
          'WTA': {'majors': None, 'mand': None, 'float': 1, 'other': 5}}
 
 
+# The compulsory 1000s per tour -- nine Masters less Monte Carlo on the ATP,
+# the six combined events on the WTA -- and how many a player who was 31 at the
+# end of last season is excused. The excused slots fill from the best of the
+# rest rather than sitting as zeros.
+COMPULSORY_1000S = {'ATP': 8, 'WTA': 6}
+EXEMPT_COUNT = {'ATP': 3, 'WTA': 2}
+EXEMPT_AGE = 31
+
+
+def _excused(tour, player):
+    cap = EXEMPT_COUNT.get(tour, 0)
+    age = player.get('lastYearAge')
+    if not cap or age is None or age < EXEMPT_AGE:
+        return 0
+    played = len([g for g in player['results'] if g['slot'] == 'mand'])
+    return min(cap, max(0, COMPULSORY_1000S[tour] - played))
+
+
 def _recompute(tour, player):
     """The ranking from the raw results, worked out independently of the page.
 
     A compulsory slot is not a best-of: it counts in full, and an event the
-    player skipped is simply absent, which is the zero.
+    player skipped is simply absent, which is the zero -- unless the veterans'
+    exemption covers it, when the slot is filled from the best of the rest.
     """
     cfg = SLOTS[tour]
     by = lambda s: [g['pts'] for g in player['results'] if g['slot'] == s]
@@ -998,7 +1022,8 @@ def _recompute(tour, player):
     floats = sorted(by('float'), reverse=True)
     other = by('other') + floats[cfg['float']:]      # the unused ones spill
     total += sum(floats[:cfg['float']])
-    return total + sum(sorted(other, reverse=True)[:cfg['other']])
+    room = cfg['other'] + _excused(tour, player)
+    return total + sum(sorted(other, reverse=True)[:room])
 
 
 def test_ranking_points_are_the_counting_slots_not_the_season_total(season):
@@ -1063,7 +1088,7 @@ def test_a_skipped_compulsory_event_cannot_be_replaced(season):
                              if g['slot'] in ('majors', 'mand', 'finals'))
             compulsory += sum(floats[:cfg['float']])
             best = sum(sorted(optional + floats[cfg['float']:],
-                              reverse=True)[:cfg['other']])
+                              reverse=True)[:cfg['other'] + _excused(tour, p)])
             assert p['points'] == compulsory + best, (
                 f'{tour}: {p["name"]} does not split cleanly into a compulsory '
                 f'sum and a best-of')
@@ -1142,9 +1167,12 @@ def test_only_one_floating_thousand_counts_for_the_wta(season):
         # Any float counted beyond the first has to have earned an optional slot
         # on its own points, so it cannot be worth less than the weakest optional
         # result that got in.
+        # A veteran's pool is wider by however many compulsory 1000s they are
+        # excused, so a modest float can legitimately make the cut there.
+        room = SLOTS['WTA']['other'] + _excused('WTA', p)
         pool = sorted([g['pts'] for g in p['results'] if g['slot'] == 'other']
                       + sorted((g['pts'] for g in floats), reverse=True)[1:],
-                      reverse=True)[:SLOTS['WTA']['other']]
+                      reverse=True)[:room]
         extra = sorted((g['pts'] for g in counted), reverse=True)[1:]
         for pts in extra:
             assert pool and pts >= min(pool), (
@@ -1206,7 +1234,10 @@ def test_an_absence_always_says_which_kind_it_was(season):
     """"Not in the draw" covered injury, withdrawal and a ranking too low."""
     known = {'injured', 'load management', 'rest', 'declined', 'playing elsewhere',
              'not qualified', 'lost in qualifying', 'draw full',
-             'did not qualify'}
+             'did not qualify',
+             # the two Next Gen adds: past the age cut-off, and a field too
+             # small to stage the event at all
+             'too old', 'not played'}
     for tour, v in season.items():
         for a in v['absence']:
             assert a['reasons'], f'{tour}: #{a["rank"]} was never absent'
@@ -1256,7 +1287,11 @@ def test_a_top_player_rests_up_rather_than_failing_to_qualify(season):
     """The world number one skips the small events to be fresh for the big ones."""
     for tour, v in season.items():
         top = next(a for a in v['absence'] if a['rank'] <= 5)
-        total = sum(top['reasons'].values())
+        # Injury is not a choice, so it is out of the denominator. With ages in
+        # the model an older number one is hurt more often, and counting those
+        # weeks made a player who WAS managing a workload look like one who was
+        # merely declining.
+        total = sum(v for k, v in top['reasons'].items() if k != 'injured')
         managed = top['reasons'].get('load management', 0) / total
         assert managed > 0.2, (
             f'{tour}: only {managed:.0%} of #{top["rank"]}\'s absences are load '
@@ -1749,3 +1784,237 @@ def test_the_drop_schedule_is_pinned_to_the_data_not_the_clock():
     assert default != today, (
         'the schedule is the same whether it ends at the standings or at today, '
         'so nothing here is actually bounded by the snapshot')
+
+
+# ---- age, and the Next Gen Finals -----------------------------------------
+
+def test_the_age_curve_is_a_redistribution_not_an_increase(season):
+    """Centred on each tour's own mean, so the average player is untouched.
+
+    This is what keeps the fitted skip rates where they were tuned. A reference
+    written down rather than measured sat below the ATP's real mean of 26.8 and
+    added wear to the whole field: Paris went from 30% to 33.9% against a 25-30%
+    target, and every late-season rate moved with it.
+    """
+    a = season['ATP']['age']
+    assert abs(a['meanOffset']) < 0.5, (
+        f'the mean age offset is {a["meanOffset"]:.2f} years, so the curve is '
+        f'adding or removing wear across the board')
+    assert a['maxOffset'] <= 8.0 + 1e-9, (
+        f'offsets reach {a["maxOffset"]} years, past where the curve should level off')
+    assert a['covered'] > 200, f'only {a["covered"]} players have an age at all'
+
+
+def test_older_players_recover_slower_and_break_more(season):
+    a = season['ATP']['age']
+    assert a['old']['decay'] > a['base']['decay'] > a['young']['decay'], (
+        f"load sheds {a['old']['decay']} at {a['old']['age']} against "
+        f"{a['young']['decay']} at {a['young']['age']} -- the wrong way round")
+    assert a['old']['injury'] > 1 > a['young']['injury']
+    assert a['old']['decay'] <= 0.97, 'an older player never stops recovering entirely'
+    assert a['old']['injury'] < 1.6, f"injury rate x{a['old']['injury']} is not a tilt"
+
+
+def test_a_player_with_no_birth_date_is_left_alone(season):
+    """Ages cover the ATP top 250 and most of the WTA; everyone else must be
+    treated exactly as they were before ages existed."""
+    a = season['ATP']['age']
+    assert a['unknown'] == a['base'], (
+        f'an unknown age is being adjusted: {a["unknown"]} against {a["base"]}')
+
+
+def test_the_tiebreak_can_be_brought_forward(season):
+    """Next Gen breaks at 3-all in a set to four, which is a different number
+    from the set length -- so the engine needs both, and must be unchanged for
+    everyone who passes only the set length."""
+    t = season['ATP']['tiebreakAt']
+    assert max(t['fourAtThree']) <= 7, (
+        f'a set to four breaking at 3-all ran to {max(t["fourAtThree"])} games')
+    assert t['fourNoOption'] != t['fourAtThree'], (
+        'bringing the tiebreak forward changed nothing, so the option is ignored')
+    assert max(t['fourNoOption']) > 7, (
+        'the default no longer breaks at the set length')
+
+
+def test_next_gen_takes_only_the_under_21s(season):
+    ng = season['ATP']['nextGen']
+    assert ng, 'Next Gen was never played'
+    assert 0 < len(ng['field']) <= 8, f"field of {len(ng['field'])}"
+    for name, age in zip([e['name'] for e in ng['field']], ng['ages']):
+        assert age is not None and age <= ng['maxAge'], f'{name} is {age} at year end'
+
+
+def test_next_gen_excludes_the_tour_finalists_and_the_graduated(season):
+    """The tour's own two cuts: anyone who qualified for the ATP Finals a month
+    earlier, and a player already 20 who has reached the top 32."""
+    ng = season['ATP']['nextGen']
+    finalists = set(ng['tourFinalists'])
+    for e, age, live in zip(ng['field'], ng['ages'], ng['liveRank']):
+        assert e['name'] not in finalists, f'{e["name"]} also played the ATP Finals'
+        assert not (age == ng['maxAge'] and live <= ng['gradRank']), (
+            f'{e["name"]} is {age} and ranked {live}, so they have outgrown it')
+
+
+def test_every_next_gen_qualifier_actually_plays(season):
+    """An odd field used to leave the last man seeded and idle: the groups are
+    drawn two at a time, and seven qualified in the first season this ran."""
+    for r in season['ATP']['nextGenRuns'] or [season['ATP']['nextGen']]:
+        assert r['idle'] == 0, (
+            f"{r['idle']} of {len(r['field'])} qualifiers were seated and played nobody")
+        assert sum(r['sizes']) == len(r['field']), (
+            f"groups {r['sizes']} do not add up to a field of {len(r['field'])}")
+    # Played seasons need not produce an odd field at all, so the case the bug
+    # actually lived in is built rather than waited for.
+    odd = season['ATP']['oddField']
+    assert odd['size'] % 2, 'the built field is not odd, so it proves nothing'
+    assert odd['seated'] == odd['size'], (
+        f"{odd['size']} entrants but only {odd['seated']} were drawn into a group")
+    assert odd['idle'] == 0, f"{odd['idle']} of {odd['size']} played nobody"
+    assert sorted(odd['sizes']) == [3, 4], f"groups came out {odd['sizes']}"
+
+
+def test_next_gen_pays_no_ranking_points(season):
+    ng = season['ATP']['nextGen']
+    assert ng['champion'], 'nobody won it'
+    assert all(g == 0 for g in ng['gained']), (
+        f'the field left with {ng["gained"]} ranking points')
+
+
+def test_next_gen_is_played_to_its_own_scoring(season):
+    """Best of five, sets to four, tiebreak at three-all. A tiebreak set is
+    therefore seven games; under the ordinary format it would be thirteen."""
+    ng = season['ATP']['nextGen']
+    sets = [n for m in ng['setLens'] for n in m]
+    assert sets, 'no sets were played'
+    assert max(sets) <= 7, (
+        f'a set ran to {max(sets)} games; to four with a tiebreak at three-all '
+        f'the longest possible is seven')
+    assert max(len(m) for m in ng['setLens']) <= 5, 'a match ran past five sets'
+    # ...and the tour finals, played the ordinary way, must NOT look like this
+    ordinary = [n for m in season['ATP']['finals'][0]['setLens'] for n in m]
+    assert max(ordinary) > 7, (
+        'the tour finals are being played to the short-set format too')
+
+
+def test_a_tour_finalist_is_never_also_a_next_gen_qualifier(season):
+    """Asserted on the function against a built standings table.
+
+    A played season cannot show this one: it only bites when somebody under 21
+    is among the year's best eight, which happens in a career and rarely in a
+    simulated season -- so deleting the rule left every other test passing.
+    """
+    r = season['ATP']['nextGenRule']
+    assert r['starExcluded'], (
+        f"{r['star']} led the under-21s AND played the ATP Finals, and still "
+        f"turned up in the Next Gen field {r['field']}")
+    assert r['othersIn'] == r['others'], (
+        f"only {r['othersIn']} of {r['others']} eligible under-21s were taken, "
+        f"so the exclusion is catching more than the finalist")
+
+
+def test_a_veteran_is_excused_three_compulsory_masters(season):
+    """31 at the end of last season buys three exemptions, and the excused slots
+    are filled from the best of the rest rather than left as zeros.
+
+    Built result cards, not a played season: whether a 33-year-old happens to
+    miss exactly three Masters in a simulated year is luck, and the rule has to
+    hold at every number they miss.
+    """
+    v = season['ATP']['veteranExemption']
+    assert not v.get('none'), f"the exemption reaches nobody: {v.get('why')}"
+    assert v['vetAge'] >= v['age'] > v['kidAge'], 'the two sample players are miscast'
+    by_mand = {r['mand']: r for r in v['rows']}
+
+    # played them all: nothing to excuse, and the two must agree
+    assert by_mand[8]['vet'] == by_mand[8]['kid'], (
+        'a veteran who played every Masters is being given slots anyway')
+    # missed one, missed three: excused exactly what was missed, up to the cap
+    for mand in (7, 5):
+        row = by_mand[mand]
+        assert row['excused'] == min(v['cap'], v['mandatory'] - mand)
+        assert row['vet'] - row['kid'] == row['excused'], (
+            f"played {mand}: the veteran counts {row['vet']} against "
+            f"{row['kid']}, a gap of {row['vet'] - row['kid']} for "
+            f"{row['excused']} excused")
+    # missed four: the fourth is still a zero
+    assert by_mand[4]['excused'] == v['cap']
+    assert by_mand[4]['vet'] == by_mand[5]['vet'] - 1, (
+        'missing a fourth Masters cost the veteran nothing, so the cap is not held')
+
+
+def test_the_exemption_needs_an_age_and_is_sized_per_tour(season):
+    """Both tours excuse a veteran, but not the same number.
+
+    The ATP has eight compulsory Masters and excuses three; the WTA's
+    compulsory class is the six combined 1000s and excuses two, which keeps the
+    same share rather than handing over half the calendar.
+    """
+    v = season['ATP']['veteranExemption']
+    assert v['unknownAge'] == 0, 'a player with no birth date is being excused'
+    assert (v['mandatory'], v['cap']) == (8, 3), (
+        f"the ATP has {v['mandatory']} compulsory Masters and excuses {v['cap']}")
+    assert (v['wtaMandatory'], v['wtaCap']) == (6, 2), (
+        f"the WTA has {v['wtaMandatory']} compulsory 1000s and excuses {v['wtaCap']}")
+    # A WTA veteran one short of the six counts 4 majors + 5 compulsory + 1
+    # float + 5 best-of, and the excused slot makes a fifteenth.
+    assert v['wtaCounted'] == 15, (
+        f"a WTA veteran counted {v['wtaCounted']} slots, not 15")
+
+
+def test_an_exemption_lowers_the_skip_threshold_only_under_load(season):
+    """The rule is not "a veteran skips Masters".
+
+    A compulsory Masters is normally almost immune to carried load, which is
+    what WEAR_AT_MANDATORY is for. An exemption in hand makes the event optional
+    FOR THAT PLAYER, so load bites on it at the ordinary strength -- and a
+    veteran carrying nothing must still turn up exactly as often as anyone else.
+    """
+    t = season['ATP']['skipThreshold']
+    assert t['vetAge'] >= 31 > t['kidAge'], 'the sample players are miscast'
+    assert t['fresh']['vet'] == pytest.approx(t['fresh']['kid'], abs=1e-9), (
+        f"fresh, the veteran enters {t['fresh']['vet']:.3f} against "
+        f"{t['fresh']['kid']:.3f} -- the exemption is making him withdraw on its own")
+    vet_skip = 1 - t['loaded']['vet']
+    kid_skip = 1 - t['loaded']['kid']
+    assert vet_skip > kid_skip * 1.3, (
+        f'loaded, the veteran skips {vet_skip:.1%} against {kid_skip:.1%} -- '
+        f'the threshold has barely moved')
+
+
+def test_the_exemption_runs_out(season):
+    """Three, not a standing licence: once they are spent the event is
+    compulsory again and load stops biting on it."""
+    t = season['ATP']['skipThreshold']
+    assert t['left'] == 3, f"the veteran starts with {t['left']} exemptions"
+    assert t['spent']['left'] == 0, 'having missed three, one is still in hand'
+    assert t['spent']['vet'] > t['loaded']['vet'], (
+        f"with the exemptions spent the veteran still enters only "
+        f"{t['spent']['vet']:.3f}, the same as when he had them")
+    assert t['spent']['vet'] == pytest.approx(t['loaded']['kid'], abs=1e-9), (
+        'a veteran out of exemptions should face exactly the ordinary threshold')
+
+
+def test_monte_carlo_is_outside_the_exemption(season):
+    """It is optional for everybody, so there is no penalty to be excused from
+    and no reason for a veteran to treat it differently."""
+    t = season['ATP']['skipThreshold']
+    assert t['monteCarlo']['vet'] == pytest.approx(t['monteCarlo']['kid'], abs=1e-9), (
+        f"at Monte Carlo the veteran enters {t['monteCarlo']['vet']:.3f} against "
+        f"{t['monteCarlo']['kid']:.3f}")
+
+
+def test_each_tour_keeps_its_own_size_whichever_is_on_screen(season):
+    """The answer must not depend on what the page happens to be showing.
+
+    Two ways this leaked when the rule was ATP-only. The tour gate lived at the
+    call sites, so the function itself answered "three" for a WTA player and
+    only a caller's memory stood between that and a wrong ranking. And the
+    player lookup followed the displayed tour, so asking about an ATP veteran
+    while the WTA was on screen found nobody and dropped the exemption.
+    """
+    seen = season['ATP']['exemptionByTour']
+    for showing, got in seen.items():
+        assert got['atpVet'] == 3, (
+            f'showing {showing}: an ATP veteran was excused {got["atpVet"]}, not 3')
+        assert got['wtaVet'] == 2, (
+            f'showing {showing}: a WTA veteran was excused {got["wtaVet"]}, not 2')

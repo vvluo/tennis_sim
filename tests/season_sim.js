@@ -34,11 +34,18 @@ globalThis.localStorage = { getItem: () => null, setItem(){} };
 // The shared match viewer asks once at load whether the artifact `downloads`
 // capability is available; headless there is no window at all.
 globalThis.window = globalThis;
-eval(js + '\nglobalThis.__ = {state, runEvent, allocateWeek, CALS, POOLS, POINTS, ENTRY, entryChance, restChance, TAIL_DAYS, ensureFields, cal, pointsFor, roundNames, bracketFor, qualifiersFor, buildDraw, seedsFor, taperFor, directEntrants, seasonDrop, rankingBreakdown, SLOTS, QUALIFYING_DROPOUT, atHome, runFinals, finalsField, FINALS_POINTS, FINALS_FIELD, eventPayout, seasonCurve, seasonElapsed, residualAt, residualAt, snapshotRank, rankAt, rankIn, slotOf, committedTo, COMMITTED_RANK, WTA_SLOTTED_1000, ATP_OPTIONAL_1000, DATA, residualTable};');
+eval(js + '\nglobalThis.__ = {state, runEvent, allocateWeek, CALS, POOLS, POINTS, ENTRY, entryChance, restChance, TAIL_DAYS, ensureFields, cal, pointsFor, roundNames, bracketFor, qualifiersFor, buildDraw, seedsFor, taperFor, directEntrants, seasonDrop, rankingBreakdown, SLOTS, QUALIFYING_DROPOUT, atHome, runFinals, finalsField, nextGenField, ageAtYearEnd, AGE_YEAR, ageOffset, decayFor, injuryRateFor, LOAD_DECAY, INJURY_PER_MATCH, NEXTGEN_MAX_AGE, NEXTGEN_GRADUATED_RANK, simMatch, excusedSlots, ageAtLastYearEnd, compulsoryCount, isCompulsory1000, EXEMPT_AGE, EXEMPT_COUNT, exemptionsLeft, WEAR_AT_MANDATORY, WEAR_AT_EXCUSED, mkRandom: makeRandom, toPlayer, basesFor, FINALS_POINTS, FINALS_FIELD, eventPayout, seasonCurve, seasonElapsed, residualAt, residualAt, snapshotRank, rankAt, rankIn, slotOf, committedTo, COMMITTED_RANK, WTA_SLOTTED_1000, ATP_OPTIONAL_1000, DATA, residualTable};');
 
 // Every name is read through this namespace: binding any of them locally would
 // collide with the declarations the evaluated page script puts in this scope.
 const P = globalThis.__;
+
+// The Next Gen field is an age cut-off, not the year's eight best, so it has its
+// own builder -- exactly as ensureFields dispatches on the page. Running every
+// round robin through finalsField here would have tested a field the page never
+// actually puts on court.
+const rrField = (ev, S, who) =>
+  ev.level === 'Next Gen Finals' ? P.nextGenField(ev, S, who) : P.finalsField(ev, S, who);
 const out = { tours: {} };
 
 // Play a whole season the way the page does: allocate each week's entry lists
@@ -96,7 +103,7 @@ function season(tour, who, seed){
     });
   });
   finals.forEach((ev, k) => {
-    const f = P.finalsField(ev, S, who);
+    const f = rrField(ev, S, who);
     fieldOf.set(ev, f);
     f.forEach(e => {
       if(!entries.has(e.name)) entries.set(e.name, []);
@@ -116,10 +123,37 @@ function season(tour, who, seed){
       res.absence = res.absence || {};
       res.absence[r.yourResult] = (res.absence[r.yourResult] || 0) + 1;
     }
-    res.finals = { field: f.map(e => ({ name: e.name, seed: e.seed,
-                                        points: e.points, rank: e.rank })),
-                   groups: r.groups, closing: r.closing, champion: r.champion,
-                   gained: f.map(e => S.table.get(e.name).points - e.points) };
+    // Two round robins now, and they are different events: `finals` must stay
+    // the TOUR finals, or every finals test silently retargets itself at Next
+    // Gen -- which has seven players, groups of four and three, and pays
+    // nothing, so all of them fail for reasons that have nothing to do with
+    // what they are checking.
+    const record = { field: f.map(e => ({ name: e.name, seed: e.seed,
+                                          points: e.points, rank: e.rank })),
+                     groups: r.groups, closing: r.closing, champion: r.champion,
+                     gained: f.map(e => S.table.get(e.name).points - e.points),
+                     setLens: r.setLens };
+    if(ev.level === 'Next Gen Finals'){
+      const rows = (r.groups || []).flatMap(g => g.rows);
+      const sets = r.yourMatches.flatMap(m => m.sets || []);
+      res.nextGen = { ...record, level: ev.level,
+                      sizes: (r.groups || []).map(g => g.rows.length),
+                      idle: rows.filter(x => x.mw + x.ml === 0).length,
+                      // the format, read off the matches actually played
+                      setsPerMatch: r.yourMatches.map(m => (m.sets || []).length),
+                      gamesPerSet: sets.map(st => (st.g || []).length),
+                      tiebreaks: sets.filter(st => (st.g || []).some(g => g.k === 't')).length,
+                      ages: f.map(e => P.ageAtYearEnd(
+                        P.POOLS[tour].find(x => x.name === e.name))),
+                      // what the two exclusions are judged on
+                      liveRank: f.map(e => P.rankIn(P.rankAt(ev.deadWeek ?? ev.sweek),
+                        P.POOLS[tour].find(x => x.name === e.name))),
+                      tourFinalists: (res.finals ? res.finals.field : []).map(x => x.name),
+                      setLens: r.setLens,
+                      maxAge: P.NEXTGEN_MAX_AGE, gradRank: P.NEXTGEN_GRADUATED_RANK };
+    } else {
+      res.finals = record;
+    }
   });
   let clashes = 0, total = 0;
   for(const l of entries.values()){
@@ -129,6 +163,8 @@ function season(tour, who, seed){
   }
   const rows = [...S.table.values()];
   const thin = list.filter(e => e.thin).length;
+  // Next Gen crowns a champion but credits nothing, so it cannot add a title.
+  res.titleEvents = list.filter(e => e.level !== 'Next Gen Finals').length;
   const band = (a, b) => {
     const v = P.POOLS[tour].slice(a, b).map(x => (entries.get(x.name) || []).length);
     return v.reduce((x, y) => x + y, 0) / v.length;
@@ -176,6 +212,8 @@ function season(tour, who, seed){
     // can be recomputed independently rather than taken on trust.
     ranking: rows.sort((a, b) => b.points - a.points).slice(0, 40).map(r => ({
       name: r.name, points: r.points, titles: r.titles,
+      // raw, not the page's verdict: the test applies the exemption rule itself
+      lastYearAge: P.ageAtLastYearEnd(P.POOLS[tour].find(x => x.name === r.name)),
       counted: [...P.rankingBreakdown(r, tour).counted].map(g => g.event),
       results: r.results.map(g => ({ event: g.event, level: g.level, pts: g.pts,
                                      round: g.round, slot: g.slot,
@@ -409,9 +447,14 @@ function finalsRuns(tour, n){
   for(let t = 0; t < n; t++){
     const r = season(tour, '', 3300 + t * 617);
     if(r.finals) runs.push(r.finals);
+    // Next Gen's field is an age cut-off, so its SIZE varies from season to
+    // season -- and the odd-field bug only shows when it comes out odd. One
+    // season cannot prove that fix; these are collected across all of them.
+    if(r.nextGen) nextGenRuns.push(r.nextGen);
   }
   return runs;
 }
+const nextGenRuns = [];
 
 // An injured qualifier loses their place and the next player down takes it.
 // Built directly rather than measured off a season, because an injury landing on
@@ -427,11 +470,11 @@ function finalsInjuryReplacement(tour){
   const top = P.POOLS[tour].slice(0, 12);
   S.table = new Map(top.map((p, i) => [p.name,
     { name: p.name, points: 5000 - i * 100, titles: 0, w: 0, l: 0 }]));
-  const healthy = P.finalsField(ev, S, '').map(e => e.name);
+  const healthy = rrField(ev, S, '').map(e => e.name);
   // now hurt the second and fifth qualifiers past the start of the week
   const hurt = [healthy[1], healthy[4]];
   S.busy = new Map(hurt.map(n => [n, ev.sday + 30]));
-  const after = P.finalsField(ev, S, '').map(e => e.name);
+  const after = rrField(ev, S, '').map(e => e.name);
   return { healthy, hurt, after,
            standings: top.map(p => p.name).slice(0, 12) };
 }
@@ -518,7 +561,7 @@ function thousandDropout(tour, n){
     list.forEach((ev, i) => {
       if(ev.skip) return;
       if(!fields.has(i)){
-        if(ev.format === 'rr') fields.set(i, P.finalsField(ev, S, ''));
+        if(ev.format === 'rr') fields.set(i, rrField(ev, S, ''));
         else {
           const g = [];
           list.forEach((e, j) => { if(!e.skip && e.format !== 'rr' && e.sweek === ev.sweek) g.push(j); });
@@ -635,6 +678,9 @@ for(const tour of ['ATP', 'WTA']){
     openingRound, draws, home: home[tour], qualifyingDropout: P.QUALIFYING_DROPOUT,
     qualifierCounts: qualifierCounts[tour],
     finals: finalsRuns(tour, 6),
+    nextGen: nobody.nextGen || null,
+    nextGenRuns: tour === 'ATP' ? nextGenRuns : [],
+    titleEvents: nobody.titleEvents,
     commitment: commitment(tour, 8),
     thousandDropout: thousandDropout(tour, 10),
     crowding,
@@ -739,7 +785,7 @@ for(const tour of ['ATP', 'WTA']){
     evs.forEach((ev, k) => P.runEvent(ev, makeRandom(4321 + w * 7919 + k), null, f[k]));
   }
   list.filter(e => e.format === 'rr').forEach((ev, k) =>
-    P.runFinals(ev, makeRandom(4321 + k * 7919), null, P.finalsField(ev, S, null)));
+    P.runFinals(ev, makeRandom(4321 + k * 7919), null, rrField(ev, S, null)));
 
   const credited = new Map();
   for(const r of S.table.values())
@@ -844,6 +890,195 @@ for(const tour of ['ATP', 'WTA']){
     insideStillOwes: P.committedTo('ATP', inside, major),
     outsideStillFree: !P.committedTo('ATP', outside, major),
   };
+}
+
+// ---- the age curve, and the short-set format --------------------------------
+{
+  const S = P.state;
+  S.tour = 'ATP'; S.table = new Map(); S.rankViews = new Map();
+  const withAge = P.POOLS.ATP.filter(p => p.age);
+  const off = withAge.map(p => P.ageOffset(p.name));
+  const young = withAge.slice().sort((a, b) => a.age - b.age)[0];
+  const old = withAge.slice().sort((a, b) => b.age - a.age)[0];
+  const noAge = P.POOLS.ATP.find(p => !p.age);
+  out.tours.ATP.age = {
+    covered: withAge.length, pool: P.POOLS.ATP.length,
+    // the mean offset is what keeps this a redistribution rather than an
+    // across-the-board increase in wear
+    meanOffset: off.reduce((a, b) => a + b, 0) / off.length,
+    maxOffset: Math.max(...off.map(Math.abs)),
+    young: { age: young.age, decay: P.decayFor(young.name),
+             injury: P.injuryRateFor(young.name) / P.INJURY_PER_MATCH },
+    old: { age: old.age, decay: P.decayFor(old.name),
+           injury: P.injuryRateFor(old.name) / P.INJURY_PER_MATCH },
+    unknown: noAge ? { decay: P.decayFor(noAge.name),
+                       injury: P.injuryRateFor(noAge.name) / P.INJURY_PER_MATCH } : null,
+    base: { decay: P.LOAD_DECAY, injury: 1 },
+  };
+
+  // The engine option itself: the same two players, same seed, once at the
+  // default and once with the tiebreak brought forward to 3-all.
+  const two = P.POOLS.ATP.slice(0, 2).map(p => P.toPlayer(p, 0, 1));
+  const base = P.basesFor('ATP', 'hard');
+  const lens = o => {
+    const m = P.simMatch(P.mkRandom(12345), two[0], two[1], ['a', 'b'], 3, 7, base, o);
+    return m.sets.map(st => st.games.length);
+  };
+  out.tours.ATP.tiebreakAt = { fourNoOption: lens({ gamesPerSet: 4 }),
+                     fourAtThree: lens({ gamesPerSet: 4, tiebreakAt: 3 }) };
+}
+
+// The Next Gen exclusions, asserted on the function against a built standings
+// table. A played season cannot show the tour-finals cut: it only bites when
+// someone under 21 is among the year's best eight, which happens in a real
+// career and not in most simulated seasons -- so removing the rule altogether
+// changed nothing and the test passed anyway.
+{
+  const S = P.state;
+  S.tour = 'ATP'; S.table = new Map(); S.busy = new Map();
+  S.rankViews = new Map(); S.load = new Map(); S.hurt = new Map();
+  const ev = P.CALS.ATP.find(e => e.level === 'Next Gen Finals');
+  // Under-21s who are NOT also caught by the graduation cut, so the only rule
+  // this probe can fail on is the tour-finals one.
+  const young = P.POOLS.ATP
+    .filter(p => {
+      const a = P.ageAtYearEnd(p);
+      return a !== null && a <= P.NEXTGEN_MAX_AGE
+        && !(a === P.NEXTGEN_MAX_AGE && p.rank <= P.NEXTGEN_GRADUATED_RANK);
+    })
+    .slice(0, 6);
+  young.forEach((p, i) => S.table.set(p.name,
+    { name: p.name, points: 2000 - i * 10, titles: 0, w: 10, l: 2, results: [] }));
+  const star = young[0];
+  S.table.get(star.name).results.push(
+    { event: 'World Tour Finals', level: 'ATP Finals', sday: 320, pts: 1500,
+      late: false, qualifier: false, round: 'W', slot: 'finals' });
+  const field = P.nextGenField(ev, S, null).map(e => e.name);
+  out.tours.ATP.nextGenRule = {
+    star: star.name, field,
+    starExcluded: !field.includes(star.name),
+    othersIn: young.slice(1).filter(p => field.includes(p.name)).length,
+    others: young.length - 1,
+  };
+}
+
+// The veterans' Masters exemption, on built result cards rather than a played
+// season: whether a 33-year-old happens to skip exactly three Masters in a
+// simulated year is luck, and the rule has to hold for every number they miss.
+{
+  const S = P.state;
+  S.tour = 'ATP';
+  const vet = P.POOLS.ATP.find(p => p.age && P.ageAtLastYearEnd(p) >= P.EXEMPT_AGE);
+  const kid = P.POOLS.ATP.find(p => p.age && P.ageAtLastYearEnd(p) < P.EXEMPT_AGE);
+  const noAge = P.POOLS.ATP.find(p => !p.age);
+  // Reported rather than thrown: with no eligible player the probe cannot run,
+  // and a fixture that crashes turns every test in the file into an error
+  // instead of the one clear failure that says the exemption reaches nobody.
+  if(!vet || !kid) out.tours.ATP.veteranExemption = { none: true,
+    why: !vet ? 'no player is old enough to be exempt' : 'no player is young enough' };
+  const card = (name, mand) => {
+    const results = [];
+    for(let i = 0; i < 4; i++)
+      results.push({ event: 'major' + i, level: 'Grand Slam', pts: 500 - i, slot: 'majors' });
+    for(let i = 0; i < mand; i++)
+      results.push({ event: 'm' + i, level: 'ATP 1000', pts: 300 - i, slot: 'mand' });
+    for(let i = 0; i < 12; i++)
+      results.push({ event: 'o' + i, level: 'ATP 250', pts: 200 - i, slot: 'other' });
+    return { name, results };
+  };
+  const rows = (!vet || !kid) ? [] : [8, 7, 5, 4].map(mand => ({
+    mand,
+    vet: P.rankingBreakdown(card(vet.name, mand), 'ATP').counted.size,
+    kid: P.rankingBreakdown(card(kid.name, mand), 'ATP').counted.size,
+    excused: P.excusedSlots('ATP', vet.name, mand),
+  }));
+  S.tour = 'WTA';
+  const wtaVet = P.POOLS.WTA.find(p => p.age && P.ageAtLastYearEnd(p) >= P.EXEMPT_AGE);
+  const safeCard = (p, m) => (p ? card(p.name, m) : { name: '', results: [] });
+  const wtaCounted = wtaVet
+    ? P.rankingBreakdown(safeCard(wtaVet, 5), 'WTA').counted.size : null;
+  S.tour = 'ATP';
+  if(vet && kid) out.tours.ATP.veteranExemption = {
+    vetAge: P.ageAtLastYearEnd(vet), kidAge: P.ageAtLastYearEnd(kid),
+    mandatory: P.compulsoryCount('ATP'), cap: P.EXEMPT_COUNT.ATP, age: P.EXEMPT_AGE,
+    wtaMandatory: P.compulsoryCount('WTA'), wtaCap: P.EXEMPT_COUNT.WTA,
+    rows, unknownAge: P.excusedSlots('ATP', noAge.name, 5), wtaCounted,
+  };
+}
+
+// An odd round-robin field, built rather than waited for: whether a simulated
+// season happens to qualify an odd number of under-21s is luck, and the bug
+// this guards -- the leftover player seated and never drawn -- only shows then.
+{
+  const S = P.state;
+  S.tour = 'ATP'; S.table = new Map(); S.busy = new Map(); S.hurt = new Map();
+  S.load = new Map(); S.rankViews = new Map();
+  const ev = P.CALS.ATP.find(e => e.level === 'Next Gen Finals');
+  const seven = P.POOLS.ATP.slice(0, 7).map((p, i) => ({
+    name: p.name, rank: p.rank, ratings: p.ratings, country: p.country,
+    qualifier: false, playable: false, seed: i + 1, points: 1000 - i * 10 }));
+  seven.forEach(e => S.table.set(e.name,
+    { name: e.name, points: e.points, titles: 0, w: 0, l: 0, results: [] }));
+  const r = P.runFinals(ev, makeRandom(99), null, seven);
+  const rows = (r.groups || []).flatMap(g => g.rows);
+  out.tours.ATP.oddField = {
+    size: seven.length, sizes: (r.groups || []).map(g => g.rows.length),
+    idle: rows.filter(x => x.mw + x.ml === 0).length,
+    seated: rows.length,
+  };
+}
+
+// What an exemption in hand does to the SKIP THRESHOLD. The rule is not "a
+// veteran skips Masters": it is that a veteran carrying load can skip one
+// without the penalty, so the load term stops being damped for them. At no load
+// the two must be identical, or the exemption is making fresh players withdraw.
+{
+  const S = P.state;
+  S.tour = 'ATP'; S.table = new Map(); S.busy = new Map(); S.hurt = new Map();
+  S.load = new Map(); S.rankViews = new Map();
+  const ev = P.CALS.ATP.find(e => e.name === 'Shanghai');
+  const monte = P.CALS.ATP.find(e => e.name === 'Monte Carlo');
+  const vet = P.POOLS.ATP.find(p => p.age && P.ageAtLastYearEnd(p) >= P.EXEMPT_AGE);
+  const kid = P.POOLS.ATP.find(p => p.age && P.ageAtLastYearEnd(p) < P.EXEMPT_AGE && p.rank < 40);
+  const before = P.CALS.ATP.filter(e => !e.skip && /1000$/.test(e.level)
+    && e.name !== 'Monte Carlo' && e.sday < ev.sday);
+  const attended = n => S.table.set(n, { name: n, points: 0, titles: 0, w: 0, l: 0,
+    results: before.map(e => ({ event: e.name, level: e.level, pts: 100, slot: 'mand' })) });
+  const missedThree = n => S.table.set(n, { name: n, points: 0, titles: 0, w: 0, l: 0,
+    results: before.slice(3).map(e => ({ event: e.name, level: e.level, pts: 100, slot: 'mand' })) });
+  const chance = (who, load, e) =>
+    P.entryChance('ATP 1000', 20, load, false, 1, 30, e, who);
+
+  attended(vet.name); attended(kid.name);
+  const fresh = { vet: chance(vet.name, 0, ev), kid: chance(kid.name, 0, ev) };
+  const loaded = { vet: chance(vet.name, 12, ev), kid: chance(kid.name, 12, ev) };
+  const monteCarlo = { vet: chance(vet.name, 12, monte), kid: chance(kid.name, 12, monte) };
+  const left = P.exemptionsLeft(vet.name, ev);
+  missedThree(vet.name);
+  const spent = { vet: chance(vet.name, 12, ev), left: P.exemptionsLeft(vet.name, ev) };
+
+  out.tours.ATP.skipThreshold = {
+    vetAge: P.ageAtLastYearEnd(vet), kidAge: P.ageAtLastYearEnd(kid),
+    fresh, loaded, monteCarlo, left, spent,
+    damped: P.WEAR_AT_MANDATORY, excused: P.WEAR_AT_EXCUSED,
+  };
+}
+
+// The exemption is an ATP rule. Asked about either tour, from either tour, it
+// must answer the same way: the gate used to live only at the call sites, and
+// the player lookup used to follow whichever tour the page happened to show.
+{
+  const S = P.state;
+  const a = P.POOLS.ATP.find(p => p.age && P.ageAtLastYearEnd(p) >= P.EXEMPT_AGE);
+  const w = P.POOLS.WTA.find(p => p.age && P.ageAtLastYearEnd(p) >= P.EXEMPT_AGE);
+  const seen = {};
+  for(const showing of ['ATP', 'WTA']){
+    S.tour = showing;
+    seen[showing] = { atpVet: P.excusedSlots('ATP', a.name, 5),
+                      wtaVet: P.excusedSlots('WTA', w.name, 3) };
+  }
+  S.tour = 'ATP';
+  out.tours.ATP.exemptionByTour = seen;
 }
 
 console.log(JSON.stringify(out));

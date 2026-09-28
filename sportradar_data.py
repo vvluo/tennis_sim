@@ -215,6 +215,18 @@ class Client:
         return self.get(f"sport_events/{event_id}/summary.json",
                         cache_key=f"event_{safe}")
 
+    def competitor_profile(self, competitor_id: str) -> dict:
+        """One player's profile feed -- where a date of birth lives.
+
+        Nothing else in the cache carries one: the daily summaries name the two
+        competitors and nothing about them, so an age costs a call per player and
+        there is no bulk form of this feed. Cached like everything else, so the
+        cost is paid once.
+        """
+        safe = competitor_id.replace(":", "_")
+        return self.get(f"competitors/{competitor_id}/profile.json",
+                        cache_key=f"profile_{safe}")
+
     def rankings(self) -> list[dict]:
         """Current ATP/WTA rankings. One snapshot -- the feed carries no history,
         so applying these points to a season of past matches assumes a player's

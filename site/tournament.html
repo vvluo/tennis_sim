@@ -821,12 +821,18 @@ function tbScore(sp, rp, names, srv, rcv, len){
 //   noAd           a deuce is a single deciding point instead of advantage
 //   tiebreak       points needed to take an ordinary set's tiebreak (7)
 //   gamesPerSet    games needed to take a set (6)
+//   tiebreakAt     games at which a tiebreak replaces the next game, defaulting
+//                  to gamesPerSet -- 6-6 in an ordinary set. The Next Gen
+//                  Finals play sets to four with the tiebreak at 3-all, which
+//                  is a different number from the set length and so cannot be
+//                  derived from it.
 //   superTiebreak  the deciding set is one tiebreak, to finalSetTiebreak points
 function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base, opts){
   const O = opts || {};
   const noAd = !!O.noAd;
   const TB = O.tiebreak || 7;
   const SET_TO = O.gamesPerSet || 6;
+  const TB_AT = O.tiebreakAt || SET_TO;
   // Full names in the record; the panel abbreviates only if it has to.
   const fTop = drawForm(rng, top), fBot = drawForm(rng, bottom);
   const mu = [matchup(top, bottom, fTop, fBot, base), matchup(bottom, top, fBot, fTop, base)];
@@ -895,7 +901,7 @@ function simMatch(rng, top, bottom, names, bestOf, finalSetTiebreak, base, opts)
     let g0 = 0, g1 = 0;
     const games = [];
     for(;;){
-      if(g0 === SET_TO && g1 === SET_TO){
+      if(g0 === TB_AT && g1 === TB_AT){
         const startServer = server;
         const tb = simTiebreak(tbLen);
         games.push(tb);

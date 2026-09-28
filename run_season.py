@@ -43,12 +43,36 @@ SKIP_SHAPE_OK = 'verified'
 # The two tour finals are round robins, not brackets: eight qualifiers, two
 # groups, then a knockout. They carry no draw size in the calendar because they
 # have no draw, so the shape check cannot pass them -- they are named instead.
-ROUND_ROBIN = {'ATP Finals', 'WTA Finals'}
+ROUND_ROBIN = {'ATP Finals', 'WTA Finals', 'Next Gen Finals'}
 ROUND_ROBIN_FIELD = 8
 
-# Next Gen is a round robin too, but its field is an age cut-off and the source
-# data carries no dates of birth, so there is no way to say who qualifies.
+# Next Gen's field is an age cut-off, so it can only be played once birth dates
+# exist. ages.json supplies them (fetch_ages.py); without that file the event is
+# carried in the calendar and skipped, exactly as it was before.
 NO_AGE_DATA = {'Next Gen Finals'}
+AGES = ROOT / 'ages.json'
+
+
+def player_ages():
+    """Birth date and age per player, and the season they were measured in.
+
+    ages.json keys players the way the ranking feed names them -- "Sinner,
+    Jannik" -- while the pool uses "Jannik Sinner", so the names are flipped
+    here. A missing file is not an error: the wear model falls back to
+    age-neutral and Next Gen stays skipped.
+    """
+    if not AGES.exists():
+        return {}, None
+
+    def flip(name):
+        last, _, first = name.partition(',')
+        return f'{first.strip()} {last.strip()}' if first else name.strip()
+
+    raw = json.loads(AGES.read_text())
+    ages = {t: {flip(n): v for n, v in raw.get(t, {}).items()}
+            for t in ('ATP', 'WTA')}
+    season = int(str(raw.get('snapshot', ''))[:4]) if raw.get('snapshot') else None
+    return ages, season
 
 # The season-ending events, which play last whatever their date says.
 SEASON_ENDING = {'ATP Finals', 'WTA Finals', 'Next Gen Finals'}
@@ -68,7 +92,7 @@ def season_day(iso):
     return (date(2001, m, d) - date(2001, 1, 1)).days      # 2001: not a leap year
 
 
-def calendar(tour):
+def calendar(tour, next_gen_ok=False):
     path = ROOT / f'{tour.lower()}_calendar.csv'
     if not path.exists():
         raise SystemExit(f'{path.name} is missing -- run build_calendar.py first')
@@ -76,7 +100,7 @@ def calendar(tour):
     for r in csv.DictReader(path.open()):
         rr = r['level'] in ROUND_ROBIN
         playable = rr or (r['shape'] == SKIP_SHAPE_OK and r['draw'].isdigit())
-        if r['level'] in NO_AGE_DATA:
+        if r['level'] in NO_AGE_DATA and not next_gen_ok:
             skip = 'no dates of birth in the source data, so the age cut-off ' \
                    'that decides the field cannot be applied'
         elif playable:
@@ -135,13 +159,16 @@ def main() -> int:
     ranks = rankings()
     nations = nationalities()
     points = entry_points()
+    ages, season_year = player_ages()
+    # Next Gen needs the men's birth years; without them it stays skipped.
+    next_gen_ok = bool(ages.get('ATP')) and season_year is not None
     pools, cals = {}, {}
     for tour in ('ATP', 'WTA'):
-        pool = candidates(tour, ranks, nations, points)
+        pool = candidates(tour, ranks, nations, points, ages)
         if len(pool) < MIN_POOL:
             raise SystemExit(f'only {len(pool)} rated+ranked {tour} players')
         pools[tour] = pool
-        cals[tour] = calendar(tour)
+        cals[tour] = calendar(tour, next_gen_ok)
         playable = [e for e in cals[tour] if not e['skip']]
         biggest = max(e['draw'] for e in playable)
         if len(pool) < biggest:
@@ -195,7 +222,18 @@ def main() -> int:
             for t, rows in drops.items()}
 
     built = datetime.fromtimestamp(RATINGS.stat().st_mtime).date().isoformat()
-    payload = {'pools': pools, 'calendars': cals, 'built': built, 'drops': lean}
+    payload = {'pools': pools, 'calendars': cals, 'built': built, 'drops': lean,
+               # The year the ages were measured in: Next Gen's cut-off is whole
+               # years at 31 December, so the page needs the season, not a date.
+               'season': season_year}
+    for tour in cals:
+        known = sum(1 for p in pools[tour] if 'age' in p)
+        if known:
+            mean = sum(p['age'] for p in pools[tour] if 'age' in p) / known
+            print(f'{tour}: ages for {known}/{len(pools[tour])} players, mean {mean:.1f}')
+        else:
+            print(f'{tour}: no ages -- wear is age-neutral'
+                  + (' and Next Gen is skipped' if tour == 'ATP' else ''))
     print(f'data set dated {built}')
 
     page = (TEMPLATE.read_text()

@@ -369,6 +369,11 @@ table.season .dot{display:inline-block;width:7px;height:7px;border-radius:2px;
 /*__MATCHVIEW__*/
 const DATA = /*__DATA__*/;
 const POOLS = DATA.pools, CALS = DATA.calendars, BUILT = DATA.built;
+// The season the ages were measured in. Named AGE_YEAR because SEASON_YEAR is
+// already taken further down for the DISPLAYED year, which comes off the clock:
+// two constants, two different questions, and declaring both broke the page
+// outright until this one was renamed.
+const AGE_YEAR = DATA.season || null;
 // Weeks from each event to the next major, so the schedule can taper into one.
 // Null once the last major of the year is behind us.
 for(const _t of Object.keys(CALS)){
@@ -598,7 +603,13 @@ const FATIGUE_CAP = 0.45;
 // first weeks of a season cost almost nothing and the rate then flattens, which
 // is the only shape that fits under 10% at Indian Wells AND close to 30% at
 // Paris with one expression.
-const ATP_1000_FATIGUE = 0.0400;
+// Re-centred from 0.0400 when the veterans' exemption went in. Veterans skip
+// a compulsory Masters far more readily once loaded, and they are about a tenth
+// of the eligible field, so the field-wide rates rose about two points with no
+// change to anyone else's schedule -- Paris to 32.8% against a 25-30% target.
+// Lowering the base puts the field back where it was fitted and leaves the
+// veterans' gap intact: 30% against 18% for everyone else.
+const ATP_1000_FATIGUE = 0.0350;
 const ATP_1000_FATIGUE_FREE = 15.5;
 // ...plus a flat extra wherever a Masters sits within a fortnight of another
 // one. Back-to-back weeks are skipped more than their place in the season alone
@@ -620,7 +631,7 @@ function seasonDrop(level, played, ev){
   return 0;
 }
 
-function entryChance(level, rank, load, home, taper, played, ev){
+function entryChance(level, rank, load, home, taper, played, ev, who){
   const e = ENTRY[level] || { flat: 0.85 };
   const compulsory = e.flat !== undefined;
   let p = compulsory ? e.flat
@@ -629,7 +640,7 @@ function entryChance(level, rank, load, home, taper, played, ev){
   // Carried load makes an event likelier to be skipped -- but how much likelier
   // depends entirely on what the event is. See WEAR_AT_MAJOR above.
   const strength = level === SLAM ? WEAR_AT_MAJOR
-                 : compulsory ? WEAR_AT_MANDATORY
+                 : compulsory ? mandatoryWear(who, ev)
                  : WEAR_AT_OPTIONAL * (taper || 1);
   const wear = Math.min(LOAD_SKIP_CAP, load * LOAD_SKIP * strength);
   p = Math.max(0, p * (1 - wear) * (1 - seasonDrop(level, played, ev)));
@@ -657,7 +668,7 @@ const MAJOR_CODE = {
 };
 function tierMark(ev){
   if(ev.skip) return '';
-  if(ev.format === 'rr') return 'F';         // the tour finals
+  if(ev.format === 'rr') return ev.level === NEXTGEN_LEVEL ? 'N' : 'F';
   if(ev.level === SLAM) return MAJOR_CODE[ev.name] || '';
   return /1000$/.test(ev.level) ? '1' : '';
 }
@@ -789,6 +800,73 @@ const INJURY_MIN_WEEKS = 2, INJURY_MAX_WEEKS = 9;
 // A small share of injuries end the season rather than costing a few weeks.
 const INJURY_SEASON_ENDING = 0.07;
 
+// ---- age ------------------------------------------------------------------
+// Two things change with age: a body sheds accumulated load more slowly, and it
+// breaks more easily. Both are CENTRED on the reference age rather than added
+// on top of it -- a 33-year-old recovers worse than the model used to assume and
+// a 21-year-old better, and the average player is left exactly where the skip
+// rates and participation bands were fitted. Widening the effect without
+// centring it would have quietly raised every withdrawal rate on both tours.
+//
+// The effect saturates: beyond AGE_SPAN years either side the curve stops
+// moving, so the 41-year-old in the pool is treated as a 34-year-old rather
+// than extrapolated into a player who can never recover at all.
+//
+// A player with no birth date -- the men outside the top 250, thirteen of the
+// women -- gets no adjustment at all rather than a guessed one.
+// The reference is each TOUR'S OWN mean age, computed from the pool rather than
+// written down: a hard-coded 26 sat below the ATP's actual 26.8, so the curve
+// added wear to the field on average instead of redistributing it, and the
+// late-season skip rates climbed -- Paris went to 33.9% against a 25-30% target.
+// Centring on the mean makes the adjustment a redistribution by construction.
+const AGE_REF_FALLBACK = 26;
+const AGE_MEAN = {};
+function ageRef(){
+  const tour = state.tour;
+  if(AGE_MEAN[tour] === undefined){
+    const known = (POOLS[tour] || []).filter(p => p.age);
+    AGE_MEAN[tour] = known.length
+      ? known.reduce((a, p) => a + p.age, 0) / known.length : AGE_REF_FALLBACK;
+  }
+  return AGE_MEAN[tour];
+}
+const AGE_SPAN = 8;              // years either side, where the effect levels off
+const AGE_RECOVERY = 0.0045;     // per year of load kept: 0.90 at 26, 0.936 at 34
+// Per year of relative injury rate: +12% at the clamp, not the +36% first
+// fitted. At that steeper tilt a veteran in the 31-80 band was hurt in 39% of
+// seasons and the oldest in 43%, which is more than a simulation should be
+// claiming. What it will NOT fix is the busiest top-30 players, who sit near
+// 45% at any tilt because their YOUNGER peers are already at 34%: that figure
+// is matches played, not age, and lowering it means lowering the base rate.
+const AGE_INJURY = 0.015;
+const AGE_DECAY_CAP = 0.97;      // nobody stops recovering altogether
+
+const POOL_INDEX = {};
+// `tour` defaults to whichever season is being played, which is right for
+// everything inside a run. rankingBreakdown is the exception: it can be asked
+// about either tour whatever the page is showing, and looking the player up in
+// the wrong pool finds nobody and quietly drops their exemption.
+function poolPlayer(name, forTour){
+  const tour = forTour || state.tour;
+  let idx = POOL_INDEX[tour];
+  if(!idx) idx = POOL_INDEX[tour] = new Map((POOLS[tour] || []).map(p => [p.name, p]));
+  return idx.get(name);
+}
+// Years from the reference age, clamped. Zero when the age is unknown, which is
+// what makes an absent ages.json a no-op rather than a silent distortion.
+function ageOffset(name){
+  const p = poolPlayer(name);
+  const age = p && p.age;
+  if(!age) return 0;
+  return Math.max(-AGE_SPAN, Math.min(AGE_SPAN, age - ageRef()));
+}
+function decayFor(name){
+  return Math.min(AGE_DECAY_CAP, LOAD_DECAY + AGE_RECOVERY * ageOffset(name));
+}
+function injuryRateFor(name){
+  return INJURY_PER_MATCH * Math.max(0.2, 1 + AGE_INJURY * ageOffset(name));
+}
+
 // Being out for a week altogether -- not injured, just not entered anywhere:
 // a training block, a niggle, a week at home. This is separate from turning
 // down a particular event, because it does not depend on what is on offer; it
@@ -807,6 +885,9 @@ const REST_LOAD_BY_TIER = [0.12, 0.45, 1.0];
 const WEAR_AT_MAJOR = 0.0;        // a fit player does not miss a major for load
 const WEAR_AT_MANDATORY = 0.10;   // a compulsory 1000 gives way, barely
 const WEAR_AT_OPTIONAL = 1.0;     // the 500s and 250s absorb all of it
+// An excused Masters is, for this player, an optional event -- so load bites on
+// it at the optional strength rather than the compulsory tenth.
+const WEAR_AT_EXCUSED = 1.0;
 
 // ...and absorb MORE of it with a major coming up, which is the other half of
 // the same behaviour: the week before a slam is exactly when a tired player
@@ -833,9 +914,9 @@ function decayLoads(state, week){
   if(state.loadWeek === week) return;
   const gap = state.loadWeek === null ? 0 : week - state.loadWeek;
   if(gap > 0){
-    const f = Math.pow(LOAD_DECAY, gap);
     for(const [n, v] of state.load){
-      const nv = v * f;
+      // Per player: the rate itself depends on how old they are.
+      const nv = v * Math.pow(decayFor(n), gap);
       if(nv < 0.05) state.load.delete(n); else state.load.set(n, nv);
     }
   }
@@ -944,10 +1025,18 @@ function allocateWeek(evs, rng, state, playable){
   // very different seasons.
   const why = {};
   // POOLS is in end-of-last-season order; direct entry works down the list, so
-  // it has to be resorted into the standing that applies now.
+  // it has to be resorted into the standing that applies now -- but a player who
+  // OWES one of this week's events comes first whatever their standing.
+  //
+  // The tour guarantees a committed player their place; queuing them by ranking
+  // let a top-30 player having a poor season arrive to find the draw full. That
+  // is how Andrey Rublev, committed to a late 500 in both of the two weeks the
+  // calendar offers one, played neither and finished a season owing it.
+  const owes = p => evs.some(ev => committedTo(tour, p, ev));
   const free = POOLS[tour].filter(p =>
     (state.busy.get(p.name) ?? -Infinity) <= startN)
-    .sort((a, b) => rankIn(ordView, a) - rankIn(ordView, b));
+    .sort((a, b) => (owes(b) ? 1 : 0) - (owes(a) ? 1 : 0)
+                 || rankIn(ordView, a) - rankIn(ordView, b));
   if(playable && !free.some(p => p.name === playable))
     why.all = (state.hurt.get(playable) ?? -Infinity) > startN
       ? 'injured' : 'playing elsewhere';
@@ -1009,7 +1098,7 @@ function allocateWeek(evs, rng, state, playable){
       const tier = must ? -1 : tierOf(evs[i].level);
       const want = must ? 1
         : entryChance(evs[i].level, rk(i, p), load, atHome(p, evs[i]), taperFor(evs[i]),
-                      matchesThisSeason(p.name), evs[i]);
+                      matchesThisSeason(p.name), evs[i], p.name);
       if(tier < bestTier ||
          (tier === bestTier && (want > bestWant + 1e-9 ||
           (Math.abs(want - bestWant) <= 1e-9 && need > bestNeed)))){
@@ -1022,7 +1111,7 @@ function allocateWeek(evs, rng, state, playable){
         // Wear or ranking? Compare the chance they were actually offered with
         // the one a fresh player of the same ranking would have had.
         const fresh = entryChance(evs[pick].level, rk(pick, p), 0, atHome(p, evs[pick]),
-                                  taperFor(evs[pick]));
+                                  taperFor(evs[pick]), 0, evs[pick], p.name);
         why.all = (fresh > 0 && 1 - bestWant / fresh > WEAR_SHARE_BLAMED)
           ? 'load management' : 'declined';
       }
@@ -1122,7 +1211,7 @@ function allocateWeek(evs, rng, state, playable){
 // is therefore whatever the matches inside it produced.
 function hurtBy(name, ev, rng, out){
   const load = state.load.get(name) || 0;
-  if(rng.random() >= INJURY_PER_MATCH * load) return false;
+  if(rng.random() >= injuryRateFor(name) * load) return false;
   const endN = ev.sday_end;
   if(rng.random() < INJURY_SEASON_ENDING){
     // Out for the year: no day left on the calendar can clear this.
@@ -1312,16 +1401,87 @@ function finalsField(ev, state, playable){
   return field;
 }
 
+// ---- the Next Gen ATP Finals ----------------------------------------------
+// Eight under-21s by this season's points, less two groups the tour takes out
+// itself: anyone who qualified for the ATP Finals a month earlier does not come
+// down for this, and a player already 20 at the end of the year who has reached
+// the top 32 has outgrown it.
+//
+// The cut-off is whole years at 31 December, so only the birth YEAR matters and
+// a birthday inside the season never changes anyone's eligibility.
+const NEXTGEN_LEVEL = 'Next Gen Finals';
+const NEXTGEN_MAX_AGE = 20;            // at 31 December
+const NEXTGEN_GRADUATED_RANK = 32;     // a 20-year-old this high up does not come
+// It awards no ranking points at all, so the week is played and recorded but
+// nothing is credited -- and the payout curve must not count it either.
+const NO_RANKING_POINTS = new Set([NEXTGEN_LEVEL]);
+// And it is played to its own scoring: best of five short sets, first to four
+// games, a tiebreak at three-all, no advantage. The tiebreak comes at a
+// DIFFERENT number from the set length, which is why the engine has to be told
+// both rather than inferring one from the other.
+const NEXTGEN_FORMAT = { bestOf: 5, finalSetTiebreak: 7,
+                         opts: { noAd: true, gamesPerSet: 4, tiebreakAt: 3, tiebreak: 7 } };
+
+function ageAtYearEnd(p){
+  return (p && p.born && AGE_YEAR) ? AGE_YEAR - p.born : null;
+}
+// Qualified for the ATP Finals, read off what was actually played there rather
+// than recomputed: finalsField marks its eight busy as a side effect, so asking
+// it again here would hold those players out of this event twice over.
+function playedTheTourFinals(name){
+  const r = state.table.get(name);
+  return !!r && r.results.some(g => g.level === 'ATP Finals');
+}
+
+function nextGenField(ev, state, playable){
+  const start = sdayOf(ev);
+  const byName = new Map(POOLS[state.tour].map(p => [p.name, p]));
+  const view = rankAt(ev.deadWeek ?? sweekOf(ev));
+  const standings = [...state.table.values()]
+    .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  const field = [];
+  for(const r of standings){
+    if(field.length >= FINALS_FIELD) break;
+    if((state.busy.get(r.name) ?? -Infinity) > start) continue;   // injured
+    const p = byName.get(r.name);
+    if(!p) continue;
+    const age = ageAtYearEnd(p);
+    if(age === null || age > NEXTGEN_MAX_AGE) continue;
+    if(playedTheTourFinals(r.name)) continue;
+    if(age === NEXTGEN_MAX_AGE && rankIn(view, p) <= NEXTGEN_GRADUATED_RANK) continue;
+    field.push({ name: p.name, rank: p.rank, ratings: p.ratings, country: p.country,
+                 qualifier: false, playable: p.name === playable,
+                 seed: field.length + 1, points: r.points });
+  }
+  const freeFrom = ev.sday_end - TAIL_DAYS;
+  field.forEach(e => state.busy.set(e.name,
+    Math.max(state.busy.get(e.name) ?? -Infinity, freeFrom)));
+  return field;
+}
+
 function runFinals(ev, rng, playable, field){
   const tour = state.tour;
-  const bestOf = 3, fst = 7;
+  const fmt = ev.level === NEXTGEN_LEVEL ? NEXTGEN_FORMAT : null;
+  const bestOf = fmt ? fmt.bestOf : 3, fst = fmt ? fmt.finalSetTiebreak : 7;
+  const opts = fmt ? fmt.opts : undefined;
   const base = basesFor(tour, ev.surface === 'indoor_hard' ? 'hard' : ev.surface);
   const shrink = SHRINK[tour] ?? 1.0;
   const out = { closing: [], yourMatches: [], injured: [], walkovers: [], groups: [],
                 champion: null, runnerUp: null, seeds: 0, qualifiers: 0,
-                championSeed: null, championQ: false };
+                championSeed: null, championQ: false,
+                // How many games each set ran to, every match. The short-set
+                // format is otherwise invisible from outside: the group table
+                // counts games won, not the length of the sets they came in.
+                setLens: [],
+                // Declared here, not only on the paths that set it: the early
+                // return below skipped it entirely and the season reported the
+                // picked player's absence as the string "undefined".
+                yourResult: null };
   const entrants = (field || []).slice(0, FINALS_FIELD);
-  if(entrants.length < 4) return out;              // not enough of a season yet
+  if(entrants.length < 4){                         // not enough of a season yet
+    if(playable) out.yourResult = 'not played';
+    return out;
+  }
 
   const mean = entrants.reduce((a, e) =>
     a + (e.ratings.SRV + e.ratings.RET + e.ratings.SHOT + e.ratings.CONS) / 4, 0)
@@ -1336,6 +1496,12 @@ function runFinals(ev, rng, playable, field){
     const a = entrants[k * 2], b = entrants[k * 2 + 1];
     if(rng.random() < 0.5){ A.push(a); B.push(b); } else { B.push(a); A.push(b); }
   }
+  // An odd field has a player left over, and the loop above pairs two at a
+  // time: without this they sat in the field, seeded, and played nobody. The
+  // tour finals are always eight, but Next Gen's is an age cut-off and can come
+  // up short -- seven qualified in the first season this ran.
+  if(entrants.length % 2)
+    (A.length <= B.length ? A : B).push(entrants[entrants.length - 1]);
 
   // `pts` and `reach` accumulate across the whole week: a ranking takes ONE
   // result per tournament, and the finals pay five times over.
@@ -1348,8 +1514,9 @@ function runFinals(ev, rng, playable, field){
   // returns a winner and nothing else -- there would be no scoreline to count.
   function play(top, bottom, round){
     const pair = [top.name, bottom.name];
-    const played = simMatch(rng, top.player, bottom.player, pair, bestOf, fst, base);
+    const played = simMatch(rng, top.player, bottom.player, pair, bestOf, fst, base, opts);
     const wonByTop = played.winner === 0;
+    out.setLens.push(played.sets.map(st => st.games.length));
     const t = tally.get(top.name), b = tally.get(bottom.name);
     played.sets.forEach(st => {
       if(st.win === 0){ t.sw++; b.sl++; } else { b.sw++; t.sl++; }
@@ -1434,7 +1601,10 @@ function runFinals(ev, rng, playable, field){
   // Credited once each, now that the week is finished.
   entrants.forEach(e => {
     const t = tally.get(e.name);
-    credit(e.name, t.pts, t.reach === 'W', ev, t.reach, false, true);
+    // Next Gen pays nothing towards the ranking, so it is played and shown but
+    // never credited.
+    if(!NO_RANKING_POINTS.has(ev.level))
+      credit(e.name, t.pts, t.reach === 'W', ev, t.reach, false, true);
   });
 
   if(playable){
@@ -1446,8 +1616,11 @@ function runFinals(ev, rng, playable, field){
         : out.runnerUp === playable ? 'Runner-up'
         : out.yourMatches.some(m => m.round === 'SF') ? 'SF'
         : 'RR ' + t.mw + '\u2013' + t.ml;
-    } else out.yourResult = (state.hurt.get(playable) ?? -Infinity) > sdayOf(ev)
-        ? 'injured' : 'did not qualify';
+    } else {
+      const tooOld = fmt && (ageAtYearEnd(poolPlayer(playable)) ?? 99) > NEXTGEN_MAX_AGE;
+      out.yourResult = (state.hurt.get(playable) ?? -Infinity) > sdayOf(ev) ? 'injured'
+        : tooOld ? 'too old' : 'did not qualify';
+    }
   }
   return out;
 }
@@ -1486,6 +1659,92 @@ const SLOTS = {
   WTA: { majors: Infinity, mand: Infinity, float: 1, other: 5 },
 };
 const ATP_OPTIONAL_1000 = new Set(['Monte Carlo']);
+
+// ---- the veterans' exemption ----------------------------------------------
+// A player who was 31 at the end of LAST season is excused three of the eight
+// compulsory Masters. The excused slots are not lost: they are filled from the
+// best of everything else, so a 33-year-old who plays five Masters still counts
+// nineteen results where a 24-year-old who played five counts sixteen.
+//
+// It is an exemption from the RANKING PENALTY, not from playing: who enters
+// what is a wear gradient here rather than an obligation, so this changes the
+// arithmetic and not the schedule. The 500 quota is untouched -- that one is a
+// hard commitment in committedTo and the exemption does not reach it.
+//
+// "At the end of last season" is a whole year at 31 December, so it is a birth
+// year and never a birthday inside the season.
+const EXEMPT_AGE = 31;
+// How many compulsory 1000s each tour excuses. The ATP has eight of them and
+// excuses three; the WTA's compulsory class is the six combined events, so two
+// keeps the same share rather than handing a veteran half the calendar off.
+// Age is the only criterion on either tour because it is the only thing the
+// data supports: pro_year reaches 37% of the ATP top 250 and no WTA player at
+// all, and the match feed is a rolling twelve months, so years on tour and
+// career matches are not available to key off.
+const EXEMPT_COUNT = { ATP: 3, WTA: 2 };
+function ageAtLastYearEnd(p){
+  const a = ageAtYearEnd(p);
+  return a === null ? null : a - 1;
+}
+// How many of the compulsory Masters this player is excused, given how many
+// they actually missed: excusing three when they only missed one would hand
+// them two extra best-of slots nobody is entitled to.
+// How many exemptions this player still has in hand AT THIS POINT of the
+// season: three, less the compulsory Masters they have already let go by.
+// Which 1000s carry a compulsory slot, per tour: every Masters but Monte Carlo
+// on the ATP, the six combined events on the WTA.
+function isCompulsory1000(tour, ev){
+  if(!ev || !/1000$/.test(ev.level)) return false;
+  return tour === 'ATP' ? !ATP_OPTIONAL_1000.has(ev.name)
+       : tour === 'WTA' ? WTA_SLOTTED_1000.has(ev.name) : false;
+}
+const COMPULSORY_COUNT = {};
+function compulsoryCount(tour){
+  if(COMPULSORY_COUNT[tour] === undefined)
+    COMPULSORY_COUNT[tour] = (CALS[tour] || [])
+      .filter(e => !e.skip && isCompulsory1000(tour, e)).length;
+  return COMPULSORY_COUNT[tour];
+}
+function compulsoryBefore(tour, ev){
+  return (CALS[tour] || []).filter(e =>
+    !e.skip && isCompulsory1000(tour, e) && e.sday < ev.sday).length;
+}
+function exemptionsLeft(name, ev){
+  const tour = state.tour;
+  if(!ev || !EXEMPT_COUNT[tour]) return 0;
+  const age = ageAtLastYearEnd(poolPlayer(name, tour));
+  if(age === null || age < EXEMPT_AGE) return 0;
+  const r = state.table.get(name);
+  const played = r ? r.results.filter(g => g.slot === 'mand').length : 0;
+  const missed = Math.max(0, compulsoryBefore(tour, ev) - played);
+  return Math.max(0, EXEMPT_COUNT[tour] - missed);
+}
+// A compulsory Masters is normally almost immune to carried load -- that is
+// what WEAR_AT_MANDATORY is for, and it is why an older player's heavier load
+// barely changed their schedule. With an exemption in hand the event stops
+// being compulsory FOR THIS PLAYER, so load bites on it exactly as it does on
+// an optional event. It is the same threshold everyone else has for a 250; the
+// exemption does not make a fresh veteran skip anything.
+function mandatoryWear(name, ev){
+  // Only an event that actually carries a compulsory slot for this tour can be
+  // excused: Monte Carlo and the WTA's optional 1000s are already skippable
+  // without penalty, so there is nothing for an exemption to buy there.
+  if(!name || !isCompulsory1000(state.tour, ev)) return WEAR_AT_MANDATORY;
+  return exemptionsLeft(name, ev) > 0 ? WEAR_AT_EXCUSED : WEAR_AT_MANDATORY;
+}
+
+function excusedSlots(tour, name, playedMand){
+  // Gated HERE and not only where it is called: asked about a WTA player this
+  // used to answer "three", and the only thing standing between that and a
+  // wrong ranking was every caller remembering to check the tour first. The
+  // tour is passed in rather than read from the state because rankingBreakdown
+  // can be asked about either tour whatever the page is currently showing.
+  if(!EXEMPT_COUNT[tour]) return 0;
+  const age = ageAtLastYearEnd(poolPlayer(name, tour));
+  if(age === null || age < EXEMPT_AGE) return 0;
+  const missed = Math.max(0, compulsoryCount(tour) - playedMand);
+  return Math.min(EXEMPT_COUNT[tour], missed);
+}
 // The six combined events, one ranking slot each.
 const WTA_SLOTTED_1000 = new Set(
   ['Indian Wells', 'Miami', 'Madrid', 'Rome', 'Toronto', 'Beijing']);
@@ -1548,8 +1807,11 @@ function rankingBreakdown(r, tour){
   take(bucket.mand, S.mand, false);
   take(bucket.float, S.float, true);
 
+  // A veteran's excused Masters slots are filled from the best of the rest, so
+  // the pool grows by however many of them they are actually entitled to.
+  const excused = excusedSlots(tour, r.name, bucket.mand.length);
   pool.sort((a, b) => b.pts - a.pts);
-  pool.slice(0, S.other).forEach(g => counted.add(g));
+  pool.slice(0, S.other + excused).forEach(g => counted.add(g));
   let total = 0;
   counted.forEach(g => { total += g.pts; });
   return { counted, total };
@@ -1574,7 +1836,8 @@ function rankingPoints(r, tour){ return rankingBreakdown(r, tour).total; }
 // eventPayout that paid the champion F instead of W.
 function eventPayout(tour, ev){
   if(ev.format === 'rr')
-    return 12 * FINALS_POINTS.rr + 2 * FINALS_POINTS.sf + FINALS_POINTS.f;
+    return NO_RANKING_POINTS.has(ev.level) ? 0
+         : 12 * FINALS_POINTS.rr + 2 * FINALS_POINTS.sf + FINALS_POINTS.f;
   const tbl = pointsFor(tour, ev.level, ev.draw);
   const bracket = bracketFor(ev.draw), byes = bracket - ev.draw;
   const key = n => n >= 128 ? 'R128' : n >= 64 ? 'R64' : n >= 32 ? 'R32'
@@ -1763,7 +2026,9 @@ function ensureFields(idx){
   const list = cal(), ev0 = list[idx];
   if(!ev0 || ev0.skip) return;          // nothing to allocate for an event we do not play
   if(ev0.format === 'rr'){             // the finals take the eight best of the year
-    state.fields.set(idx, finalsField(ev0, state, state.playable));
+    state.fields.set(idx, ev0.level === NEXTGEN_LEVEL
+      ? nextGenField(ev0, state, state.playable)
+      : finalsField(ev0, state, state.playable));
     return;
   }
   const week = sweekOf(ev0);
@@ -2265,8 +2530,13 @@ function eventChips(ev, res){
   const rr = ev.format === 'rr';
   return [state.tour, ev.level, ev.surface.replace('_', ' '),
           rr ? 'round robin' : ev.draw ? ev.draw + ' draw' : null,
-          rr ? FINALS_FIELD + ' qualified'
+          // The count that actually turned up, not the eight the tour finals
+          // always have: Next Gen's field is an age cut-off and can come short.
+          rr ? ((res && res.groups && res.groups.length
+                 ? res.groups.reduce((n, g) => n + g.rows.length, 0)
+                 : FINALS_FIELD) + ' qualified')
              : res && res.seeds ? res.seeds + ' seeds' : null,
+          rr && NO_RANKING_POINTS.has(ev.level) ? 'no ranking points' : null,
           !rr && res && res.qualifiers ? res.qualifiers + ' qualifiers'
              : null].filter(Boolean);
 }
@@ -2400,13 +2670,22 @@ function openPlayer(name){
     + '</tbody></table>';
   // The counting rule is a footnote, not a headline: it is the same paragraph on
   // every player's card and it was pushing the results themselves down the page.
-  const rule = tour === 'ATP'
+  const excused = excusedSlots(tour, name,
+    r.results.filter(g => g.slot === 'mand').length);
+  // Same sentence on both tours, with each one's own numbers.
+  const veteran = excused
+    ? ' They were ' + EXEMPT_AGE + ' at the end of last season, so up to '
+      + EXEMPT_COUNT[tour] + ' compulsory 1000s are excused \u2014 ' + excused
+      + ' here, filled from the best of the rest instead of sitting as zeros.'
+      + (tour === 'ATP' ? ' The four ATP 500s are still owed.' : '')
+    : '';
+  const rule = (tour === 'ATP'
     ? 'Best 19: the four majors and eight compulsory Masters, plus the seven '
       + 'best of everything else. The finals are added on top as a twentieth.'
     : 'Best 16: the four majors, the six combined 1000s, the best of the three '
       + 'WTA-only 1000s, and the five best of everything else. A compulsory '
       + 'event owns its slot \u2014 skip one and a zero sits there all year. '
-      + 'The finals are added on top as a seventeenth.';
+      + 'The finals are added on top as a seventeenth.') + veteran;
   if(!played.length) body = '<p class="beat">No tournaments played yet.</p>';
   else body += '<p class="beat count">' + played.length + ' played, ' + counted.size
     + ' counting<button type="button" class="info" id="ruleinfo" aria-expanded="false"'
